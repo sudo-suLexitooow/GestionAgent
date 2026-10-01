@@ -175,8 +175,9 @@ describe("fichiers modifiés hors de Cadre entre l'import et l'enregistrement", 
 
   test("test_ac_077_1_une_conversion_crlf_en_lf_par_git_n_est_pas_une_modification", async () => {
     const { disque, enregistrer } = await projetImporte();
-    const lf = texte(new TextDecoder().decode(CLAUDE).replaceAll("\r\n", "\n"));
-    disque.modifierHorsCadre("CLAUDE.md", Uint8Array.of(0xef, 0xbb, 0xbf, ...lf.slice(3)));
+    // `ignoreBOM` : le BOM est gardé dans le texte décodé, donc réencodé.
+    const decode = new TextDecoder("utf-8", { ignoreBOM: true }).decode(CLAUDE);
+    disque.modifierHorsCadre("CLAUDE.md", texte(decode.replaceAll("\r\n", "\n")));
 
     expect(await enregistrer()).toEqual({ ok: true });
     // Le contenu enregistré reste celui qui a été importé.

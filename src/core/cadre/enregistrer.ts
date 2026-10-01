@@ -8,9 +8,16 @@ import {
 import { serialiserCadre, type CadreYaml } from "./cadre-yaml";
 import { completerGitignore } from "./gitignore";
 
+/**
+ * Codes d'erreur d'enregistrement : ceux du système de fichiers (AC-005-6), plus les refus décidés
+ * avant toute écriture (US-077) : `SOURCE_MODIFIEE` (un fichier importé a changé depuis l'import,
+ * détail = son chemin) et `MODELE_EXISTANT` (un modèle `.cadre/` est apparu entre-temps).
+ */
+export type CodeErreurEnregistrement = CodeErreurFichiers | "SOURCE_MODIFIEE" | "MODELE_EXISTANT";
+
 /** Erreur d'enregistrement : code stable (libellé dans `src/ui/i18n/`, AC-005-6) et détail. */
 export interface ErreurEnregistrement {
-  code: CodeErreurFichiers;
+  code: CodeErreurEnregistrement;
   /** Détail technique (journal, rapport de bogue). */
   detail: string;
 }
@@ -21,27 +28,39 @@ export type ResultatEnregistrement = { ok: true } | { ok: false; erreur: ErreurE
  * Écrit `.cadre/cadre.yaml` et, dans un projet Git, complète le `.gitignore` racine :
  * le tout en une seule transaction (tout ou rien).
  */
-export async function enregistrerCadre(
+export function enregistrerCadre(
   fs: SystemeFichiersProjet,
   racine: string,
   cadre: CadreYaml,
 ): Promise<ResultatEnregistrement> {
+  return enregistrerFichiers(fs, racine, [
+    { chemin: ".cadre/cadre.yaml", contenu: serialiserCadre(cadre) },
+  ]);
+}
+
+/**
+ * Écrit `fichiers` et, dans un projet Git, complète le `.gitignore` racine : le tout en une seule
+ * transaction (tout ou rien), seul chemin d'écriture du projet (US-005).
+ */
+export async function enregistrerFichiers(
+  fs: SystemeFichiersProjet,
+  racine: string,
+  fichiers: readonly FichierAEcrire[],
+): Promise<ResultatEnregistrement> {
   try {
-    const fichiers: FichierAEcrire[] = [
-      { chemin: ".cadre/cadre.yaml", contenu: serialiserCadre(cadre) },
-    ];
+    const lot = [...fichiers];
     if (await fs.estDansUnDepotGit(racine)) {
       const gitignore = completerGitignore(await fs.lireTexte(racine, ".gitignore"));
-      if (gitignore !== null) fichiers.push({ chemin: ".gitignore", contenu: gitignore });
+      if (gitignore !== null) lot.push({ chemin: ".gitignore", contenu: gitignore });
     }
-    await fs.ecrireTransaction(racine, fichiers);
+    await fs.ecrireTransaction(racine, lot);
     return { ok: true };
   } catch (erreur) {
     return { ok: false, erreur: versErreurEnregistrement(erreur) };
   }
 }
 
-function versErreurEnregistrement(erreur: unknown): ErreurEnregistrement {
+export function versErreurEnregistrement(erreur: unknown): ErreurEnregistrement {
   if (erreur instanceof ErreurSystemeFichiers) {
     return { code: erreur.code, detail: erreur.detail };
   }
