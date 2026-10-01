@@ -34,6 +34,7 @@ impl From<ErreurEcriture> for ErreurDto {
             ErreurEcriture::CheminInvalide(detail) => ("CHEMIN_INVALIDE", detail),
             ErreurEcriture::RecuperationImpossible(detail) => ("RECUPERATION_IMPOSSIBLE", detail),
             ErreurEcriture::AnnulationIncomplete(detail) => ("ANNULATION_INCOMPLETE", detail),
+            ErreurEcriture::ProjetOccupe => ("PROJET_OCCUPE", String::new()),
             ErreurEcriture::Autre(detail) => ("ECHEC", detail),
         };
         ErreurDto {

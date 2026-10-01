@@ -25,6 +25,8 @@ fn lire(racine: &Path, chemin: &str) -> Option<String> {
 }
 
 /// Fichiers restant dans `.cadre/tmp/` (vide ou absent = aucun temporaire résiduel).
+/// Le fichier de verrou `.cadre/tmp/verrou` (revue A, point 5) est permanent : ce n'est pas
+/// un temporaire, il n'est pas compté.
 fn temporaires(racine: &Path) -> Vec<String> {
     let mut noms = Vec::new();
     let mut a_visiter = vec![racine.join(".cadre/tmp")];
@@ -34,6 +36,9 @@ fn temporaires(racine: &Path) -> Vec<String> {
         };
         for entree in entrees {
             let chemin = entree.unwrap().path();
+            if chemin == racine.join(".cadre/tmp/verrou") {
+                continue;
+            }
             noms.push(chemin.display().to_string());
             if chemin.is_dir() {
                 a_visiter.push(chemin);
@@ -1068,6 +1073,76 @@ mod pannes_pendant_l_annulation {
 
         assert_projet_inchange(racine);
         assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+}
+
+/// Revue A, point 5 : un verrou de fichier exclusif empêche deux instances de Cadre
+/// d'écrire ou de récupérer en même temps dans le même projet.
+mod verrou_du_projet {
+    use super::*;
+    use cadre_lib::fs_atomique::ErreurEcriture;
+    use std::cell::RefCell;
+
+    /// Pendant la transaction de « A », une seconde instance « B » tente d'écrire puis de
+    /// récupérer dans le même projet.
+    struct InstanceConcurrenteA<'a> {
+        etape: Etape,
+        racine: &'a Path,
+        resultats: RefCell<Vec<Result<(), ErreurEcriture>>>,
+    }
+
+    impl PointsDeControle for InstanceConcurrenteA<'_> {
+        fn atteint(&self, etape: Etape) -> io::Result<()> {
+            if etape == self.etape {
+                let b = [FichierAEcrire::new("CLAUDE.md", "écrit par B")];
+                self.resultats
+                    .borrow_mut()
+                    .push(ecrire_fichiers(self.racine, &b));
+                self.resultats.borrow_mut().push(recuperer(self.racine));
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_ac_005_3_seconde_instance_refusee_pendant_un_enregistrement() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        let a = InstanceConcurrenteA {
+            etape: Etape::FichierRemplace(1),
+            racine,
+            resultats: RefCell::new(Vec::new()),
+        };
+
+        ecrire_fichiers_avec(racine, &fichiers, &a).expect("A réussit");
+
+        let resultats = a.resultats.into_inner();
+        assert_eq!(resultats.len(), 2);
+        for resultat in &resultats {
+            assert!(
+                matches!(resultat, Err(ErreurEcriture::ProjetOccupe)),
+                "{resultat:?}"
+            );
+        }
+        assert_eq!(lire(racine, "CLAUDE.md"), None);
+        assert_eq!(
+            lire(racine, ".cadre/agents/frontend.yaml").as_deref(),
+            Some("name: frontend\n")
+        );
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_3_verrou_libere_apres_un_arret_brutal() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::FichierRemplace(0));
+
+        ecrire_fichiers(racine, &[FichierAEcrire::new("CLAUDE.md", "# P\n")])
+            .expect("le verrou a été libéré");
+
+        assert_projet_inchange(racine);
+        assert_eq!(lire(racine, "CLAUDE.md").as_deref(), Some("# P\n"));
     }
 }
 

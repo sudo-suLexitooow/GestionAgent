@@ -92,6 +92,8 @@ pub enum ErreurEcriture {
     /// L'enregistrement a échoué et son annulation aussi : des fichiers peuvent être
     /// modifiés ; la récupération suivante termine l'annulation.
     AnnulationIncomplete(String),
+    /// Une autre instance de Cadre écrit ou récupère déjà dans ce projet.
+    ProjetOccupe,
     Autre(String),
 }
 
