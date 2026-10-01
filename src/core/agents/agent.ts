@@ -1,5 +1,6 @@
 // Création d'un agent du modèle `.cadre/` (US-007, ADR-001 D3).
 import { stringify } from "yaml";
+import { CARACTERES_INTERDITS, NOMS_RESERVES } from "../fichiers/nom-portable";
 import type { FichierAEcrire } from "../fichiers/systeme-fichiers";
 import schemaCadre from "../schemas/v1/cadre.json";
 
@@ -41,11 +42,6 @@ export type ResultatCreation =
   | { ok: true; agent: AgentNouveau; avertissements: AvertissementAgent[] }
   | { ok: false; refus: RefusCreation };
 
-/** Caractères interdits dans un nom de fichier sous Windows ou macOS, et caractères de contrôle. */
-// eslint-disable-next-line no-control-regex
-const CARACTERES_INTERDITS = /[<>:"/\\|?*\u0000-\u001f]/u;
-/** Noms réservés Windows, quelle que soit la casse, avec ou sans extension (R1). */
-const NOMS_RESERVES = /^(CON|PRN|AUX|NUL|COM[0-9¹²³]|LPT[0-9¹²³])(\..*)?$/iu;
 const NOM_CADRE = new RegExp(schemaCadre.$defs.cadreName.pattern, "u");
 
 /**
