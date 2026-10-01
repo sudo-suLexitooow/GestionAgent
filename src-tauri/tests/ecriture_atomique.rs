@@ -547,9 +547,14 @@ mod disque_plein_ou_lecture_seule {
     #[cfg(unix)]
     #[test]
     fn test_ac_005_6_dossier_reellement_en_lecture_seule_erreur_claire_et_fichiers_inchanges() {
-        use std::os::unix::fs::PermissionsExt;
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
         let (dossier, fichiers) = projet_existant();
         let racine = dossier.path();
+        let proprietaire = fs::metadata(racine.join(".gitignore")).unwrap().uid();
+        assert_ne!(
+            proprietaire, 0,
+            "précondition : lancer ce test sans droits root (root ignore les droits Unix)"
+        );
         let dossiers = [racine.join(".cadre"), racine.to_path_buf()];
         for chemin in &dossiers {
             fs::set_permissions(chemin, fs::Permissions::from_mode(0o555)).unwrap();
