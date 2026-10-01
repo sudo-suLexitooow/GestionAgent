@@ -26,14 +26,31 @@ const ACCES_DISQUE: [&str; 11] = [
     ".read_link(",
 ];
 
+/// Code de production seulement : coupe au module de tests unitaires (`#[cfg(test)]` suivi
+/// de `mod tests`), qui prépare ses dossiers avec `std::fs`.
+fn code_de_production(source: &str) -> String {
+    source
+        .split("#[cfg(test)]\nmod tests")
+        .next()
+        .unwrap_or_default()
+        .to_owned()
+}
+
+/// Sous Windows, le checkout Git peut convertir les fins de ligne en CRLF.
+#[test]
+fn test_securite_decoupage_du_module_de_tests_independant_des_fins_de_ligne() {
+    let source = "fn prod() {}\r\n\r\n#[cfg(test)]\r\nmod tests {\r\n    use std::fs;\r\n}\r\n";
+
+    let production = code_de_production(source);
+
+    assert!(production.contains("fn prod()"), "{production:?}");
+    assert!(!production.contains("std::fs"), "{production:?}");
+}
+
 #[test]
 fn test_securite_aucun_acces_fichier_hors_de_la_resolution_sure() {
     for (fichier, source) in MODULES_SANS_ACCES_DIRECT {
-        // Code de production seulement : le module de tests unitaires prépare ses dossiers.
-        let production = source
-            .split("#[cfg(test)]\nmod tests")
-            .next()
-            .unwrap_or_default();
+        let production = code_de_production(source);
         let appels: Vec<(usize, &str)> = production
             .lines()
             .enumerate()
