@@ -20,6 +20,11 @@ const fr = {
   "contexts.type.architecture": "Architecture",
   "contexts.type.autre": "Autre",
   "contexts.readonly": "lecture seule",
+  "contexts.warning.encoding":
+    "encodage non supporté (le fichier n'est pas en UTF-8) ; son contenu est importé tel quel.",
+  "contexts.warning.unreadable": "le fichier ne peut pas être lu ; il n'est pas importé.",
+  "contexts.warning.too-large":
+    "le fichier dépasse la taille maximale de 8 Mio ; il n'est pas importé.",
   "contexts.unsaved":
     "Non enregistré : les contextes importés ne sont pas encore écrits dans le dossier .cadre/.",
   "skills.title": "Skills",

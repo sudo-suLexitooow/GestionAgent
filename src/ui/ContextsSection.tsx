@@ -88,6 +88,11 @@ export function ContextsSection({ root, files, adapter }: ContextsSectionProps) 
               <li key={context.entry.name}>{describe(context)}</li>
             ))}
           </ul>
+          {state.result.warnings.map((warning) => (
+            <p key={warning.source} role="alert">
+              {warning.source} : {t(`contexts.warning.${warning.code}`)}
+            </p>
+          ))}
           <p>{t("contexts.unsaved")}</p>
         </>
       )}
