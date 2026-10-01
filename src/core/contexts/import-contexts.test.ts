@@ -33,4 +33,10 @@ describe("détection des fichiers de contexte à importer", () => {
 
     expect(detected).toEqual([]);
   });
+
+  test("test_ac_003_1_un_dossier_claude_md_ou_un_fichier_hors_racine_n_est_pas_detecte", async () => {
+    const detected = await detect({ "CLAUDE.md/notes.md": "x", "docs/AGENTS.md": "# Agents\n" });
+
+    expect(detected).toEqual([]);
+  });
 });
