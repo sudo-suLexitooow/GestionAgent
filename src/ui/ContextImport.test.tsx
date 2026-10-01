@@ -97,6 +97,45 @@ describe("avertissements d'import des contextes", () => {
   });
 });
 
+describe("import accepté : fichiers d'origine", () => {
+  test("test_ac_003_4_un_claude_md_vide_donne_un_contexte_vide_sans_avertissement", async () => {
+    await openProject(new InMemoryProjectFiles(ROOT, { "CLAUDE.md": new Uint8Array(0) }));
+    const section = await contextsSection();
+
+    fireEvent.click(within(section).getByRole("button", { name: "Importer" }));
+
+    expect(await within(section).findByText(/Non enregistré/)).toBeInTheDocument();
+    expect(
+      within(section)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["CLAUDE.md — Projet"]);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  test("test_ac_003_5_apres_import_les_fichiers_d_origine_sont_inchanges_et_seulement_lus", async () => {
+    const claude = Uint8Array.of(0xef, 0xbb, 0xbf, 0x23, 0x20, 0x50, 0x0d, 0x0a);
+    const agents = new TextEncoder().encode("# Agents\n");
+    const disk = new InMemoryProjectFiles(ROOT, { "CLAUDE.md": claude, "AGENTS.md": agents });
+    const before = { claude: claude.slice(), agents: agents.slice() };
+    const recorded = recordingProjectFiles(disk);
+    await openProject(recorded.files);
+    const section = await contextsSection();
+
+    fireEvent.click(within(section).getByRole("button", { name: "Importer" }));
+    await within(section).findByText(/Non enregistré/);
+    await settle();
+
+    expect(await disk.readFile(ROOT, "CLAUDE.md")).toEqual(before.claude);
+    expect(await disk.readFile(ROOT, "AGENTS.md")).toEqual(before.agents);
+    expect((await disk.listDir(ROOT, ""))?.map((entry) => entry.name).sort()).toEqual([
+      "AGENTS.md",
+      "CLAUDE.md",
+    ]);
+    expect([...recorded.used].every((member) => READ_ONLY.has(member))).toBe(true);
+  });
+});
+
 describe("échec de lecture pendant la détection des contextes", () => {
   test("test_ac_003_1_une_racine_illisible_ne_propose_rien_et_ne_plante_pas", async () => {
     const unhandled: unknown[] = [];
