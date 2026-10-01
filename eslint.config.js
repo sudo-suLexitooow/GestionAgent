@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
+import vitest from "@vitest/eslint-plugin";
 
 export default tseslint.config(
   { ignores: ["dist", "coverage", "src-tauri/target", "src-tauri/gen"] },
@@ -15,17 +16,23 @@ export default tseslint.config(
     plugins: { "react-hooks": reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      // Interdit les tests focalisés ou sautés (règle TDD n°4) : vérifié aussi en CI.
+    },
+  },
+  {
+    // Interdit les tests focalisés ou désactivés (règle TDD n°4) ; doublé par `npm run check:tdd`.
+    files: ["src/**/*.test.{ts,tsx}", "tests/**/*.{ts,tsx}"],
+    plugins: { vitest },
+    rules: {
+      "vitest/no-focused-tests": "error",
+      "vitest/no-disabled-tests": "error",
+      // Formes conditionnelles ou en attente que le plugin ne couvre pas.
       "no-restricted-properties": [
         "error",
-        { object: "it", property: "only" },
-        { object: "it", property: "skip" },
-        { object: "test", property: "only" },
-        { object: "test", property: "skip" },
-        { object: "describe", property: "only" },
-        { object: "describe", property: "skip" },
+        ...["it", "test", "describe"].flatMap((object) =>
+          ["skipIf", "runIf", "todo"].map((property) => ({ object, property })),
+        ),
       ],
     },
   },
-  { files: ["**/*.js"], ...tseslint.configs.disableTypeChecked },
+  { files: ["**/*.js", "**/*.mjs"], ...tseslint.configs.disableTypeChecked },
 );

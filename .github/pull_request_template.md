@@ -25,4 +25,6 @@ Oui / Non — si oui, laquelle (relecture humaine requise, porte 3)
 - [ ] Lint et typage sans erreur
 - [ ] Revue `relecteur` sans point bloquant
 - [ ] Relecture humaine faite si zone sensible
+- [ ] Aucune régression connue
 - [ ] Wiki à jour
+- [ ] Mergé dans la branche principale (après revue)

@@ -6,6 +6,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -21,11 +24,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Interdits TDD (skip / only / ignore)
-        run: |
-          if grep -rnE '\b(it|test|describe)\.(only|skip)\b|#\[ignore\]' src tests src-tauri/src; then
-            echo "::error::Test sauté ou focalisé détecté (règle TDD n°4)"; exit 1
-          fi
+      - run: npm run check:tdd
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:coverage

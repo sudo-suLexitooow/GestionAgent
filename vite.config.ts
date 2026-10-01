@@ -23,9 +23,9 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "lcov"],
       // Cœur : modèle, adaptateurs, validation, diff (NF-18).
-      include: ["src/core/**/*.ts"],
-      exclude: ["src/core/**/*.test.ts"],
-      thresholds: { lines: 70, functions: 70, branches: 70, statements: 70 },
+      include: ["src/core/**/*.{ts,tsx}"],
+      exclude: ["src/core/**/*.test.{ts,tsx}"],
+      thresholds: { lines: 70, functions: 70, branches: 70, statements: 70, perFile: true },
     },
   },
 });
