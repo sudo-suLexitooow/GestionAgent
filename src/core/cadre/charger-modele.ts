@@ -17,7 +17,8 @@ export type CodeErreurModele =
   | "YAML_DUPLICATE_KEY"
   | "SCHEMA"
   | "UNREADABLE"
-  | "TOO_LARGE";
+  | "TOO_LARGE"
+  | "LINK";
 
 /** Erreur d'un fichier du modèle : chemin relatif au projet et, si connue, ligne (1 = première). */
 export interface ErreurFichierModele {
@@ -59,6 +60,12 @@ export type ChargementModele =
   | { etat: "incomplet"; erreur: ErreurFichierModele }
   | { etat: "charge"; lectureSeule: boolean; modele: ModeleCadre };
 
+const CODES_LECTURE = {
+  unreadable: "UNREADABLE",
+  "too-large": "TOO_LARGE",
+  link: "LINK",
+} as const satisfies Record<ReturnType<typeof readFailureReason>, CodeErreurModele>;
+
 const CADRE_YAML = ".cadre/cadre.yaml";
 const DOSSIER_AGENTS = ".cadre/agents";
 const NOM_CADRE = new RegExp(schemaCadre.$defs.cadreName.pattern, "u");
@@ -97,7 +104,11 @@ function formatPlusRecent(donnees: unknown): boolean {
 async function chargerAgents(files: ProjectFiles, root: string): Promise<AgentCharge[]> {
   const entrees = (await files.listDir(root, DOSSIER_AGENTS)) ?? [];
   const noms = entrees
-    .filter((entree) => entree.kind === "file" && entree.name.endsWith(".yaml"))
+    // Un lien n'est jamais suivi (US-076) : il est listé pour être signalé en erreur.
+    .filter(
+      (entree) =>
+        (entree.kind === "file" || entree.kind === "link") && entree.name.endsWith(".yaml"),
+    )
     .map((entree) => entree.name.slice(0, -".yaml".length))
     .sort();
   return Promise.all(noms.map((nom) => chargerAgent(files, root, nom)));
@@ -160,7 +171,7 @@ async function lireOctets(
   try {
     return { ok: true, octets: await files.readFile(root, fichier) };
   } catch (erreur) {
-    const code = readFailureReason(erreur) === "too-large" ? "TOO_LARGE" : "UNREADABLE";
+    const code = CODES_LECTURE[readFailureReason(erreur)];
     return { ok: false, erreur: { fichier, code } };
   }
 }

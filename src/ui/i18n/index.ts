@@ -51,6 +51,7 @@ const fr = {
   "model.error.SCHEMA": "non conforme au format .cadre/ v1",
   "model.error.UNREADABLE": "le fichier ne peut pas être lu",
   "model.error.TOO_LARGE": "le fichier dépasse la taille maximale de 8 Mio",
+  "model.error.LINK": "le fichier est un lien symbolique ou une jonction, que Cadre ne suit pas",
   "skills.title": "Skills",
   "skills.none": "Aucune skill détectée.",
   "skills.failed": "Les skills n'ont pas pu être lues.",
