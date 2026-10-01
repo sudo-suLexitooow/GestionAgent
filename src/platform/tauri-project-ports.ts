@@ -27,6 +27,10 @@ export const tauriDropSource: DropSource = {
 
 /** Lecture seule du projet par les commandes `list_project_dir` et `read_project_file`. */
 export const tauriProjectFiles: ProjectFiles = {
-  listDir: () => Promise.resolve<DirEntry[] | null>([]),
-  readFile: () => Promise.resolve<Uint8Array | null>(new Uint8Array()),
+  listDir: (root, path) => invoke<DirEntry[] | null>("list_project_dir", { root, path }),
+  // Les octets arrivent en tableau JSON de nombres (`Vec<u8>` côté Rust).
+  readFile: async (root, path) => {
+    const bytes = await invoke<number[] | null>("read_project_file", { root, path });
+    return bytes === null ? null : Uint8Array.from(bytes);
+  },
 };
