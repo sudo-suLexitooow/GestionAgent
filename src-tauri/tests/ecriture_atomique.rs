@@ -288,6 +288,172 @@ mod erreur_avant_remplacement {
     }
 }
 
+mod version_precedente {
+    use super::*;
+    use serde_json::Value;
+    use sha2::{Digest, Sha256};
+
+    fn sha256(texte: &str) -> String {
+        Sha256::digest(texte.as_bytes())
+            .iter()
+            .map(|octet| format!("{octet:02x}"))
+            .collect()
+    }
+
+    /// `.cadre/backups/index.yaml` est écrit en JSON, sous-ensemble valide de YAML 1.2.
+    fn index(racine: &Path) -> Value {
+        let texte = lire(racine, ".cadre/backups/index.yaml").expect("index.yaml présent");
+        serde_json::from_str(&texte).expect("index.yaml lisible")
+    }
+
+    fn entree_index(racine: &Path, chemin: &str) -> Value {
+        index(racine)["files"]
+            .as_array()
+            .expect("liste files")
+            .iter()
+            .find(|entree| entree["path"] == chemin)
+            .cloned()
+            .unwrap_or_else(|| panic!("{chemin} absent de l'index"))
+    }
+
+    #[test]
+    fn test_ac_005_5_version_precedente_conservee_dans_cadre_backups() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+
+        ecrire_fichiers(racine, &fichiers).expect("écriture");
+
+        assert_eq!(
+            lire(racine, ".cadre/backups/.cadre/cadre.yaml").as_deref(),
+            Some("schema_version: 1 # retouché à la main\n")
+        );
+        assert_eq!(
+            lire(racine, ".cadre/backups/.gitignore").as_deref(),
+            Some("node_modules\r\n# perso\r\n")
+        );
+        assert_eq!(lire(racine, ".cadre/backups/.cadre/agents/frontend.yaml"), None);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_5_index_note_empreintes_precedente_et_ecrite_et_date() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+
+        ecrire_fichiers(racine, &fichiers).expect("écriture");
+
+        let remplace = entree_index(racine, ".cadre/cadre.yaml");
+        assert_eq!(
+            remplace["previous_sha256"],
+            sha256("schema_version: 1 # retouché à la main\n")
+        );
+        assert_eq!(remplace["written_sha256"], sha256("schema_version: 1\n"));
+        let date = remplace["date"].as_str().expect("date");
+        assert!(
+            humantime::parse_rfc3339(date).is_ok(),
+            "date RFC 3339 : {date}"
+        );
+
+        let cree = entree_index(racine, ".cadre/agents/frontend.yaml");
+        assert_eq!(cree.get("previous_sha256"), None);
+        assert_eq!(cree["written_sha256"], sha256("name: frontend\n"));
+    }
+
+    #[test]
+    fn test_ac_005_5_une_seule_version_precedente_la_derniere() {
+        let dossier = projet();
+        let racine = dossier.path();
+        for version in ["v1\n", "v2\n", "v3\n"] {
+            ecrire_fichiers(racine, &[FichierAEcrire::new(".cadre/cadre.yaml", version)])
+                .expect("écriture");
+        }
+
+        assert_eq!(
+            lire(racine, ".cadre/backups/.cadre/cadre.yaml").as_deref(),
+            Some("v2\n")
+        );
+        assert_eq!(
+            entree_index(racine, ".cadre/cadre.yaml")["previous_sha256"],
+            sha256("v2\n")
+        );
+        assert_eq!(index(racine)["files"].as_array().map(Vec::len), Some(1));
+    }
+
+    #[test]
+    fn test_ac_005_5_echec_ne_touche_pas_aux_sauvegardes() {
+        let dossier = projet();
+        let racine = dossier.path();
+        for version in ["v1\n", "v2\n"] {
+            ecrire_fichiers(racine, &[FichierAEcrire::new(".cadre/cadre.yaml", version)])
+                .expect("écriture");
+        }
+        let index_avant = lire(racine, ".cadre/backups/index.yaml");
+
+        let resultat = ecrire_fichiers_avec(
+            racine,
+            &[FichierAEcrire::new(".cadre/cadre.yaml", "v3\n")],
+            &ErreurA(Etape::FichierRemplace(0)),
+        );
+
+        assert!(resultat.is_err());
+        assert_eq!(lire(racine, ".cadre/cadre.yaml").as_deref(), Some("v2\n"));
+        assert_eq!(
+            lire(racine, ".cadre/backups/.cadre/cadre.yaml").as_deref(),
+            Some("v1\n")
+        );
+        assert!(index_avant.is_some());
+        assert_eq!(lire(racine, ".cadre/backups/index.yaml"), index_avant);
+    }
+
+    #[test]
+    fn test_ac_005_5_arret_apres_validation_sauvegardes_terminees_au_demarrage() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::TransactionValidee);
+
+        recuperer(racine).expect("récupération");
+
+        assert_eq!(
+            lire(racine, ".cadre/cadre.yaml").as_deref(),
+            Some("schema_version: 1\n")
+        );
+        assert_eq!(
+            lire(racine, ".cadre/backups/.cadre/cadre.yaml").as_deref(),
+            Some("schema_version: 1 # retouché à la main\n")
+        );
+        assert_eq!(
+            entree_index(racine, ".gitignore")["previous_sha256"],
+            sha256("node_modules\r\n# perso\r\n")
+        );
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_5_erreur_apres_validation_enregistrement_reussi_sauvegardes_au_demarrage() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+
+        ecrire_fichiers_avec(racine, &fichiers, &ErreurA(Etape::TransactionValidee))
+            .expect("les fichiers sont écrits : l'enregistrement a réussi");
+        assert_eq!(
+            lire(racine, ".cadre/agents/frontend.yaml").as_deref(),
+            Some("name: frontend\n")
+        );
+
+        recuperer(racine).expect("récupération");
+
+        assert_eq!(
+            lire(racine, ".cadre/agents/frontend.yaml").as_deref(),
+            Some("name: frontend\n")
+        );
+        assert_eq!(
+            lire(racine, ".cadre/backups/.gitignore").as_deref(),
+            Some("node_modules\r\n# perso\r\n")
+        );
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+}
+
 mod transaction_reussie {
     use super::*;
 
