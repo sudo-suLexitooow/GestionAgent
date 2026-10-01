@@ -9,10 +9,11 @@ import { enregistrerCadrage } from "../core/cadre/enregistrer-cadrage";
 import type { AgentNouveau } from "../core/agents/agent";
 import type { ImportedContext } from "../core/contexts/context";
 import type { ProjetImporte } from "../core/import/importer-projet";
-import type { ImportedSkill } from "../core/skills/import-skills";
+import type { ImportedSkill, SkillImportFailure } from "../core/skills/import-skills";
 import type { SystemeFichiersProjet } from "../core/fichiers/systeme-fichiers";
 import { SystemeFichiersTauri } from "../platform/systeme-fichiers-tauri";
 import { SaveBar } from "./SaveBar";
+import { SkillFailures } from "./SkillFailures";
 import { VERSION_CADRE } from "./version";
 import {
   openFromDrop,
@@ -133,6 +134,8 @@ function ProjectScreen({
   const [nouveaux, setNouveaux] = useState<AgentNouveau[]>([]);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<ErreurEnregistrement | null>(null);
+  /** Skills de l'outil non copiées dans le modèle créé au dernier enregistrement (US-004). */
+  const [nonImportees, setNonImportees] = useState<readonly SkillImportFailure[]>([]);
   // Garde synchrone : deux clics avant le rendu suivant ne lancent qu'un enregistrement.
   const enregistrementEnCours = useRef(false);
 
@@ -145,19 +148,21 @@ function ProjectScreen({
 
   async function enregistrer(
     contextes: readonly ImportedContext[],
-    skills: readonly ImportedSkill[],
+    /** Absentes si l'import n'a pas été demandé : le cœur les importe en créant le modèle. */
+    skills: readonly ImportedSkill[] | undefined,
   ) {
     if (enregistrementEnCours.current) return;
     enregistrementEnCours.current = true;
     setEnCours(true);
     setErreur(null);
+    setNonImportees([]);
     const agents = nouveaux;
     let resultat: ResultatEnregistrement;
     try {
       resultat = await enregistrerCadrage(
         { fichiers: files, systeme },
         project.path,
-        { contextes, agents, skills },
+        skills === undefined ? { contextes, agents } : { contextes, agents, skills },
         { adapter: claudeCodeAdapter, generatorVersion: VERSION_CADRE },
       );
     } catch (exception) {
@@ -168,6 +173,7 @@ function ProjectScreen({
       setEnCours(false);
     }
     if (!resultat.ok) setErreur(resultat.erreur);
+    else setNonImportees(resultat.skillsNonImportees ?? []);
     // Succès, ou refus qui rend l'import caduc : le projet est relu (modèle ou nouvel import).
     if (resultat.ok) setNouveaux((actuels) => actuels.filter((agent) => !agents.includes(agent)));
     if (resultat.ok || REFUS_A_RELIRE.has(resultat.erreur.code)) {
@@ -182,8 +188,8 @@ function ProjectScreen({
   }
 
   const contextes = importe?.contexts ?? [];
-  const skills = importe?.skills.skills ?? [];
-  const modifie = contextes.length > 0 || skills.length > 0 || nouveaux.length > 0;
+  const skills = importe?.skills.skills;
+  const modifie = contextes.length > 0 || (skills?.length ?? 0) > 0 || nouveaux.length > 0;
   return (
     <main>
       <h1>{project.name}</h1>
@@ -210,6 +216,7 @@ function ProjectScreen({
           if (modifie) void enregistrer(contextes, skills);
         }}
       />
+      <SkillFailures failures={nonImportees} />
       <ModelSection
         key={`m${String(lecture)}-${String(lectureModele)}`}
         root={project.path}

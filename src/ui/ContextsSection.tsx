@@ -9,6 +9,7 @@ import {
 } from "../core/import/importer-projet";
 import type { ProjectFiles } from "../core/project/ports";
 import { t } from "./i18n";
+import { SkillFailures } from "./SkillFailures";
 
 /** `hidden` : rien à proposer, racine illisible, ou import refusé (plus reproposé dans la session). */
 type State =
@@ -125,12 +126,7 @@ function Imported({ result }: { result: ProjetImporte }) {
       {result.skills.skills.length > 0 && (
         <p>{`${t("import.skills.imported")} : ${String(result.skills.skills.length)}`}</p>
       )}
-      {result.skills.failures.map((failure) => (
-        <p key={failure.folder} role="alert">
-          {failure.path} : {t(`import.skills.failure.${failure.code}`)} ;{" "}
-          {t("import.skills.notImported").replace("{nom}", failure.folder)}
-        </p>
-      ))}
+      <SkillFailures failures={result.skills.failures} />
       <p>{t("contexts.unsaved")}</p>
     </>
   );
