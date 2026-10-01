@@ -43,6 +43,23 @@ describe("import de CLAUDE.md et AGENTS.md depuis l'écran principal", () => {
     expect(screen.queryByRole("region", { name: "Contextes" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Importer" })).not.toBeInTheDocument();
   });
+
+  test("test_ac_003_2_accepter_affiche_un_contexte_par_fichier_non_enregistre", async () => {
+    await openProject(
+      new InMemoryProjectFiles(ROOT, { "CLAUDE.md": "# Projet\r\n", "AGENTS.md": "# Agents\n" }),
+    );
+    const section = await contextsSection();
+
+    fireEvent.click(within(section).getByRole("button", { name: "Importer" }));
+
+    expect(await within(section).findByText(/Non enregistré/)).toBeInTheDocument();
+    const contexts = within(section).getAllByRole("listitem");
+    expect(contexts.map((item) => item.textContent)).toEqual([
+      "CLAUDE.md — Projet",
+      "AGENTS.md — Autre — lecture seule",
+    ]);
+    expect(within(section).queryByRole("button", { name: "Importer" })).not.toBeInTheDocument();
+  });
 });
 
 /** Laisse se terminer les lectures en cours du faux projet. */
