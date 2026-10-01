@@ -156,6 +156,16 @@ describe("enregistrement d'un agent créé (US-007)", () => {
     });
   });
 
+  test("test_ac_007_3_deux_agents_non_enregistres_du_meme_nom_casse_ignoree_refuses_sans_rien_ecrire", async () => {
+    const disque = new DisqueMemoire(RACINE, { ".cadre/cadre.yaml": CADRE });
+
+    expect(await enregistrer(disque, [agent(), agent({ nom: "Frontend" })])).toEqual({
+      ok: false,
+      erreur: { code: "AGENT_EXISTANT", detail: "Frontend" },
+    });
+    expect(disque.transactions).toEqual([]);
+  });
+
   test("test_ac_007_1_un_agent_existant_d_un_autre_nom_ne_bloque_pas", async () => {
     const disque = new DisqueMemoire(RACINE, {
       ".cadre/cadre.yaml": CADRE,

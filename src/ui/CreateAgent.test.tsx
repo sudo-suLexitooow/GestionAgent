@@ -144,6 +144,45 @@ describe("créer un agent depuis l'écran principal (US-007)", () => {
     expect(within(formulaire()).getByRole("status").textContent).toMatch(/description manquante/);
   });
 
+  test("test_ac_007_3_agent_apparu_sur_le_disque_relu_et_agent_non_enregistre_retirable", async () => {
+    const disque = new DisqueMemoire(ROOT, { ".cadre/cadre.yaml": CADRE });
+    await ouvrir(disque);
+    await waitFor(() => {
+      expect(boutonCreer()).toBeEnabled();
+    });
+    creer({ nom: "frontend" });
+    creer({ nom: "backend" });
+    disque.modifierHorsCadre(
+      ".cadre/agents/Frontend.yaml",
+      FRONTEND.replace("name: frontend", "name: Frontend"),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    const alerte = await screen.findByRole("alert", { name: "Enregistrement" });
+    expect(alerte.textContent).toBe(
+      'Un agent "frontend" existe déjà sur le disque : retirez l\'agent non enregistré ou recréez-le sous un autre nom.',
+    );
+    expect(disque.transactions).toEqual([]);
+    await waitFor(() => {
+      expect([...agentsListes()].sort()).toEqual(
+        ["Frontend", "backend — Non enregistré", "frontend — Non enregistré"].sort(),
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Retirer frontend" }));
+
+    expect([...agentsListes()].sort()).toEqual(["Frontend", "backend — Non enregistré"].sort());
+    expect(disque.transactions).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => {
+      expect([...agentsListes()].sort()).toEqual(["Frontend", "backend"].sort());
+    });
+    expect(disque.transactions.map((lot) => lot.map((f) => f.chemin))).toEqual([
+      [".cadre/agents/backend.yaml"],
+    ]);
+  });
+
   test("test_ac_007_1_modele_en_lecture_seule_aucune_creation_possible", async () => {
     const disque = new DisqueMemoire(ROOT, {
       ".cadre/cadre.yaml": "schema_version: 2\ngenerator_version: 9.0.0\ntools: [claude-code]\n",
