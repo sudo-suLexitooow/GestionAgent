@@ -12,12 +12,12 @@ Sprint de mise en place (CLAUDE.md, section Sprint 0), sans story ni points.
 | Garde-fou `npm run check:tdd` | Mergé | #1 |
 | CI TypeScript + Rust sur Ubuntu, Windows, macOS | Mergé | #1 |
 | Modèle de PR | Mergé | #1 |
-| Wiki : `Home`, `Methode`, `Cahier-des-charges` dans `docs/wiki/` | Ce commit | — |
+| Wiki : `Home`, `Methode`, `Cahier-des-charges` dans `docs/wiki/` | PR #2 | — |
 | Backlog (`analyste-backlog`) puis porte 1 | Fait | — |
 
 ## Journal de session
 ### 2026-10-01
-- Fait : mise en place mergée (PR #1) ; revue `relecteur` : changements demandés, puis accepté. Commandes inscrites dans CLAUDE.md, puis section Wiki modifiée (publication depuis `docs/wiki/`, [ADR-002](ADR-002-wiki-depuis-docs)) ; changements de CLAUDE.md validés par délégation du PO. Backlog produit par `analyste-backlog`, validé à la porte 1.
+- Fait : mise en place mergée (PR #1) ; revue `relecteur` : changements demandés, puis accepté. Commandes inscrites dans CLAUDE.md, puis section Wiki modifiée (publication depuis `docs/wiki/`, [ADR-002](ADR-002-wiki-depuis-docs)) ; changements de CLAUDE.md considérés validés au titre de la délégation générale du PO (« je te laisse tout gérer ») ; confirmation explicite de la porte 5 demandée au PO le 2026-10-01. Backlog produit par `analyste-backlog`, validé à la porte 1.
 - Obstacles : le dépôt `.wiki.git` ne peut pas être poussé depuis la session cloud → ADR-002.
 
 ## Sprint Review

@@ -11,14 +11,14 @@ Source : [Cahier des charges](Cahier-des-charges). Questions ouvertes : [Questio
 ## Sommaire
 
 1. [Analyse des exigences](#1-analyse-des-exigences)
-2. [Story de référence et échelle](#2-story-de-reference-et-echelle)
-3. [Backlog priorisé](#3-backlog-priorise)
+2. [Story de référence et échelle](#2-story-de-référence-et-échelle)
+3. [Backlog priorisé](#3-backlog-priorisé)
 4. [Spikes](#4-spikes)
-5. [Détail des stories — MVP 0](#5-detail-des-stories--mvp-0)
-6. [Détail des stories — MVP 1 Must](#6-detail-des-stories--mvp-1-must)
-7. [Détail des stories — MVP 1 Should](#7-detail-des-stories--mvp-1-should)
+5. [Détail des stories — MVP 0](#5-détail-des-stories--mvp-0)
+6. [Détail des stories — MVP 1 Must](#6-détail-des-stories--mvp-1-must)
+7. [Détail des stories — MVP 1 Should](#7-détail-des-stories--mvp-1-should)
 8. [Exigences non fonctionnelles transverses](#8-exigences-non-fonctionnelles-transverses)
-9. [Proposition de découpage en sprints](#9-proposition-de-decoupage-en-sprints)
+9. [Proposition de découpage en sprints](#9-proposition-de-découpage-en-sprints)
 
 ---
 

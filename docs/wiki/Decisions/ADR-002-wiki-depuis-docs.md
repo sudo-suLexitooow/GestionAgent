@@ -15,3 +15,6 @@ Les pages du wiki sont tenues dans le dépôt de code, dossier `docs/wiki/`. Le 
 - Une mise à jour du wiki passe par une PR, souvent la PR de la story elle-même (« wiki à jour » fait partie de la DoD).
 - Ne jamais éditer le wiki GitHub à la main : il serait écrasé à la publication suivante.
 - La mémoire se lit dans `docs/wiki/`, toujours présent dans le clone.
+
+## Amorçage
+Le dépôt `.wiki.git` n'existe qu'après activation du wiki et création d'une première page depuis l'interface web (fait par le PO le 2026-10-01). Si le workflow `Wiki` échoue au clonage, il affiche ce rappel.

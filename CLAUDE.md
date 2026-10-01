@@ -121,6 +121,7 @@ En fin de session : `scribe-wiki` met à jour l'état du sprint et la story en c
 
 Le wiki GitHub est publié depuis le dépôt de code : les pages sont tenues dans `docs/wiki/` et le workflow `.github/workflows/wiki.yml` les recopie dans le wiki GitHub à chaque merge sur `main` (décision ADR-002 : les sessions cloud n'ont pas accès en écriture au dépôt `.wiki.git`).
 Conséquences : la mémoire du projet se lit dans `docs/wiki/` (toujours présente dans le clone) ; une mise à jour du wiki passe par une PR, idéalement la PR de la story elle-même (« wiki à jour » fait partie de la DoD) ; ne jamais écrire directement dans le wiki GitHub, il serait écrasé.
+Amorçage (une seule fois) : le dépôt `.wiki.git` n'existe qu'une fois le wiki activé et sa première page créée depuis l'interface web ; si le workflow `Wiki` échoue au clonage, demande au PO ces deux clics, c'est la seule action manuelle prévue.
 Seul `scribe-wiki` y écrit. Structure et modèles : voir `.claude/agents/scribe-wiki.md`.
 
 ## Projet — paramètres

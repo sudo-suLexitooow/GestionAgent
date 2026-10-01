@@ -74,6 +74,8 @@ Zones sensibles : arrêt et gestion des processus, worktrees Git, écritures de 
 | Build de l'interface | `npm run build` |
 | Rust (`src-tauri/`) | `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` |
 
+Le garde-fou `check:tdd` et les règles ESLint sont des heuristiques statiques : ils attrapent les formes courantes (`.only`, `.skip`, `skipIf`, `todo`, `xit`, `#[ignore]`, `cfg` toujours faux…), pas les alias (`const t = test; t.skip`), les conditions de `cfg` sur des features jamais activées ni les modifications de configuration (Vitest `include`, Cargo `[[test]]`). Le `relecteur` contrôle le reste dans le diff de chaque PR.
+
 CI : `.github/workflows/ci.yml`, TypeScript et Rust sur Ubuntu, Windows et macOS.
 Code : cœur métier `src/core/`, interface `src/ui/`, système `src-tauri/src/`.
 

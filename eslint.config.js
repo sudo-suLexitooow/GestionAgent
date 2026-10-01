@@ -5,7 +5,7 @@ import globals from "globals";
 import vitest from "@vitest/eslint-plugin";
 
 export default tseslint.config(
-  { ignores: ["dist", "coverage", "src-tauri/target", "src-tauri/gen"] },
+  { ignores: ["dist", "coverage", "src-tauri/target", "src-tauri/gen", ".claude/worktrees"] },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {
