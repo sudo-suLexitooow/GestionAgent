@@ -18,8 +18,10 @@ export type Schema = { readonly [mot: string]: unknown } | boolean;
 export class RegistreSchemas {
   private readonly parId = new Map<string, Schema>();
 
+  /** Lève si un schéma utilise un mot-clé que cet interpréteur ignorerait (garde). */
   constructor(schemas: readonly Schema[]) {
     for (const schema of schemas) {
+      verifierMotsCles(schema, []);
       if (typeof schema === "object" && typeof schema.$id === "string") {
         this.parId.set(schema.$id, schema);
       }
@@ -122,6 +124,51 @@ export class RegistreSchemas {
         this.verifier(autres, base, valeur, [...chemin, cle], ecarts);
       }
     }
+  }
+}
+
+/** Mots-clés interprétés, ou sans effet sur la validation (`$schema`, `$id`, `$defs`, `default`). */
+const MOTS_CLES_PRIS_EN_CHARGE: ReadonlySet<string> = new Set([
+  "$schema",
+  "$id",
+  "$defs",
+  "$ref",
+  "default",
+  "type",
+  "required",
+  "properties",
+  "additionalProperties",
+  "propertyNames",
+  "items",
+  "enum",
+  "minimum",
+  "minLength",
+  "pattern",
+  "uniqueItems",
+]);
+
+/** Mots-clés dont la valeur est un dictionnaire de sous-schémas. */
+const DICTIONNAIRES_DE_SCHEMAS = ["properties", "$defs"] as const;
+/** Mots-clés dont la valeur est un sous-schéma. */
+const SOUS_SCHEMAS = ["items", "additionalProperties", "propertyNames"] as const;
+
+/** Parcourt `schema` et ses sous-schémas ; lève au premier mot-clé non pris en charge. */
+function verifierMotsCles(schema: Schema, chemin: string[]): void {
+  if (typeof schema === "boolean") return;
+  for (const mot of Object.keys(schema)) {
+    if (!MOTS_CLES_PRIS_EN_CHARGE.has(mot)) {
+      throw new Error(`mot-clé de schéma non pris en charge : ${mot} (${chemin.join("/")})`);
+    }
+  }
+  for (const mot of DICTIONNAIRES_DE_SCHEMAS) {
+    const dictionnaire = (schema[mot] ?? {}) as Record<string, Schema>;
+    for (const [nom, sousSchema] of Object.entries(dictionnaire)) {
+      verifierMotsCles(sousSchema, [...chemin, mot, nom]);
+    }
+  }
+  for (const mot of SOUS_SCHEMAS) {
+    const sousSchema = schema[mot] as Schema | undefined;
+    if (sousSchema !== undefined) verifierMotsCles(sousSchema, [...chemin, mot]);
   }
 }
 
