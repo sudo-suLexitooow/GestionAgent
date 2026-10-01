@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cadre.app/schemas/v1/agent.json",
+  "type": "object",
+  "required": ["id", "name", "target"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "name": { "$ref": "cadre.json#/$defs/cadreName" },
+    "role": { "type": "string" },
+    "description": { "type": "string" },
+    "target": { "$ref": "cadre.json#/$defs/adapterId" },
+    "skills": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "contexts": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "cadre.json#/$defs/cadreName" }
+    },
+    "parameters": {
+      "type": "object",
+      "propertyNames": { "minLength": 1 },
+      "additionalProperties": { "type": ["string", "number", "boolean"] }
+    },
+    "presets": {
+      "type": "object",
+      "properties": {
+        "autonomy": { "enum": ["low", "medium", "high"] },
+        "max_changed_files": { "type": "integer", "minimum": 1 },
+        "language": { "enum": ["fr", "en"] },
+        "commit_style": { "enum": ["conventional", "free"] }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": { "type": "boolean" },
+      "properties": { "terminal": {}, "browser": {}, "packages": {}, "network": {} }
+    },
+    "scope": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "level"],
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^(\\./|(?!/)(?!\\.{1,2}(/|$))(?!.*/\\.{1,2}(/|$))(?!.*//)[^\\\\\\x00-\\x1f:*?\"<>|]+)$"
+          },
+          "level": { "enum": ["write", "read", "deny"] }
+        }
+      }
+    },
+    "exports": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "name": { "type": "string" },
+          "frontmatter": { "type": "object" }
+        }
+      }
+    }
+  }
+}
