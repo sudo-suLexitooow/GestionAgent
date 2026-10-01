@@ -1,6 +1,6 @@
 //! Intégration : lecture du contenu d'un projet sur de vrais fichiers temporaires (US-002).
 
-use cadre_lib::project_files::{list_dir, read_file, DirEntry, EntryKind};
+use cadre_lib::project_files::{list_dir, read_file, DirEntry, EntryKind, ReadError};
 use std::fs;
 
 fn sorted(mut entries: Vec<DirEntry>) -> Vec<DirEntry> {
@@ -37,6 +37,38 @@ fn test_ac_002_2_dossier_absent_donne_none_sans_erreur() {
     let project = tempfile::tempdir().unwrap();
 
     assert_eq!(list_dir(project.path(), ".claude/skills"), Ok(None));
+}
+
+/// Un projet et, à côté, un dossier étranger contenant `secret.txt`, réellement lisible.
+fn project_next_to_a_secret() -> (tempfile::TempDir, std::path::PathBuf) {
+    let parent = tempfile::tempdir().unwrap();
+    fs::create_dir(parent.path().join("projet")).unwrap();
+    fs::create_dir(parent.path().join("autre")).unwrap();
+    fs::write(parent.path().join("autre/secret.txt"), "secret").unwrap();
+    (parent, std::path::PathBuf::from("projet"))
+}
+
+#[test]
+fn test_ac_002_1_la_lecture_refuse_tout_chemin_qui_sort_du_projet() {
+    let (parent, project) = project_next_to_a_secret();
+    let root = parent.path().join(project);
+    let secret = parent.path().join("autre/secret.txt");
+    let absolute = secret.to_str().unwrap();
+
+    for relative in ["../autre/secret.txt", "a/../../autre/secret.txt", absolute] {
+        assert_eq!(
+            read_file(&root, relative),
+            Err(ReadError::OutsideProject),
+            "{relative}"
+        );
+    }
+    for relative in ["..", "../autre", parent.path().to_str().unwrap()] {
+        assert_eq!(
+            list_dir(&root, relative),
+            Err(ReadError::OutsideProject),
+            "{relative}"
+        );
+    }
 }
 
 #[test]
