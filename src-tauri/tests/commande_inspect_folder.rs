@@ -5,6 +5,16 @@ use serde_json::{json, Value};
 use tauri::test::{get_ipc_response, mock_builder, mock_context, noop_assets, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
 
+/// Origine de l'interface selon la plateforme : le contrôle d'accès de Tauri refuse une commande
+/// venant d'une autre origine. Tauri n'expose pas cette valeur ; elle suit l'exemple de `tauri::test`.
+fn app_origin() -> &'static str {
+    if cfg!(any(windows, target_os = "android")) {
+        "http://tauri.localhost"
+    } else {
+        "tauri://localhost"
+    }
+}
+
 fn invoke_inspect_folder(path: &std::path::Path) -> Result<Value, Value> {
     let app = cadre_lib::configure(mock_builder())
         .build(mock_context(noop_assets()))
@@ -18,7 +28,7 @@ fn invoke_inspect_folder(path: &std::path::Path) -> Result<Value, Value> {
             cmd: "inspect_folder".into(),
             callback: tauri::ipc::CallbackFn(0),
             error: tauri::ipc::CallbackFn(1),
-            url: "tauri://localhost".parse().unwrap(),
+            url: app_origin().parse().unwrap(),
             body: tauri::ipc::InvokeBody::Json(json!({ "path": path })),
             headers: Default::default(),
             invoke_key: INVOKE_KEY.to_string(),
