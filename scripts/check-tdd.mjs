@@ -14,10 +14,10 @@ const TS_PATTERNS = [
 // Rust : recherche sur le fichier entier, car rustfmt peut couper un attribut sur plusieurs lignes.
 const RUST_PATTERNS = [
   /#\s*!?\s*\[\s*ignore\b/g,
-  /#\s*!?\s*\[\s*cfg_attr\s*\([\s\S]*?\bignore\b/g,
+  /#\s*!?\s*\[\s*cfg_attr\s*\((?:[^\]"]|"[^"]*")*?\bignore\b/g,
   // Conditions toujours fausses qui retirent un test de la compilation sans le signaler :
   // `any()`, `FALSE`/`false`, `not(all())`, y compris imbriquées et en tête de fichier (`#![...]`).
-  /#\s*!?\s*\[\s*cfg\s*\([^\]]*?(?:\bany\s*\(\s*\)|\bFALSE\b|\bfalse\b|\bnot\s*\(\s*all\s*\(\s*\)\s*\))/g,
+  /#\s*!?\s*\[\s*cfg\s*\((?:[^\]"]|"[^"]*")*?(?:\bany\s*\(\s*\)|\bFALSE\b|\bfalse\b|\bnot\s*\(\s*all\s*\(\s*\)\s*\))/g,
 ];
 
 function* walk(dir) {
