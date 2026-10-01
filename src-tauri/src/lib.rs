@@ -3,6 +3,7 @@
 
 mod commands;
 pub mod folder;
+pub mod project_files;
 
 use tauri::{Builder, Runtime};
 
