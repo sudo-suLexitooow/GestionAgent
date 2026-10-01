@@ -390,6 +390,32 @@ fn synchroniser_dossier(dossier: &Path) -> io::Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
+mod codes_systeme {
+    /// ENOSPC, EDQUOT (Linux 122, macOS 69).
+    pub const DISQUE_PLEIN: &[i32] = &[28, 122, 69];
+    /// EROFS.
+    pub const LECTURE_SEULE: &[i32] = &[30];
+}
+
+#[cfg(windows)]
+mod codes_systeme {
+    /// ERROR_HANDLE_DISK_FULL, ERROR_DISK_FULL, ERROR_DISK_QUOTA_EXCEEDED.
+    pub const DISQUE_PLEIN: &[i32] = &[39, 112, 1295];
+    /// ERROR_WRITE_PROTECT.
+    pub const LECTURE_SEULE: &[i32] = &[19];
+}
+
 fn classer(erreur: io::Error) -> ErreurEcriture {
-    ErreurEcriture::Autre(erreur.to_string())
+    let detail = erreur.to_string();
+    let code = erreur.raw_os_error().unwrap_or_default();
+    if codes_systeme::DISQUE_PLEIN.contains(&code) {
+        ErreurEcriture::DisquePlein(detail)
+    } else if codes_systeme::LECTURE_SEULE.contains(&code)
+        || erreur.kind() == io::ErrorKind::PermissionDenied
+    {
+        ErreurEcriture::LectureSeule(detail)
+    } else {
+        ErreurEcriture::Autre(detail)
+    }
 }
