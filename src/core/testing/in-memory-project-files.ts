@@ -1,14 +1,19 @@
-import type { DirEntry, ProjectFiles, ReadError } from "../project/ports";
+import {
+  ProjectReadError,
+  type DirEntry,
+  type ProjectFiles,
+  type ReadError,
+} from "../project/ports";
 
 /**
  * Faux contenu de projet en mémoire, fidèle aux commandes système : un élément absent donne `null`,
- * lister un fichier, lire un dossier ou lire un chemin marqué illisible rejette la promesse.
+ * lister un fichier, lire un dossier ou lire un chemin marqué en échec rejette avec un `ProjectReadError`.
  * Clés : chemins relatifs à la racine, séparateur `/` ; une clé finissant par `/` est un dossier vide.
  */
 export class InMemoryProjectFiles implements ProjectFiles {
   private readonly files = new Map<string, Uint8Array>();
   private readonly directories = new Set<string>([""]);
-  private readonly unreadable = new Set<string>();
+  private readonly failures = new Map<string, ReadError>();
 
   constructor(
     private readonly root: string,
@@ -25,12 +30,19 @@ export class InMemoryProjectFiles implements ProjectFiles {
 
   /** Toute lecture de `path` échouera comme pour un élément aux droits insuffisants. */
   makeUnreadable(path: string): this {
-    this.unreadable.add(path);
+    return this.failWith(path, "unreadable");
+  }
+
+  /** Toute lecture de `path` échouera avec le motif `reason` (ex. `too-large`). */
+  failWith(path: string, reason: ReadError): this {
+    this.failures.set(path, reason);
     return this;
   }
 
   listDir(root: string, path: string): Promise<DirEntry[] | null> {
-    if (this.unreadable.has(path) || this.files.has(path)) return reject("unreadable");
+    const failure = this.failures.get(path);
+    if (failure) return reject(failure);
+    if (this.files.has(path)) return reject("unreadable");
     if (root !== this.root || !this.directories.has(path)) return Promise.resolve(null);
     const prefix = path === "" ? "" : `${path}/`;
     const entries = new Map<string, DirEntry>();
@@ -46,7 +58,9 @@ export class InMemoryProjectFiles implements ProjectFiles {
   }
 
   readFile(root: string, path: string): Promise<Uint8Array | null> {
-    if (this.unreadable.has(path) || this.directories.has(path)) return reject("unreadable");
+    const failure = this.failures.get(path);
+    if (failure) return reject(failure);
+    if (this.directories.has(path)) return reject("unreadable");
     if (root !== this.root) return Promise.resolve(null);
     return Promise.resolve(this.files.get(path) ?? null);
   }
@@ -67,5 +81,5 @@ function childName(path: string, prefix: string): string | null {
 }
 
 function reject<T>(error: ReadError): Promise<T> {
-  return Promise.reject(new Error(error));
+  return Promise.reject(new ProjectReadError(error));
 }

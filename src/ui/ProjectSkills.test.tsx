@@ -63,6 +63,20 @@ describe("section Skills de l'écran principal", () => {
     ]);
   });
 
+  test("test_ac_002_3_un_skill_md_trop_gros_est_en_erreur_avec_un_message_clair", async () => {
+    await openProject(
+      new InMemoryProjectFiles(ROOT, {
+        ".claude/skills/enorme/SKILL.md": "x",
+      }).failWith(".claude/skills/enorme/SKILL.md", "too-large"),
+    );
+
+    const items = await within(await skillsSection()).findAllByRole("listitem");
+
+    expect(items.map((item) => item.textContent)).toEqual([
+      "enorme — en erreur : le fichier SKILL.md dépasse la taille maximale de 8 Mio",
+    ]);
+  });
+
   test("test_ac_002_3_un_echec_de_lecture_des_skills_affiche_un_message_sans_planter", async () => {
     await openProject(new InMemoryProjectFiles(ROOT).makeUnreadable(".cadre"));
 

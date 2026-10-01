@@ -62,6 +62,18 @@ describe("découverte des skills de Claude Code (.claude/skills/)", () => {
     ]);
   });
 
+  test("test_ac_002_3_un_skill_md_trop_gros_est_en_erreur_avec_cette_raison", async () => {
+    const files = new InMemoryProjectFiles(ROOT, {
+      ".claude/skills/a/SKILL.md": skillMd("a", "Fait A."),
+      ".claude/skills/b/SKILL.md": skillMd("b", "Fait B."),
+    }).failWith(".claude/skills/a/SKILL.md", "too-large");
+
+    expect(await claudeCodeAdapter.detectSkills(files, ROOT)).toEqual([
+      { folder: "a", status: "error", issue: { code: "too-large" } },
+      { folder: "b", status: "ok", name: "b", description: "Fait B." },
+    ]);
+  });
+
   test("test_ac_002_4_un_sous_dossier_sans_skill_md_ou_un_fichier_isole_n_est_pas_une_skill", async () => {
     const skills = await detect({
       ".claude/skills/a/SKILL.md": skillMd("a", "Fait A."),
