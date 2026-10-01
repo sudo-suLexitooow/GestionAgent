@@ -4,6 +4,7 @@ import { fichiersAgent, regleNomAgentViolee, type AgentNouveau } from "../agents
 import type { ImportedContext } from "../contexts/context";
 import type { FichierAEcrire, SystemeFichiersProjet } from "../fichiers/systeme-fichiers";
 import type { ProjectFiles } from "../project/ports";
+import type { ImportedSkill } from "../skills/import-skills";
 import { serialiserCadre } from "./cadre-yaml";
 import { chargerModele, nomsDesAgents } from "./charger-modele";
 import { etatDossierCadre } from "./detection";
@@ -20,6 +21,8 @@ export interface CadrageNonEnregistre {
   contextes: readonly ImportedContext[];
   /** Agents créés depuis l'ouverture du projet (US-007). */
   agents: readonly AgentNouveau[];
+  /** Skills importées : seulement dans un projet sans modèle (US-004). */
+  skills?: readonly ImportedSkill[];
 }
 
 const CADRE_YAML = ".cadre/cadre.yaml";
