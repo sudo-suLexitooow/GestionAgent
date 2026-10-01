@@ -41,6 +41,17 @@ fn test_ac_002_2_dossier_absent_donne_none_sans_erreur() {
     assert_eq!(list_dir(project.path(), ".claude/skills"), Ok(None));
 }
 
+#[test]
+fn test_ac_002_2_un_fichier_a_la_place_du_dossier_donne_none_sans_erreur() {
+    let project = tempfile::tempdir().unwrap();
+    fs::create_dir(project.path().join(".claude")).unwrap();
+    fs::write(project.path().join(".claude/skills"), "pas un dossier").unwrap();
+    fs::write(project.path().join(".cadre"), "pas un modèle").unwrap();
+
+    assert_eq!(list_dir(project.path(), ".claude/skills"), Ok(None));
+    assert_eq!(list_dir(project.path(), ".cadre"), Ok(None));
+}
+
 /// Un projet et, à côté, un dossier étranger contenant `secret.txt`, réellement lisible.
 fn project_next_to_a_secret() -> (tempfile::TempDir, std::path::PathBuf) {
     let parent = tempfile::tempdir().unwrap();
@@ -189,6 +200,33 @@ mod fichiers_speciaux_unix {
         assert_eq!(
             read_file(project.path(), ".claude/skills/a/SKILL.md"),
             Ok(Some(b"contenu".to_vec()))
+        );
+    }
+
+    #[test]
+    fn test_ac_002_1_un_lien_vers_un_dossier_est_liste_comme_dossier_et_un_lien_casse_comme_autre()
+    {
+        let project = tempfile::tempdir().unwrap();
+        let shared = tempfile::tempdir().unwrap();
+        let skills = project.path().join(".claude/skills");
+        fs::create_dir_all(&skills).unwrap();
+        symlink(shared.path(), skills.join("partagee")).unwrap();
+        symlink(project.path().join("disparu"), skills.join("cassee")).unwrap();
+
+        let entries = list_dir(project.path(), ".claude/skills").unwrap().unwrap();
+
+        assert_eq!(
+            sorted(entries),
+            vec![
+                DirEntry {
+                    name: "cassee".into(),
+                    kind: EntryKind::Other
+                },
+                DirEntry {
+                    name: "partagee".into(),
+                    kind: EntryKind::Directory
+                },
+            ]
         );
     }
 }
