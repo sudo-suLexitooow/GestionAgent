@@ -21,7 +21,15 @@ export interface DirEntry {
 }
 
 /** Motif de refus d'une lecture, tel que le rapportent les commandes système. */
-export type ReadError = "outside-project" | "unreadable";
+export type ReadError = "outside-project" | "unreadable" | "too-large";
+
+/** Rejet d'une lecture du projet : porte le motif rapporté par la commande système. */
+export class ProjectReadError extends Error {
+  constructor(readonly reason: ReadError) {
+    super(reason);
+    this.name = "ProjectReadError";
+  }
+}
 
 /**
  * Lecture seule du contenu d'un projet (SKL-01, PRJ-02). `path` est relatif à la racine `root`,

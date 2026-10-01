@@ -1,5 +1,6 @@
 import { emit } from "@tauri-apps/api/event";
 import { clearMocks, mockIPC, mockWindows } from "@tauri-apps/api/mocks";
+import { ProjectReadError } from "../core/project/ports";
 import { tauriDropSource, tauriFolderAccess, tauriProjectFiles } from "./tauri-project-ports";
 
 // Le pont IPC de Tauri est simulé par `mockIPC` (outil officiel) : le code testé reste l'adaptateur réel.
@@ -88,6 +89,20 @@ describe("lecture du projet par les commandes système", () => {
 
     expect(await tauriProjectFiles.readFile("/home/lea/p", "SKILL.md")).toBeNull();
   });
+
+  // Une commande en échec rejette `invoke` avec son erreur sérialisée : ici la chaîne du `ReadError`.
+  test.each([["readFile"], ["listDir"]] as const)(
+    "test_ac_002_3_%s_rejette_avec_le_motif_de_la_commande",
+    async (method) => {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- forme réelle du rejet Tauri
+      mockIPC(() => Promise.reject("too-large"));
+
+      const reading = tauriProjectFiles[method]("/home/lea/p", "SKILL.md");
+
+      await expect(reading).rejects.toBeInstanceOf(ProjectReadError);
+      await expect(reading).rejects.toMatchObject({ reason: "too-large" });
+    },
+  );
 });
 
 describe("glisser-déposer hors d'une fenêtre Tauri (navigateur de développement)", () => {
