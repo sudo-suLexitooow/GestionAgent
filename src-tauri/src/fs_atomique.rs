@@ -22,7 +22,7 @@ pub mod commandes;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -423,7 +423,7 @@ fn ecrire_et_synchroniser(chemin: &Path, contenu: &[u8]) -> io::Result<()> {
 /// métadonnées et un dossier ne s'ouvre pas comme un fichier : rien à faire.
 fn synchroniser_dossier(dossier: &Path) -> io::Result<()> {
     #[cfg(unix)]
-    File::open(dossier)?.sync_all()?;
+    fs::File::open(dossier)?.sync_all()?;
     #[cfg(not(unix))]
     let _ = dossier;
     Ok(())

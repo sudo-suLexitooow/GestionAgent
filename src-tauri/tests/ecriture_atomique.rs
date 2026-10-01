@@ -582,14 +582,14 @@ mod disque_plein_ou_lecture_seule {
         let (dossier, fichiers) = projet_existant();
         let racine = dossier.path();
         let protege = racine.join(".gitignore");
-        let mut droits = fs::metadata(&protege).unwrap().permissions();
-        droits.set_readonly(true);
-        fs::set_permissions(&protege, droits.clone()).unwrap();
+        let droits_d_origine = fs::metadata(&protege).unwrap().permissions();
+        let mut lecture_seule = droits_d_origine.clone();
+        lecture_seule.set_readonly(true);
+        fs::set_permissions(&protege, lecture_seule).unwrap();
 
         let resultat = ecrire_fichiers(racine, &fichiers);
 
-        droits.set_readonly(false);
-        fs::set_permissions(&protege, droits).unwrap();
+        fs::set_permissions(&protege, droits_d_origine).unwrap();
         assert!(
             matches!(resultat, Err(ErreurEcriture::LectureSeule(_))),
             "{resultat:?}"
