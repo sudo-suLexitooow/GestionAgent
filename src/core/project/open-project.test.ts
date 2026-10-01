@@ -23,4 +23,20 @@ describe("ouverture depuis le sélecteur", () => {
     expect(outcome).toEqual({ kind: "cancelled" });
     expect(folders.inspected).toEqual([]);
   });
+
+  test.each([
+    ["inexistant", "not-found"],
+    ["illisible", "unreadable"],
+  ] as const)(
+    "test_ac_001_4_dossier_%s_produit_une_erreur_sans_ouvrir",
+    async (_label, status) => {
+      const folders = new InMemoryFolderAccess({ "/projets/x": status }).answerPickerWith(
+        "/projets/x",
+      );
+
+      const outcome = await openFromPicker(folders);
+
+      expect(outcome).toEqual({ kind: "error", error: status });
+    },
+  );
 });
