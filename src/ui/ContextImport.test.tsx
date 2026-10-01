@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ProjectFiles } from "../core/project/ports";
 import { InMemoryDropSource, InMemoryFolderAccess } from "../core/testing/in-memory-folder-access";
 import { InMemoryProjectFiles } from "../core/testing/in-memory-project-files";
+import { recordingProjectFiles } from "../core/testing/recording-project-files";
 import { App } from "./App";
 
 const ROOT = "/home/lea/projet";
@@ -60,7 +61,26 @@ describe("import de CLAUDE.md et AGENTS.md depuis l'écran principal", () => {
     ]);
     expect(within(section).queryByRole("button", { name: "Importer" })).not.toBeInTheDocument();
   });
+
+  test("test_ac_003_3_refuser_ne_fait_que_lire_et_ne_repropose_pas_l_import", async () => {
+    const disk = new InMemoryProjectFiles(ROOT, { "CLAUDE.md": "# Projet\n" });
+    const recorded = recordingProjectFiles(disk);
+    await openProject(recorded.files);
+    const section = await contextsSection();
+
+    fireEvent.click(within(section).getByRole("button", { name: "Ne pas importer" }));
+    await settle();
+
+    expect(screen.queryByRole("button", { name: "Importer" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Non enregistré/)).not.toBeInTheDocument();
+    expect(await disk.listDir(ROOT, "")).toEqual([{ name: "CLAUDE.md", kind: "file" }]);
+    expect(await disk.readFile(ROOT, "CLAUDE.md")).toEqual(new TextEncoder().encode("# Projet\n"));
+    expect([...recorded.used].every((member) => READ_ONLY.has(member))).toBe(true);
+  });
 });
+
+/** Seuls membres du port de lecture : tout autre accès serait une tentative d'écriture. */
+const READ_ONLY = new Set(["listDir", "readFile"]);
 
 /** Laisse se terminer les lectures en cours du faux projet. */
 function settle(): Promise<void> {
