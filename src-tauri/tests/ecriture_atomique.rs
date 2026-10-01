@@ -2,7 +2,7 @@
 //! temporaires. Tournent en CI sous Linux, Windows et macOS (AC-005-7).
 
 use cadre_lib::fs_atomique::{
-    ecrire_fichiers, ecrire_fichiers_avec, Etape, FichierAEcrire, PointsDeControle,
+    ecrire_fichiers, ecrire_fichiers_avec, recuperer, Etape, FichierAEcrire, PointsDeControle,
 };
 use std::fs;
 use std::io;
@@ -117,6 +117,166 @@ mod interruption_apres_le_premier_fichier {
         let racine = dossier.path();
 
         let resultat = ecrire_fichiers_avec(racine, &fichiers, &ErreurA(Etape::FichierRemplace(2)));
+
+        assert!(resultat.is_err());
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+}
+
+/// Arrêt brutal simulé (plantage, fermeture forcée) : la transaction s'arrête net à l'étape
+/// donnée, sans exécuter aucun code de nettoyage ni d'annulation. Le disque reste dans
+/// l'état exact où il était à cet instant.
+struct ArretBrutalA(Etape);
+
+impl PointsDeControle for ArretBrutalA {
+    fn atteint(&self, etape: Etape) -> io::Result<()> {
+        if etape == self.0 {
+            panic!("arrêt brutal simulé à {etape:?}");
+        }
+        Ok(())
+    }
+}
+
+fn arreter_brutalement(racine: &Path, fichiers: &[FichierAEcrire], etape: Etape) {
+    let arret = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _ = ecrire_fichiers_avec(racine, fichiers, &ArretBrutalA(etape));
+    }));
+    assert!(arret.is_err(), "l'arrêt brutal à {etape:?} n'a pas eu lieu");
+}
+
+mod arret_brutal_puis_redemarrage {
+    use super::*;
+
+    #[test]
+    fn test_ac_005_3_arret_apres_le_premier_fichier_annule_au_demarrage() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::FichierRemplace(0));
+
+        recuperer(racine).expect("récupération");
+
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_3_arret_apres_le_dernier_fichier_annule_au_demarrage() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::FichierRemplace(2));
+
+        recuperer(racine).expect("récupération");
+
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_4_arret_avant_remplacement_original_intact_puis_temporaires_supprimes() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::AvantRemplacement);
+        assert_projet_inchange(racine);
+        assert_ne!(temporaires(racine), Vec::<String>::new());
+
+        recuperer(racine).expect("récupération");
+
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_4_arret_pendant_l_ecriture_des_temporaires() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::TemporaireEcrit(1));
+        assert_projet_inchange(racine);
+
+        recuperer(racine).expect("récupération");
+
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_4_temporaires_orphelins_supprimes_au_demarrage() {
+        let (dossier, _) = projet_existant();
+        let racine = dossier.path();
+        ecrire(racine, ".cadre/tmp/.cadre.yaml.tmp", "orphelin");
+        ecrire(racine, ".cadre/tmp/txn-ancien/0.nouveau", "orphelin");
+
+        recuperer(racine).expect("récupération");
+
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_4_recuperation_sans_dossier_cadre_ne_fait_rien() {
+        let dossier = projet();
+
+        recuperer(dossier.path()).expect("récupération");
+
+        assert!(!dossier.path().join(".cadre").exists());
+    }
+
+    #[test]
+    fn test_ac_005_4_prochain_enregistrement_recupere_d_abord_la_transaction_interrompue() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::FichierRemplace(0));
+
+        ecrire_fichiers(racine, &[FichierAEcrire::new("CLAUDE.md", "# Projet\n")])
+            .expect("écriture");
+
+        assert_projet_inchange(racine);
+        assert_eq!(lire(racine, "CLAUDE.md").as_deref(), Some("# Projet\n"));
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_3_fichier_modifie_par_l_utilisateur_apres_l_arret_n_est_pas_ecrase() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::FichierRemplace(1));
+        ecrire(racine, ".gitignore", "modifié par l'utilisateur après l'arrêt\n");
+
+        recuperer(racine).expect("récupération");
+
+        assert_eq!(
+            lire(racine, ".cadre/cadre.yaml").as_deref(),
+            Some("schema_version: 1 # retouché à la main\n")
+        );
+        assert_eq!(
+            lire(racine, ".gitignore").as_deref(),
+            Some("modifié par l'utilisateur après l'arrêt\n")
+        );
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+}
+
+mod erreur_avant_remplacement {
+    use super::*;
+
+    #[test]
+    fn test_ac_005_4_erreur_avant_remplacement_original_intact_sans_temporaire() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+
+        let resultat = ecrire_fichiers_avec(racine, &fichiers, &ErreurA(Etape::AvantRemplacement));
+
+        assert!(resultat.is_err());
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_4_erreur_pendant_l_ecriture_des_temporaires_sans_temporaire() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+
+        let resultat = ecrire_fichiers_avec(racine, &fichiers, &ErreurA(Etape::TemporaireEcrit(0)));
 
         assert!(resultat.is_err());
         assert_projet_inchange(racine);
