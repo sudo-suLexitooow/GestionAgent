@@ -636,6 +636,108 @@ mod chemins_refuses {
     }
 }
 
+/// Crée `lien` pointant vers le dossier `cible` : lien symbolique sous Unix, jonction sous
+/// Windows (pas de droits administrateur nécessaires).
+fn lier_dossier(cible: &Path, lien: &Path) {
+    fs::create_dir_all(lien.parent().unwrap()).unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(cible, lien).unwrap();
+    #[cfg(windows)]
+    {
+        let statut = std::process::Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(lien)
+            .arg(cible)
+            .status()
+            .unwrap();
+        assert!(statut.success(), "création de la jonction");
+    }
+}
+
+/// Dossier hors du projet, avec un fichier témoin et une fausse transaction, qui ne doivent
+/// jamais être touchés.
+fn dossier_victime() -> TempDir {
+    let victime = projet();
+    ecrire(victime.path(), "temoin.txt", "précieux");
+    ecrire(victime.path(), "txn-faux/journal.json", "{}");
+    victime
+}
+
+fn assert_victime_intacte(victime: &Path) {
+    assert_eq!(lire(victime, "temoin.txt").as_deref(), Some("précieux"));
+    assert_eq!(lire(victime, "txn-faux/journal.json").as_deref(), Some("{}"));
+}
+
+/// Bloquant de revue n° 1 : un dépôt malveillant ne doit pas pouvoir faire effacer un dossier
+/// hors du projet via un lien dans `.cadre/`.
+mod liens_dans_cadre {
+    use super::*;
+    use cadre_lib::fs_atomique::ErreurEcriture;
+
+    #[test]
+    fn test_ac_005_4_cadre_tmp_en_lien_refuse_rien_hors_du_projet_n_est_touche() {
+        let victime = dossier_victime();
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        lier_dossier(victime.path(), &racine.join(".cadre/tmp"));
+
+        let recuperation = recuperer(racine);
+        let ecriture = ecrire_fichiers(racine, &fichiers);
+
+        assert!(
+            matches!(recuperation, Err(ErreurEcriture::CheminInvalide(_))),
+            "{recuperation:?}"
+        );
+        assert!(
+            matches!(ecriture, Err(ErreurEcriture::CheminInvalide(_))),
+            "{ecriture:?}"
+        );
+        assert_victime_intacte(victime.path());
+        assert_projet_inchange(racine);
+    }
+
+    #[test]
+    fn test_ac_005_4_cadre_en_lien_refuse_rien_hors_du_projet_n_est_touche() {
+        let victime = dossier_victime();
+        ecrire(victime.path(), "tmp/orphelin.txt", "précieux aussi");
+        let dossier = projet();
+        let racine = dossier.path();
+        lier_dossier(victime.path(), &racine.join(".cadre"));
+
+        let recuperation = recuperer(racine);
+        let ecriture = ecrire_fichiers(racine, &[FichierAEcrire::new("CLAUDE.md", "x")]);
+
+        assert!(
+            matches!(recuperation, Err(ErreurEcriture::CheminInvalide(_))),
+            "{recuperation:?}"
+        );
+        assert!(
+            matches!(ecriture, Err(ErreurEcriture::CheminInvalide(_))),
+            "{ecriture:?}"
+        );
+        assert_victime_intacte(victime.path());
+        assert_eq!(
+            lire(victime.path(), "tmp/orphelin.txt").as_deref(),
+            Some("précieux aussi")
+        );
+        assert_eq!(lire(racine, "CLAUDE.md"), None);
+    }
+
+    #[test]
+    fn test_ac_005_4_liens_dans_cadre_tmp_jamais_suivis() {
+        let victime = dossier_victime();
+        let (dossier, _) = projet_existant();
+        let racine = dossier.path();
+        lier_dossier(victime.path(), &racine.join(".cadre/tmp/txn-lien"));
+        lier_dossier(victime.path(), &racine.join(".cadre/tmp/autre-lien"));
+
+        recuperer(racine).expect("récupération");
+
+        assert_victime_intacte(victime.path());
+        assert_projet_inchange(racine);
+    }
+}
+
 mod transaction_reussie {
     use super::*;
 
