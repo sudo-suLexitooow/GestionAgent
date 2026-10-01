@@ -36,26 +36,38 @@ export async function enregistrerContextesImportes(
   contextes: readonly ImportedContext[],
   options: OptionsEnregistrement,
 ): Promise<ResultatEnregistrement> {
-  let adoptions: FichierGenere[];
+  // Ne rejette jamais : toute exception de la préparation (lecture, empreinte, sérialisation)
+  // devient une erreur `ECHEC`, sans rien écrire.
+  let fichiers: FichierAEcrire[];
   try {
     const refus =
       (await modeleApparu(disque.fichiers, racine)) ??
       (await sourceModifiee(disque.fichiers, racine, contextes));
     if (refus) return { ok: false, erreur: refus };
-    adoptions = await Promise.all(contextes.map((contexte) => adoption(contexte, options.adapter)));
+    fichiers = await preparer(contextes, options);
   } catch (erreur) {
     return { ok: false, erreur: versErreurEnregistrement(erreur) };
   }
+  return enregistrerFichiers(disque.systeme, racine, fichiers);
+}
+
+/** `cadre.yaml`, contenu brut des contextes et manifeste d'adoption, dans l'ordre d'écriture. */
+async function preparer(
+  contextes: readonly ImportedContext[],
+  options: OptionsEnregistrement,
+): Promise<FichierAEcrire[]> {
+  const adoptions: FichierGenere[] = await Promise.all(
+    contextes.map((contexte) => adoption(contexte, options.adapter)),
+  );
   const cadre = {
     ...nouveauCadre({ generatorVersion: options.generatorVersion, outils: [options.adapter.id] }),
     contexts: contextes.map(({ entry }) => entry),
   };
-  const fichiers: FichierAEcrire[] = [
+  return [
     { chemin: ".cadre/cadre.yaml", contenu: serialiserCadre(cadre) },
     ...contextes.map(({ path, content }) => ({ chemin: path, contenu: content })),
     { chemin: ".cadre/generated.yaml", contenu: serialiserManifeste(adoptions) },
   ];
-  return enregistrerFichiers(disque.systeme, racine, fichiers);
 }
 
 async function modeleApparu(

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChargementModele } from "../core/cadre/charger-modele";
-import type { ErreurEnregistrement } from "../core/cadre/enregistrer";
+import {
+  versErreurEnregistrement,
+  type ErreurEnregistrement,
+  type ResultatEnregistrement,
+} from "../core/cadre/enregistrer";
 import { enregistrerContextesImportes } from "../core/cadre/enregistrer-import";
 import type { ImportedContext } from "../core/contexts/context";
 import type { ContextImport } from "../core/contexts/import-contexts";
@@ -126,14 +130,21 @@ function ProjectScreen({
     enregistrementEnCours.current = true;
     setEnCours(true);
     setErreur(null);
-    const resultat = await enregistrerContextesImportes(
-      { fichiers: files, systeme },
-      project.path,
-      contextes,
-      { adapter: claudeCodeAdapter, generatorVersion: VERSION_CADRE },
-    );
-    enregistrementEnCours.current = false;
-    setEnCours(false);
+    let resultat: ResultatEnregistrement;
+    try {
+      resultat = await enregistrerContextesImportes(
+        { fichiers: files, systeme },
+        project.path,
+        contextes,
+        { adapter: claudeCodeAdapter, generatorVersion: VERSION_CADRE },
+      );
+    } catch (exception) {
+      // Filet : le cœur ne rejette pas, mais le bouton ne doit jamais rester bloqué.
+      resultat = { ok: false, erreur: versErreurEnregistrement(exception) };
+    } finally {
+      enregistrementEnCours.current = false;
+      setEnCours(false);
+    }
     if (!resultat.ok) setErreur(resultat.erreur);
     // Succès, ou refus qui rend l'import caduc : le projet est relu (modèle ou nouvel import).
     if (resultat.ok || REFUS_A_RELIRE.has(resultat.erreur.code)) {
