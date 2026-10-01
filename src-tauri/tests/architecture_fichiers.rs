@@ -14,7 +14,9 @@ const MODULES_SANS_ACCES_DIRECT: [(&str, &str); 2] = [
 #[test]
 fn test_securite_aucun_acces_fichier_hors_de_la_resolution_sure() {
     for (fichier, source) in MODULES_SANS_ACCES_DIRECT {
-        let appels: Vec<(usize, &str)> = source
+        // Code de production seulement : les tests unitaires préparent leurs dossiers.
+        let production = source.split("#[cfg(test)]").next().unwrap_or_default();
+        let appels: Vec<(usize, &str)> = production
             .lines()
             .enumerate()
             .filter(|(_, ligne)| {

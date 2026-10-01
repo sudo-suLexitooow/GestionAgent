@@ -99,6 +99,7 @@ fn test_securite_ouverture_refusee_garde_le_projet_precedent() {
 }
 
 /// Une transaction interrompue laissée dans `.cadre/tmp`.
+#[cfg(unix)]
 fn transaction_orpheline(racine: &Path) {
     let txn = racine.join(".cadre/tmp/txn-orphelin");
     fs::create_dir_all(&txn).unwrap();

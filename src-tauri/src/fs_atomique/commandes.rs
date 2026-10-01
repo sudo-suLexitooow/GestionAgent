@@ -1,15 +1,17 @@
 //! Commandes Tauri de lecture et d'écriture des fichiers du projet (appelées par
 //! `src/platform/`). Toute écriture passe par la transaction atomique.
 //!
-//! La racine du projet est tenue côté Rust (état [`ProjetOuvert`], défini par
-//! `ouvrir_projet`) : l'interface ne peut ni lire ni écrire hors du projet ouvert.
+//! Garantie : la racine du projet est tenue côté Rust (état [`ProjetOuvert`], défini par
+//! `ouvrir_projet` sur un dossier existant, chemin canonique). Les commandes de lecture et
+//! d'écriture refusent toute autre racine. Dans le projet, chaque chemin est résolu par
+//! [`super::acces::Projet::reel`] : règle R1 sur chaque segment, aucun lien symbolique ni
+//! jonction (ni la cible, ni un dossier parent) ; une lecture n'accepte qu'un fichier
+//! ordinaire. La racine elle-même peut se trouver sous un lien (elle est canonicalisée).
+//! Hors garantie : une webview compromise peut appeler `ouvrir_projet` sur un autre dossier.
 
-use super::{
-    classer, ecrire_fichiers, recuperer, valider_chemin_relatif, ErreurEcriture, FichierAEcrire,
-};
+use super::acces::{self, Projet};
+use super::{classer, ecrire_fichiers, recuperer, valider_chemin, ErreurEcriture, FichierAEcrire};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::io;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::State;
@@ -50,21 +52,25 @@ impl From<ErreurEcriture> for ErreurDto {
 #[derive(Debug, Default)]
 pub struct ProjetOuvert(Mutex<Option<PathBuf>>);
 
-/// Ouvre un projet : retient sa racine canonique, puis termine ou annule une écriture
-/// interrompue (AC-005-4, « au prochain démarrage »).
+/// Ouvre un projet : vérifie que c'est un dossier existant, retient alors seulement sa
+/// racine canonique (un échec laisse le projet précédent ouvert), puis termine ou annule
+/// une écriture interrompue (AC-005-4, « au prochain démarrage »).
+///
+/// Un échec de cette reprise (lecture seule, projet occupé, transaction mise de côté…)
+/// n'empêche jamais d'ouvrir le projet : il est renvoyé comme avertissement (`Ok(Some)`).
 pub fn ouvrir(etat: &ProjetOuvert, chemin: &str) -> Result<Option<ErreurEcriture>, ErreurEcriture> {
     let racine = canonique(chemin)?;
-    if !racine.is_dir() {
+    if !acces::est_dossier(&racine) {
         return Err(ErreurEcriture::CheminInvalide(format!(
             "{chemin} n'est pas un dossier"
         )));
     }
     *verrouiller_etat(etat) = Some(racine.clone());
-    recuperer(&racine).map(|()| None)
+    Ok(recuperer(&racine).err())
 }
 
 fn canonique(chemin: &str) -> Result<PathBuf, ErreurEcriture> {
-    fs::canonicalize(chemin)
+    acces::canonique(chemin)
         .map_err(|erreur| ErreurEcriture::CheminInvalide(format!("{chemin} : {erreur}")))
 }
 
@@ -107,21 +113,20 @@ pub fn lire(
     chemin: &str,
 ) -> Result<Option<String>, ErreurEcriture> {
     let racine = racine_autorisee(etat, racine)?;
-    valider_chemin_relatif(chemin)?;
-    match fs::read_to_string(racine.join(chemin)) {
-        Ok(contenu) => Ok(Some(contenu)),
-        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(erreur) => Err(classer(erreur)),
-    }
+    valider_chemin(chemin)?;
+    let Some(octets) = Projet::new(&racine).lire(chemin).map_err(classer)? else {
+        return Ok(None);
+    };
+    String::from_utf8(octets)
+        .map(Some)
+        .map_err(|_| ErreurEcriture::Autre(format!("{chemin} n'est pas encodé en UTF-8")))
 }
 
 /// Vrai si `.git` (dossier, ou fichier d'un worktree) est à la racine du projet ouvert ou
 /// dans l'un de ses dossiers parents.
 pub fn dans_un_depot_git(etat: &ProjetOuvert, racine: &str) -> Result<bool, ErreurEcriture> {
     let racine = racine_autorisee(etat, racine)?;
-    Ok(racine
-        .ancestors()
-        .any(|dossier| fs::symlink_metadata(dossier.join(".git")).is_ok()))
+    Ok(acces::git_dans_un_ancetre(&racine))
 }
 
 #[tauri::command]

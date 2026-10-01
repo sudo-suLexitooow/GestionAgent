@@ -1,19 +1,22 @@
 //! Écriture atomique de fichiers du projet (NF-12, NF-13, ADR-001 D6).
 //!
+//! Tout accès au disque passe par [`acces::Projet`] : chaque chemin est résolu de façon sûre
+//! (règle R1 sur chaque segment, aucun lien ni jonction, ni sur les parents ni sur la
+//! cible) ; les lectures n'acceptent que des fichiers ordinaires.
+//!
 //! Une écriture de un ou plusieurs fichiers est une transaction dans
 //! `.cadre/tmp/txn-<id>/` (même volume que le projet, donc renommages atomiques) :
 //!
-//! 0. validation des chemins (règle R1, ni `.git` ni dossiers internes, pas de doublon, aucun
-//!    parent en lien) ; `.cadre`, `.cadre/tmp` et `.cadre/backups` doivent être de vrais
-//!    dossiers ; verrou exclusif `.cadre/tmp/verrou` (une seule instance de Cadre à la fois) ;
+//! 0. validation des chemins (R1, ni `.git` ni dossiers internes, pas de doublon) ;
+//!    `.cadre`, `.cadre/tmp` et `.cadre/backups` doivent être de vrais dossiers ; verrou
+//!    exclusif `.cadre/tmp/verrou` (une seule instance de Cadre à la fois) ;
 //! 1. récupération d'une éventuelle transaction précédente interrompue ;
 //! 2. préparation : `<i>.nouveau` (nouveau contenu) et `<i>.ancien` (copie du fichier
 //!    actuel s'il existe), chacun synchronisé sur disque (fsync) ; le plan note aussi les
 //!    dossiers que la transaction va créer ;
 //! 3. journal `en_cours` (écrit atomiquement) : à partir d'ici, un arrêt brutal est annulé
 //!    à la récupération ;
-//! 4. remplacement de chaque fichier par renommage de `<i>.nouveau` (remplace la cible sous
-//!    Windows comme sous Unix), puis fsync du dossier (Unix) ;
+//! 4. remplacement de chaque fichier par renommage de `<i>.nouveau`, puis fsync du dossier ;
 //! 5. journal `validee` : l'enregistrement a réussi ;
 //! 6. version précédente copiée dans `.cadre/backups/<chemin>` et index mis à jour (une
 //!    sauvegarde impossible est abandonnée, jamais bloquante) ;
@@ -22,22 +25,32 @@
 //! Erreur avant 5 : les fichiers déjà remplacés sont remis d'origine et les dossiers vides
 //! créés retirés ; si cette annulation échoue, `AnnulationIncomplete` et le journal reste.
 //! Annulation et récupération ne touchent jamais un fichier dont le contenu n'est plus celui
-//! écrit par la transaction (modifié par l'utilisateur entre-temps), ne suivent jamais un
-//! lien, et mettent de côté (`de-cote-txn-…`, sans rien supprimer) une transaction dont le
-//! journal est illisible ou désigne un chemin hors du projet.
+//! écrit par la transaction (modifié par l'utilisateur entre-temps). Une transaction qui ne
+//! peut pas être reprise (journal illisible, chemin refusé, annulation impossible, copie
+//! d'origine manquante) est mise de côté (`de-cote-txn-…`) sans rien supprimer.
+//!
+//! Le fichier `.cadre/tmp/verrou` est permanent : il n'est supprimé que lorsqu'une écriture
+//! qui a échoué retire le `.cadre/` qu'elle venait de créer, et alors AVANT d'être relâché.
 
+pub mod acces;
 pub mod commandes;
 
+use acces::{motif_de_refus, refus, Genre, Projet, Verrou};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::fs::{self, OpenOptions};
-use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::io;
+use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+const CADRE: &str = ".cadre";
 /// Temporaires et journaux de transaction, sur le même volume que le projet.
 const DOSSIER_TMP: &str = ".cadre/tmp";
+const DOSSIER_SAUVEGARDES: &str = ".cadre/backups";
+const INDEX_SAUVEGARDES: &str = ".cadre/backups/index.yaml";
+const VERROU: &str = ".cadre/tmp/verrou";
+const NOM_VERROU: &str = "verrou";
+const JOURNAL: &str = "journal.json";
 
 /// Un fichier à écrire, chemin relatif à la racine du projet, séparateur `/`.
 #[derive(Debug, Clone)]
@@ -116,88 +129,103 @@ pub fn ecrire_fichiers_avec(
     fichiers: &[FichierAEcrire],
     points: &dyn PointsDeControle,
 ) -> Result<(), ErreurEcriture> {
+    let projet = Projet::new(racine);
     for fichier in fichiers {
         valider_chemin(&fichier.chemin)?;
-        parents_reels(racine, &fichier.chemin)?;
+        projet.reel(&fichier.chemin).map_err(classer)?;
     }
     sans_doublon(fichiers)?;
-    dossiers_internes_reels(racine)?;
-    let cadre_cree = !racine.join(".cadre").exists();
-    fs::create_dir_all(racine.join(DOSSIER_TMP)).map_err(classer)?;
-    dossiers_internes_reels(racine)?;
-    let verrou = verrouiller_projet(racine)?;
+    dossiers_internes_reels(&projet)?;
+    let cadre_cree = !projet.existe(CADRE).map_err(classer)?;
+    projet.creer_dossiers(DOSSIER_TMP).map_err(classer)?;
+    let verrou = verrouiller_projet(&projet)?;
     // Échec : un `.cadre/` créé par cette écriture est retiré (projet strictement identique).
-    let echec = |erreur: ErreurEcriture, verrou: fs::File| {
+    let echec = |erreur: ErreurEcriture, verrou: Verrou| {
         if cadre_cree {
-            drop(verrou);
-            retirer_cadre_vide(racine);
+            retirer_cadre_cree(&projet, verrou);
         }
         Err(erreur)
     };
-    if let Err(erreur) = recuperer_sous_verrou(racine, points) {
+    if let Err(erreur) = recuperer_sous_verrou(&projet, points) {
         return echec(erreur, verrou);
     }
-    let transaction = match nouveau_dossier_transaction(racine) {
+    let transaction = match nouvelle_transaction(&projet) {
         Ok(transaction) => transaction,
         Err(erreur) => return echec(classer(erreur), verrou),
     };
-    let preparation = preparer(racine, &transaction, fichiers, points).and_then(|plan| {
-        ecrire_journal(&transaction, EtatTransaction::EnCours, &plan, points)?;
+    let preparation = preparer(&projet, &transaction, fichiers, points).and_then(|plan| {
+        ecrire_journal(
+            &projet,
+            &transaction,
+            EtatTransaction::EnCours,
+            &plan,
+            points,
+        )?;
         points.atteint(Etape::AvantRemplacement)?;
         Ok(plan)
     });
     let plan = match preparation {
         Ok(plan) => plan,
         Err(erreur) => {
-            let _ = fs::remove_dir_all(&transaction);
+            let _ = projet.supprimer_arbre(&transaction);
             return echec(classer(erreur), verrou);
         }
     };
-    let remplacement = remplacer(racine, &transaction, &plan.entrees, points)
-        .and_then(|()| ecrire_journal(&transaction, EtatTransaction::Validee, &plan, points));
+    let remplacement = remplacer(&projet, &transaction, &plan.entrees, points).and_then(|()| {
+        ecrire_journal(
+            &projet,
+            &transaction,
+            EtatTransaction::Validee,
+            &plan,
+            points,
+        )
+    });
     if let Err(erreur) = remplacement {
         // Si l'annulation échoue, le journal reste : la prochaine récupération la reprend.
-        if let Err(echec) = annuler(racine, &transaction, &plan, points) {
+        if let Err(echec) = annuler(&projet, &transaction, &plan, points) {
             return Err(ErreurEcriture::AnnulationIncomplete(format!(
                 "{erreur} ; annulation interrompue : {echec}"
             )));
         }
-        let _ = nettoyer_transaction(&transaction, &SansPanne);
+        let _ = nettoyer_transaction(&projet, &transaction, &SansPanne);
         return echec(classer(erreur), verrou);
     }
-    let entrees = plan.entrees;
     // Validée : l'enregistrement a réussi. Interrompu ici, le journal reste et la
     // récupération termine les sauvegardes ; une sauvegarde impossible est abandonnée
     // (jamais de blocage des écritures suivantes).
     if points.atteint(Etape::TransactionValidee).is_ok() {
-        let _ = sauvegarder_versions_precedentes(racine, &transaction, &entrees);
-        let _ = nettoyer_transaction(&transaction, points);
+        let _ = sauvegarder_versions_precedentes(&projet, &transaction, &plan.entrees);
+        let _ = nettoyer_transaction(&projet, &transaction, points);
     }
     Ok(())
 }
 
-/// Retire `.cadre/tmp/verrou`, `.cadre/tmp` et `.cadre` s'ils sont vides (créés par une
-/// écriture qui a échoué).
-fn retirer_cadre_vide(racine: &Path) {
-    let _ = fs::remove_file(racine.join(VERROU));
-    let _ = fs::remove_dir(racine.join(DOSSIER_TMP));
-    let _ = fs::remove_dir(racine.join(".cadre"));
+/// Retire `.cadre/tmp/verrou` (avant de le relâcher), `.cadre/tmp` et `.cadre` s'ils sont
+/// vides : ils ont été créés par une écriture qui a échoué.
+fn retirer_cadre_cree(projet: &Projet, verrou: Verrou) {
+    projet.supprimer_puis_liberer(verrou, VERROU);
+    let _ = projet.supprimer_dossier_vide(DOSSIER_TMP);
+    let _ = projet.supprimer_dossier_vide(CADRE);
 }
 
 /// Supprime le journal d'abord : un arrêt pendant l'effacement du dossier laisse une
 /// transaction sans journal, simplement effacée à la récupération suivante.
-fn nettoyer_transaction(transaction: &Path, points: &dyn PointsDeControle) -> io::Result<()> {
-    match fs::remove_file(transaction.join(JOURNAL)) {
-        Ok(()) => synchroniser_dossier(transaction)?,
+fn nettoyer_transaction(
+    projet: &Projet,
+    transaction: &str,
+    points: &dyn PointsDeControle,
+) -> io::Result<()> {
+    match projet.supprimer_fichier(&format!("{transaction}/{JOURNAL}")) {
+        Ok(()) => projet.synchroniser_dossier(transaction)?,
         Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => {}
         Err(erreur) => return Err(erreur),
     }
     points.atteint(Etape::JournalSupprime)?;
-    fs::remove_dir_all(transaction)
+    projet.supprimer_arbre(transaction)
 }
 
-/// Chemin relatif au projet, segments séparés par `/`, sans `.`, `..`, `\`, `:` ni segment
-/// vide, hors des dossiers internes de l'écrivain (`.cadre/tmp`, `.cadre/backups`).
+/// Chemin écrit par Cadre : règle R1 sur chaque segment, ni `.git` ni dossiers internes de
+/// l'écrivain (`.cadre/tmp`, `.cadre/backups`, quelle que soit la casse).
 pub fn valider_chemin(chemin: &str) -> Result<(), ErreurEcriture> {
     let minuscules = chemin.to_lowercase();
     let interne = [DOSSIER_TMP, DOSSIER_SAUVEGARDES]
@@ -209,27 +237,14 @@ pub fn valider_chemin(chemin: &str) -> Result<(), ErreurEcriture> {
     Ok(())
 }
 
-/// Chemin de lecture : relatif au projet, sans `.`, `..`, segment vide, `\` ni `:`.
-pub fn valider_chemin_relatif(chemin: &str) -> Result<(), ErreurEcriture> {
-    let invalide = |segment: &str| {
-        segment.is_empty() || segment == "." || segment == ".." || segment.contains(['\\', ':'])
-    };
-    if chemin.split('/').any(invalide) {
-        return Err(ErreurEcriture::CheminInvalide(chemin.to_owned()));
-    }
-    Ok(())
-}
-
-/// Règle R1 d'ADR-001 (D4) : nom valide sous Windows, macOS et Linux, et jamais `.git`
-/// (un hook écrit dans `.git/hooks/` serait exécuté par Git).
+/// Règle R1 d'ADR-001 (D4) : nom valide sous Windows, macOS et Linux (255 octets au plus,
+/// ni caractère interdit, ni nom réservé, ni nom court 8.3 `XXXXXX~1`), et jamais `.git`
+/// (un hook écrit dans `.git/hooks/` serait exécuté par Git). L'unicité après
+/// normalisation NFC n'est pas vérifiée (R1 partielle).
 fn segment_portable(segment: &str) -> bool {
     const INTERDITS: [char; 9] = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
-    let base = segment
-        .split('.')
-        .next()
-        .unwrap_or_default()
-        .trim_end()
-        .to_uppercase();
+    let tronc = segment.split('.').next().unwrap_or_default();
+    let base = tronc.trim_end().to_uppercase();
     let reserve = matches!(base.as_str(), "CON" | "PRN" | "AUX" | "NUL")
         || ["COM", "LPT"].iter().any(|prefixe| {
             base.strip_prefix(prefixe).is_some_and(|suffixe| {
@@ -250,7 +265,12 @@ fn segment_portable(segment: &str) -> bool {
                 )
             })
         });
+    // Nom court 8.3 de Windows (`GIT~1` désigne `.git`, `CADRE~1` désigne `.cadre`).
+    let nom_court = tronc.rsplit_once('~').is_some_and(|(avant, chiffres)| {
+        !avant.is_empty() && !chiffres.is_empty() && chiffres.bytes().all(|c| c.is_ascii_digit())
+    });
     !segment.is_empty()
+        && segment.len() <= 255
         && segment != "."
         && segment != ".."
         && !segment.ends_with(['.', ' '])
@@ -259,6 +279,7 @@ fn segment_portable(segment: &str) -> bool {
             .any(|c| INTERDITS.contains(&c) || c.is_control())
         && !segment.eq_ignore_ascii_case(".git")
         && !reserve
+        && !nom_court
 }
 
 /// Un même fichier (casse comprise : NTFS et APFS l'ignorent) une seule fois par lot.
@@ -277,131 +298,122 @@ fn sans_doublon(fichiers: &[FichierAEcrire]) -> Result<(), ErreurEcriture> {
 
 /// Termine ou annule une transaction interrompue, puis vide `.cadre/tmp/` (AC-005-4).
 ///
-/// À appeler à l'ouverture du projet ; chaque écriture l'appelle aussi avant de commencer.
+/// Appelée à l'ouverture du projet ; chaque écriture la fait aussi avant de commencer. Le
+/// verrou n'est pris que s'il y a quelque chose à récupérer : un projet en lecture seule
+/// sans écriture interrompue s'ouvre sans rien écrire.
 pub fn recuperer(racine: &Path) -> Result<(), ErreurEcriture> {
     recuperer_avec(racine, &SansPanne)
 }
 
 /// Comme [`recuperer`], avec des points d'injection de pannes.
 pub fn recuperer_avec(racine: &Path, points: &dyn PointsDeControle) -> Result<(), ErreurEcriture> {
-    if !dossiers_internes_reels(racine)? {
+    let projet = Projet::new(racine);
+    if !dossiers_internes_reels(&projet)? {
         return Ok(());
     }
-    let _verrou = verrouiller_projet(racine)?;
-    recuperer_sous_verrou(racine, points)
+    let a_recuperer = projet
+        .lister(DOSSIER_TMP)
+        .map_err(classer)?
+        .iter()
+        .any(|(nom, _)| nom != NOM_VERROU);
+    if !a_recuperer {
+        return Ok(());
+    }
+    let _verrou = verrouiller_projet(&projet)?;
+    recuperer_sous_verrou(&projet, points)
 }
-
-const VERROU: &str = ".cadre/tmp/verrou";
 
 /// Verrou de fichier exclusif du système (libéré par l'OS si le processus meurt), tenu
 /// pendant toute écriture et toute récupération : deux instances de Cadre ne peuvent pas
 /// travailler en même temps sur le même projet.
-fn verrouiller_projet(racine: &Path) -> Result<fs::File, ErreurEcriture> {
-    let chemin = racine.join(VERROU);
-    match fs::symlink_metadata(&chemin) {
-        Ok(meta) if !meta.is_file() => {
-            return Err(ErreurEcriture::CheminInvalide(format!(
-                "{VERROU} n'est pas un fichier ordinaire"
-            )))
-        }
-        Ok(_) => {}
-        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => {}
-        Err(erreur) => return Err(classer(erreur)),
-    }
-    let fichier = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&chemin)
-        .map_err(classer)?;
-    match fichier.try_lock() {
-        Ok(()) => Ok(fichier),
-        Err(fs::TryLockError::WouldBlock) => Err(ErreurEcriture::ProjetOccupe),
-        Err(fs::TryLockError::Error(erreur)) => Err(classer(erreur)),
-    }
+fn verrouiller_projet(projet: &Projet) -> Result<Verrou, ErreurEcriture> {
+    projet
+        .verrouiller(VERROU)
+        .map_err(classer)?
+        .ok_or(ErreurEcriture::ProjetOccupe)
 }
 
 fn recuperer_sous_verrou(
-    racine: &Path,
+    projet: &Projet,
     points: &dyn PointsDeControle,
 ) -> Result<(), ErreurEcriture> {
-    let contenu = match fs::read_dir(racine.join(DOSSIER_TMP)) {
-        Ok(contenu) => contenu,
-        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => return Ok(()),
-        Err(erreur) => return Err(classer(erreur)),
-    };
-    for element in contenu {
-        let element = element.map_err(classer)?;
-        // `file_type` ne suit pas les liens : un lien n'est ni suivi ni supprimé.
-        let genre = element.file_type().map_err(classer)?;
-        let chemin = element.path();
-        let nom = element.file_name();
-        if genre.is_file() && nom != "verrou" {
-            fs::remove_file(&chemin).map_err(classer)?;
-        } else if genre.is_dir() && nom.to_string_lossy().starts_with("txn-") {
-            let journal = match lire_journal(&chemin)? {
-                Ok(journal) => journal,
-                Err(raison) => return Err(mettre_de_cote(&chemin, &raison)),
-            };
-            if let Some(journal) = &journal {
-                if let Err(raison) = verifier_plan(racine, &journal.plan) {
-                    return Err(mettre_de_cote(&chemin, &raison));
-                }
+    for (nom, genre) in projet.lister(DOSSIER_TMP).map_err(classer)? {
+        let chemin = format!("{DOSSIER_TMP}/{nom}");
+        // Nom refusé par R1 (dépôt forgé) : ni lu, ni suivi, ni supprimé.
+        if projet.reel(&chemin).is_err() {
+            continue;
+        }
+        match genre {
+            Genre::Fichier if nom != NOM_VERROU => {
+                projet.supprimer_fichier(&chemin).map_err(classer)?;
             }
-            match journal {
-                Some(Journal {
-                    etat: EtatTransaction::EnCours,
-                    plan,
-                }) => annuler(racine, &chemin, &plan, points).map_err(|erreur| {
-                    ErreurEcriture::AnnulationIncomplete(format!(
-                        "reprise de {} : {erreur}",
-                        chemin.display()
-                    ))
-                })?,
-                Some(Journal {
-                    etat: EtatTransaction::Validee,
-                    plan,
-                }) => {
-                    // L'enregistrement est déjà validé : une sauvegarde impossible est
-                    // abandonnée plutôt que de bloquer toutes les écritures suivantes.
-                    let _ = sauvegarder_versions_precedentes(racine, &chemin, &plan.entrees);
-                }
-                None => {}
+            Genre::Dossier if nom.starts_with("txn-") => {
+                reprendre_transaction(projet, &chemin, points)?;
             }
-            nettoyer_transaction(&chemin, &SansPanne).map_err(classer)?;
+            // Liens, transactions mises de côté, autres dossiers : jamais touchés.
+            _ => {}
         }
     }
     Ok(())
 }
 
-/// Dossiers internes de l'écrivain, du plus haut au plus profond.
-const DOSSIERS_INTERNES: [&str; 3] = [".cadre", ".cadre/tmp", ".cadre/backups"];
-
-/// Vérifie que les dossiers internes existants sont de vrais dossiers : ni lien symbolique,
-/// ni jonction Windows (un dépôt malveillant pourrait les faire pointer hors du projet).
-/// Renvoie `true` si `.cadre/tmp` existe.
-fn dossiers_internes_reels(racine: &Path) -> Result<bool, ErreurEcriture> {
-    let mut tmp_existe = false;
-    for dossier in DOSSIERS_INTERNES {
-        match fs::symlink_metadata(racine.join(dossier)) {
-            Ok(meta) if meta.is_dir() && !meta.file_type().is_symlink() => {
-                tmp_existe |= dossier == DOSSIER_TMP;
+/// Annule (`en_cours`) ou termine (`validee`) une transaction interrompue, puis l'efface ;
+/// la met de côté si elle ne peut pas être reprise sans risque.
+fn reprendre_transaction(
+    projet: &Projet,
+    transaction: &str,
+    points: &dyn PointsDeControle,
+) -> Result<(), ErreurEcriture> {
+    let journal = match lire_journal(projet, transaction) {
+        Ok(journal) => journal,
+        Err(raison) => return Err(mettre_de_cote(projet, transaction, &raison)),
+    };
+    if let Some(journal) = &journal {
+        if let Err(raison) = verifier_plan(projet, &journal.plan) {
+            return Err(mettre_de_cote(projet, transaction, &raison));
+        }
+    }
+    match journal {
+        Some(Journal {
+            etat: EtatTransaction::EnCours,
+            plan,
+        }) => {
+            if let Err(erreur) = annuler(projet, transaction, &plan, points) {
+                let raison = format!("annulation impossible : {erreur}");
+                return Err(mettre_de_cote(projet, transaction, &raison));
             }
-            Ok(_) => {
+        }
+        Some(Journal {
+            etat: EtatTransaction::Validee,
+            plan,
+        }) => {
+            // L'enregistrement est déjà validé : une sauvegarde impossible est abandonnée
+            // plutôt que de bloquer toutes les écritures suivantes.
+            let _ = sauvegarder_versions_precedentes(projet, transaction, &plan.entrees);
+        }
+        None => {}
+    }
+    nettoyer_transaction(projet, transaction, &SansPanne).map_err(classer)
+}
+
+/// Vérifie que `.cadre`, `.cadre/tmp` et `.cadre/backups`, s'ils existent, sont de vrais
+/// dossiers (ni lien, ni jonction, ni fichier). Renvoie `true` si `.cadre/tmp` existe.
+fn dossiers_internes_reels(projet: &Projet) -> Result<bool, ErreurEcriture> {
+    let mut tmp_existe = false;
+    for dossier in [CADRE, DOSSIER_TMP, DOSSIER_SAUVEGARDES] {
+        match projet.genre(dossier).map_err(classer)? {
+            None => {}
+            Some(Genre::Dossier) => tmp_existe |= dossier == DOSSIER_TMP,
+            Some(_) => {
                 return Err(ErreurEcriture::CheminInvalide(format!(
-                    "{dossier} n'est pas un vrai dossier (lien symbolique, jonction ou fichier) : \
-                     Cadre refuse d'y écrire"
+                    "{dossier} n'est pas un vrai dossier (lien symbolique, jonction ou \
+                     fichier) : Cadre refuse d'y écrire"
                 )))
             }
-            Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => {}
-            Err(erreur) => return Err(classer(erreur)),
         }
     }
     Ok(tmp_existe)
 }
-
-const JOURNAL: &str = "journal.json";
 
 /// `EnCours` : des fichiers du projet sont peut-être remplacés, la récupération les remet
 /// d'origine. `Validee` : tout est écrit, la récupération termine les sauvegardes.
@@ -431,7 +443,8 @@ struct Plan {
 /// Écrit le journal de la transaction de façon atomique. Tant qu'il est absent, aucun
 /// fichier du projet n'a été touché ; présent, il dit comment terminer ou annuler.
 fn ecrire_journal(
-    transaction: &Path,
+    projet: &Projet,
+    transaction: &str,
     etat: EtatTransaction,
     plan: &Plan,
     points: &dyn PointsDeControle,
@@ -440,75 +453,58 @@ fn ecrire_journal(
         etat,
         plan: plan.clone(),
     };
-    let provisoire = transaction.join(format!("{JOURNAL}.provisoire"));
-    ecrire_et_synchroniser(&provisoire, &serde_json::to_vec_pretty(&journal)?)?;
+    let provisoire = format!("{transaction}/{JOURNAL}.provisoire");
+    projet.creer_nouveau(&provisoire, &serde_json::to_vec_pretty(&journal)?)?;
     if matches!(etat, EtatTransaction::Validee) {
         points.atteint(Etape::JournalValideProvisoire)?;
     }
-    fs::rename(&provisoire, transaction.join(JOURNAL))?;
-    synchroniser_dossier(transaction)
+    projet.renommer(&provisoire, &format!("{transaction}/{JOURNAL}"))?;
+    projet.synchroniser_dossier(transaction)
 }
 
-/// Journal d'une transaction interrompue : `Ok(Err(raison))` s'il est illisible.
-fn lire_journal(transaction: &Path) -> Result<Result<Option<Journal>, String>, ErreurEcriture> {
-    let octets = match fs::read(transaction.join(JOURNAL)) {
-        Ok(octets) => octets,
-        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => return Ok(Ok(None)),
-        Err(erreur) => return Err(classer(erreur)),
-    };
-    Ok(serde_json::from_slice(&octets)
-        .map(Some)
-        .map_err(|erreur| format!("journal illisible : {erreur}")))
+/// Journal d'une transaction interrompue ; `Err(raison)` s'il ne peut pas être lu (dossier,
+/// lien, contenu invalide…) : la transaction sera mise de côté.
+fn lire_journal(projet: &Projet, transaction: &str) -> Result<Option<Journal>, String> {
+    match projet.lire(&format!("{transaction}/{JOURNAL}")) {
+        Ok(None) => Ok(None),
+        Ok(Some(octets)) => serde_json::from_slice(&octets)
+            .map(Some)
+            .map_err(|erreur| format!("journal illisible : {erreur}")),
+        Err(erreur) => Err(format!("journal illisible : {erreur}")),
+    }
 }
 
 /// Un journal ne désigne que des fichiers du projet, jamais à travers un lien.
-fn verifier_plan(racine: &Path, plan: &Plan) -> Result<(), String> {
+fn verifier_plan(projet: &Projet, plan: &Plan) -> Result<(), String> {
     let chemins = plan.entrees.iter().map(|entree| &entree.chemin);
     for chemin in chemins.chain(plan.dossiers_crees.iter()) {
-        valider_chemin(chemin)
-            .and_then(|()| parents_reels(racine, chemin))
-            .map_err(|_| format!("chemin refusé dans le journal : {chemin:?}"))?;
-    }
-    Ok(())
-}
-
-/// Chaque dossier parent existant de `chemin` (relatif au projet) est un vrai dossier :
-/// ni lien symbolique ni jonction.
-fn parents_reels(racine: &Path, chemin: &str) -> Result<(), ErreurEcriture> {
-    let segments: Vec<&str> = chemin.split('/').collect();
-    let mut courant = racine.to_path_buf();
-    for segment in &segments[..segments.len().saturating_sub(1)] {
-        courant.push(segment);
-        match fs::symlink_metadata(&courant) {
-            Ok(meta) if meta.is_dir() && !meta.file_type().is_symlink() => {}
-            Ok(_) => {
-                return Err(ErreurEcriture::CheminInvalide(format!(
-                    "{chemin} : un dossier parent est un lien, une jonction ou un fichier"
-                )))
-            }
-            Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => return Ok(()),
-            Err(erreur) => return Err(classer(erreur)),
+        let refuse = valider_chemin(chemin).is_err() || projet.reel(chemin).is_err();
+        if refuse {
+            return Err(format!("chemin refusé dans le journal : {chemin:?}"));
         }
     }
     Ok(())
 }
 
-/// Met une transaction impossible à reprendre de côté (`de-cote-txn-…`) : rien n'est
-/// supprimé, et la récupération suivante ne la voit plus (pas de blocage permanent).
-fn mettre_de_cote(transaction: &Path, raison: &str) -> ErreurEcriture {
-    let nom = transaction
-        .file_name()
-        .map(|nom| nom.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let destination = transaction.with_file_name(format!("de-cote-{nom}"));
-    let examiner = match fs::rename(transaction, &destination) {
-        Ok(()) => destination,
-        Err(_) => transaction.to_path_buf(),
+/// Met une transaction impossible à reprendre de côté (`de-cote-txn-…`, suffixe `-2`,
+/// `-3`… si le nom est pris) : rien n'est supprimé, et la récupération suivante ne la voit
+/// plus (pas de blocage permanent).
+fn mettre_de_cote(projet: &Projet, transaction: &str, raison: &str) -> ErreurEcriture {
+    let nom = transaction.rsplit('/').next().unwrap_or(transaction);
+    let libre = (1..=1000)
+        .map(|n| match n {
+            1 => format!("{DOSSIER_TMP}/de-cote-{nom}"),
+            n => format!("{DOSSIER_TMP}/de-cote-{nom}-{n}"),
+        })
+        .find(|candidat| matches!(projet.existe(candidat), Ok(false)));
+    let examiner = match libre {
+        Some(destination) if projet.renommer(transaction, &destination).is_ok() => destination,
+        _ => transaction.to_owned(),
     };
     ErreurEcriture::RecuperationImpossible(format!(
         "une écriture interrompue n'a pas pu être reprise ({raison}) ; rien n'a été supprimé, \
          dossier à examiner : {}",
-        examiner.display()
+        projet.afficher(&examiner)
     ))
 }
 
@@ -521,18 +517,22 @@ struct Entree {
     empreinte_nouvelle: String,
 }
 
-fn temporaire_nouveau(transaction: &Path, i: usize) -> PathBuf {
-    transaction.join(format!("{i}.nouveau"))
+fn temporaire_nouveau(transaction: &str, i: usize) -> String {
+    format!("{transaction}/{i}.nouveau")
 }
 
-fn copie_ancienne(transaction: &Path, i: usize) -> PathBuf {
-    transaction.join(format!("{i}.ancien"))
+fn copie_ancienne(transaction: &str, i: usize) -> String {
+    format!("{transaction}/{i}.ancien")
+}
+
+fn parent(chemin: &str) -> &str {
+    chemin.rsplit_once('/').map_or("", |(parent, _)| parent)
 }
 
 /// Écrit les nouveaux contenus et une copie des fichiers existants dans la transaction.
 fn preparer(
-    racine: &Path,
-    transaction: &Path,
+    projet: &Projet,
+    transaction: &str,
     fichiers: &[FichierAEcrire],
     points: &dyn PointsDeControle,
 ) -> io::Result<Plan> {
@@ -542,19 +542,18 @@ fn preparer(
         let segments: Vec<&str> = fichier.chemin.split('/').collect();
         for fin in 1..segments.len() {
             let dossier = segments[..fin].join("/");
-            if !racine.join(&dossier).exists() && !dossiers_crees.contains(&dossier) {
+            if !projet.existe(&dossier)? && !dossiers_crees.contains(&dossier) {
                 dossiers_crees.push(dossier);
             }
         }
-        ecrire_et_synchroniser(&temporaire_nouveau(transaction, i), &fichier.contenu)?;
+        projet.creer_nouveau(&temporaire_nouveau(transaction, i), &fichier.contenu)?;
         points.atteint(Etape::TemporaireEcrit(i))?;
-        let empreinte_precedente = match fs::read(racine.join(&fichier.chemin)) {
-            Ok(ancien) => {
-                ecrire_et_synchroniser(&copie_ancienne(transaction, i), &ancien)?;
+        let empreinte_precedente = match projet.lire(&fichier.chemin)? {
+            Some(ancien) => {
+                projet.creer_nouveau(&copie_ancienne(transaction, i), &ancien)?;
                 Some(empreinte(&ancien))
             }
-            Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => None,
-            Err(erreur) => return Err(erreur),
+            None => None,
         };
         entrees.push(Entree {
             chemin: fichier.chemin.clone(),
@@ -562,7 +561,7 @@ fn preparer(
             empreinte_nouvelle: empreinte(&fichier.contenu),
         });
     }
-    synchroniser_dossier(transaction)?;
+    projet.synchroniser_dossier(transaction)?;
     Ok(Plan {
         entrees,
         dossiers_crees,
@@ -570,63 +569,61 @@ fn preparer(
 }
 
 fn remplacer(
-    racine: &Path,
-    transaction: &Path,
+    projet: &Projet,
+    transaction: &str,
     entrees: &[Entree],
     points: &dyn PointsDeControle,
 ) -> io::Result<()> {
     for (i, entree) in entrees.iter().enumerate() {
-        let cible = racine.join(&entree.chemin);
-        if let Some(parent) = cible.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::rename(temporaire_nouveau(transaction, i), &cible)?;
-        synchroniser_dossier(cible.parent().unwrap_or(racine))?;
+        projet.creer_dossiers(parent(&entree.chemin))?;
+        projet.renommer(&temporaire_nouveau(transaction, i), &entree.chemin)?;
+        projet.synchroniser_dossier(parent(&entree.chemin))?;
         points.atteint(Etape::FichierRemplace(i))?;
     }
     Ok(())
 }
 
 /// Remet chaque fichier remplacé par la transaction dans son état d'origine. Un fichier
-/// dont le contenu n'est plus celui écrit par la transaction n'est jamais touché.
+/// dont le contenu n'est plus celui écrit par la transaction n'est jamais touché. Une cible
+/// illisible ou devenue dossier, ou une copie d'origine manquante alors que la cible porte
+/// le nouveau contenu, est une erreur : rien n'est nettoyé en silence.
 fn annuler(
-    racine: &Path,
-    transaction: &Path,
+    projet: &Projet,
+    transaction: &str,
     plan: &Plan,
     points: &dyn PointsDeControle,
 ) -> io::Result<()> {
     for (i, entree) in plan.entrees.iter().enumerate().rev() {
-        let cible = racine.join(&entree.chemin);
-        let actuel = match fs::read(&cible) {
-            Ok(contenu) => contenu,
-            Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => continue,
-            Err(erreur) => return Err(erreur),
+        let Some(actuel) = projet.lire(&entree.chemin)? else {
+            continue;
         };
-        if empreinte(&actuel) != entree.empreinte_nouvelle {
+        let deja_d_origine =
+            entree.empreinte_precedente.as_deref() == Some(entree.empreinte_nouvelle.as_str());
+        if empreinte(&actuel) != entree.empreinte_nouvelle || deja_d_origine {
             continue;
         }
-        let ancien = copie_ancienne(transaction, i);
         if entree.empreinte_precedente.is_some() {
-            // Jamais un lien déposé à la place de la copie d'origine.
-            if fs::symlink_metadata(&ancien).is_ok_and(|meta| meta.is_file()) {
-                fs::rename(&ancien, &cible)?;
+            let ancien = copie_ancienne(transaction, i);
+            if projet.genre(&ancien)? != Some(Genre::Fichier) {
+                return Err(refus(format!(
+                    "copie d'origine manquante pour {}",
+                    entree.chemin
+                )));
             }
+            projet.renommer(&ancien, &entree.chemin)?;
         } else {
-            fs::remove_file(&cible)?;
+            projet.supprimer_fichier(&entree.chemin)?;
         }
-        synchroniser_dossier(cible.parent().unwrap_or(racine))?;
+        projet.synchroniser_dossier(parent(&entree.chemin))?;
         points.atteint(Etape::FichierRestaure(i))?;
     }
     // Dossiers créés par la transaction, du plus profond au plus haut, seulement s'ils
-    // sont vides (`remove_dir` échoue sinon : un fichier ajouté depuis est conservé).
+    // sont vides (un fichier ajouté depuis est conservé).
     for dossier in plan.dossiers_crees.iter().rev() {
-        let _ = fs::remove_dir(racine.join(dossier));
+        let _ = projet.supprimer_dossier_vide(dossier);
     }
     Ok(())
 }
-
-const DOSSIER_SAUVEGARDES: &str = ".cadre/backups";
-const INDEX_SAUVEGARDES: &str = ".cadre/backups/index.yaml";
 
 /// Une ligne de `.cadre/backups/index.yaml` (ADR-001, D6).
 #[derive(Debug, Serialize, Deserialize)]
@@ -646,30 +643,31 @@ struct IndexSauvegardes {
 /// Copie la version précédente de chaque fichier remplacé dans `.cadre/backups/<chemin>`
 /// (une seule version par fichier, Q-15) et met à jour l'index. Rejouable sans risque.
 fn sauvegarder_versions_precedentes(
-    racine: &Path,
-    transaction: &Path,
+    projet: &Projet,
+    transaction: &str,
     entrees: &[Entree],
 ) -> io::Result<()> {
     for (i, entree) in entrees.iter().enumerate() {
+        // Copie disparue (arrêt pendant le nettoyage) : pas de sauvegarde pour ce fichier.
         let ancien = copie_ancienne(transaction, i);
-        // Copie disparue (arrêt pendant le nettoyage) ou remplacée par autre chose qu'un
-        // fichier ordinaire (lien) : pas de sauvegarde pour ce fichier.
-        let copie_ordinaire = fs::symlink_metadata(&ancien).is_ok_and(|meta| meta.is_file());
-        if entree.empreinte_precedente.is_some() && copie_ordinaire {
-            let sauvegarde = racine.join(DOSSIER_SAUVEGARDES).join(&entree.chemin);
-            let contenu = fs::read(&ancien)?;
+        if entree.empreinte_precedente.is_none() {
+            continue;
+        }
+        if let Some(contenu) = projet.lire(&ancien)? {
             remplacer_par(
-                &transaction.join(format!("{i}.sauvegarde")),
-                &sauvegarde,
+                projet,
+                &format!("{transaction}/{i}.sauvegarde"),
+                &format!("{DOSSIER_SAUVEGARDES}/{}", entree.chemin),
                 &contenu,
             )?;
         }
     }
 
-    let chemin_index = racine.join(INDEX_SAUVEGARDES);
     // L'index n'est qu'une aide (dossier ignoré par Git) : illisible, il est reconstruit.
-    let mut index: IndexSauvegardes = fs::read(&chemin_index)
+    let mut index: IndexSauvegardes = projet
+        .lire(INDEX_SAUVEGARDES)
         .ok()
+        .flatten()
         .and_then(|octets| serde_json::from_slice(&octets).ok())
         .unwrap_or_default();
     let date = humantime::format_rfc3339_seconds(SystemTime::now()).to_string();
@@ -686,20 +684,20 @@ fn sauvegarder_versions_precedentes(
     let mut octets = serde_json::to_vec_pretty(&index)?;
     octets.push(b'\n');
     remplacer_par(
-        &transaction.join("index.provisoire"),
-        &chemin_index,
+        projet,
+        &format!("{transaction}/index.provisoire"),
+        INDEX_SAUVEGARDES,
         &octets,
     )
 }
 
-/// Écriture atomique d'un fichier : `provisoire` (même volume), fsync, renommage.
-fn remplacer_par(provisoire: &Path, cible: &Path, contenu: &[u8]) -> io::Result<()> {
-    let _ = fs::remove_file(provisoire);
-    ecrire_et_synchroniser(provisoire, contenu)?;
-    let parent = cible.parent().unwrap_or(Path::new("."));
-    fs::create_dir_all(parent)?;
-    fs::rename(provisoire, cible)?;
-    synchroniser_dossier(parent)
+/// Écriture atomique d'un fichier interne : `provisoire` (même volume), fsync, renommage.
+fn remplacer_par(projet: &Projet, provisoire: &str, cible: &str, contenu: &[u8]) -> io::Result<()> {
+    let _ = projet.supprimer_fichier(provisoire);
+    projet.creer_nouveau(provisoire, contenu)?;
+    projet.creer_dossiers(parent(cible))?;
+    projet.renommer(provisoire, cible)?;
+    projet.synchroniser_dossier(parent(cible))
 }
 
 fn empreinte(contenu: &[u8]) -> String {
@@ -711,36 +709,18 @@ fn empreinte(contenu: &[u8]) -> String {
 
 static COMPTEUR: AtomicU64 = AtomicU64::new(0);
 
-fn nouveau_dossier_transaction(racine: &Path) -> io::Result<PathBuf> {
+fn nouvelle_transaction(projet: &Projet) -> io::Result<String> {
     let horodatage = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or_default();
     let numero = COMPTEUR.fetch_add(1, Ordering::Relaxed);
-    let dossier = racine
-        .join(DOSSIER_TMP)
-        .join(format!("txn-{}-{horodatage}-{numero}", std::process::id()));
-    fs::create_dir_all(&dossier)?;
-    Ok(dossier)
-}
-
-fn ecrire_et_synchroniser(chemin: &Path, contenu: &[u8]) -> io::Result<()> {
-    let mut fichier = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(chemin)?;
-    fichier.write_all(contenu)?;
-    fichier.sync_all()
-}
-
-/// Rend durable un renommage dans `dossier` (Unix). Sous Windows, NTFS journalise les
-/// métadonnées et un dossier ne s'ouvre pas comme un fichier : rien à faire.
-fn synchroniser_dossier(dossier: &Path) -> io::Result<()> {
-    #[cfg(unix)]
-    fs::File::open(dossier)?.sync_all()?;
-    #[cfg(not(unix))]
-    let _ = dossier;
-    Ok(())
+    let transaction = format!(
+        "{DOSSIER_TMP}/txn-{}-{horodatage}-{numero}",
+        std::process::id()
+    );
+    projet.creer_dossiers(&transaction)?;
+    Ok(transaction)
 }
 
 #[cfg(unix)]
@@ -765,6 +745,9 @@ mod codes_systeme {
 }
 
 fn classer(erreur: io::Error) -> ErreurEcriture {
+    if let Some(motif) = motif_de_refus(&erreur) {
+        return ErreurEcriture::CheminInvalide(motif);
+    }
     let detail = erreur.to_string();
     let code = erreur.raw_os_error().unwrap_or_default();
     if codes_systeme::DISQUE_PLEIN.contains(&code) {
