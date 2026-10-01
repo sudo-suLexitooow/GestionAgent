@@ -27,11 +27,11 @@ export async function openFromPicker(folders: FolderAccess): Promise<OpenOutcome
   }
 }
 
-export function openFromDrop(
-  _folders: FolderAccess,
-  _paths: readonly string[],
+export async function openFromDrop(
+  folders: FolderAccess,
+  paths: readonly string[],
 ): Promise<OpenOutcome> {
-  return Promise.resolve({ kind: "cancelled" });
+  return openPath(folders, paths[0] ?? "");
 }
 
 async function openPath(folders: FolderAccess, path: string): Promise<OpenOutcome> {
