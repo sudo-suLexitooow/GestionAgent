@@ -54,7 +54,10 @@ export async function importSkillsFolder(
       if (kind === "link") throw new Unavailable(source, "link");
       const top = await list(files, root, source);
       // Dossier sans `SKILL.md` : pas une skill.
-      if (!top.some((entry) => entry.name === SKILL_MD)) continue;
+      const skillMd = top.find((entry) => entry.name === SKILL_MD);
+      if (!skillMd) continue;
+      if (skillMd.kind === "directory")
+        throw new Unavailable(`${source}/${SKILL_MD}`, "unreadable");
       const skillFiles = skillMdFirst(await readTree(files, root, source, "", top));
       const header = skillFiles[0] as SkillFile;
       skills.push({ skill: describeSkill(folder, header.content), source, files: skillFiles });
