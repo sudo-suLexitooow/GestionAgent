@@ -88,18 +88,15 @@ describe("ouverture depuis le sélecteur", () => {
   test.each([
     ["inexistant", "not-found"],
     ["illisible", "unreadable"],
-  ] as const)(
-    "test_ac_001_4_dossier_%s_produit_une_erreur_sans_ouvrir",
-    async (_label, status) => {
-      const folders = new InMemoryFolderAccess({ "/projets/x": status }).answerPickerWith(
-        "/projets/x",
-      );
+  ] as const)("test_ac_001_4_dossier_%s_produit_une_erreur_sans_ouvrir", async (_label, status) => {
+    const folders = new InMemoryFolderAccess({ "/projets/x": status }).answerPickerWith(
+      "/projets/x",
+    );
 
-      const outcome = await openFromPicker(folders);
+    const outcome = await openFromPicker(folders);
 
-      expect(outcome).toEqual({ kind: "error", error: status });
-    },
-  );
+    expect(outcome).toEqual({ kind: "error", error: status });
+  });
 
   test("test_ac_001_4_echec_systeme_pendant_la_verification_produit_une_erreur", async () => {
     const folders = new InMemoryFolderAccess().answerPickerWith("/projets/x");

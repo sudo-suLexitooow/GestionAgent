@@ -7,11 +7,7 @@ export interface Project {
 }
 
 export type OpenError =
-  | "not-found"
-  | "unreadable"
-  | "not-a-directory"
-  | "drop-single-folder"
-  | "unexpected";
+  "not-found" | "unreadable" | "not-a-directory" | "drop-single-folder" | "unexpected";
 
 export type OpenOutcome =
   | { kind: "opened"; project: Project }
@@ -19,29 +15,34 @@ export type OpenOutcome =
   | { kind: "error"; error: OpenError };
 
 /** Ouvre le dossier choisi dans le sélecteur (AC-001-1, AC-001-4, AC-001-5). */
-export async function openFromPicker(folders: FolderAccess): Promise<OpenOutcome> {
-  try {
+export function openFromPicker(folders: FolderAccess): Promise<OpenOutcome> {
+  return withoutCrash(async () => {
     const path = await folders.pickFolder();
     if (path === null) return { kind: "cancelled" };
-    return await openPath(folders, path);
-  } catch {
-    return { kind: "error", error: "unexpected" };
-  }
+    return openPath(folders, path);
+  });
 }
 
 /** Ouvre le dossier déposé dans la fenêtre ; un fichier ou plusieurs éléments sont refusés (AC-001-2, AC-001-3). */
-export async function openFromDrop(
+export function openFromDrop(
   folders: FolderAccess,
   paths: readonly string[],
 ): Promise<OpenOutcome> {
-  const decision = decideDrop(paths);
-  if (decision.kind === "rejected") return { kind: "error", error: "drop-single-folder" };
-  try {
+  return withoutCrash(async () => {
+    const decision = decideDrop(paths);
+    if (decision.kind === "rejected") return DROP_SINGLE_FOLDER;
     const outcome = await openPath(folders, decision.path);
-    if (outcome.kind === "error" && outcome.error === "not-a-directory") {
-      return { kind: "error", error: "drop-single-folder" };
-    }
-    return outcome;
+    const isNotAFolder = outcome.kind === "error" && outcome.error === "not-a-directory";
+    return isNotAFolder ? DROP_SINGLE_FOLDER : outcome;
+  });
+}
+
+const DROP_SINGLE_FOLDER: OpenOutcome = { kind: "error", error: "drop-single-folder" };
+
+/** Un échec système (dialogue, commande) devient une erreur affichable : l'app ne plante pas (AC-001-4). */
+async function withoutCrash(open: () => Promise<OpenOutcome>): Promise<OpenOutcome> {
+  try {
+    return await open();
   } catch {
     return { kind: "error", error: "unexpected" };
   }
