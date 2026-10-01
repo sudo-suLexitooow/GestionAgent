@@ -15,8 +15,12 @@ pub enum FolderStatus {
 
 /// Indique si `path` est un dossier existant et lisible.
 pub fn inspect_folder(path: &Path) -> FolderStatus {
-    match std::fs::read_dir(path) {
-        Ok(_) => FolderStatus::Ok,
+    match std::fs::metadata(path) {
         Err(_) => FolderStatus::NotFound,
+        Ok(metadata) if !metadata.is_dir() => FolderStatus::NotADirectory,
+        Ok(_) => match std::fs::read_dir(path) {
+            Ok(_) => FolderStatus::Ok,
+            Err(_) => FolderStatus::NotFound,
+        },
     }
 }
