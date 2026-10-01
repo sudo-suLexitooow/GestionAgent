@@ -1347,6 +1347,56 @@ mod dossiers_crees_retires {
     }
 }
 
+/// Revue B, point 13 : les codes « quota dépassé » diffèrent selon l'OS.
+mod codes_disque_plein_par_os {
+    use super::*;
+    use cadre_lib::fs_atomique::ErreurEcriture;
+
+    fn erreur_pour(code: i32) -> Result<(), ErreurEcriture> {
+        let (dossier, fichiers) = projet_existant();
+        ecrire_fichiers_avec(
+            dossier.path(),
+            &fichiers,
+            &ErreurSystemeA(Etape::TemporaireEcrit(0), code),
+        )
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_ac_005_6_quota_depasse_linux() {
+        assert!(matches!(
+            erreur_pour(122),
+            Err(ErreurEcriture::DisquePlein(_))
+        ));
+        // 69 (EDQUOT sous macOS) n'est pas « disque plein » sous Linux.
+        assert!(matches!(erreur_pour(69), Err(ErreurEcriture::Autre(_))));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn test_ac_005_6_quota_depasse_macos() {
+        assert!(matches!(
+            erreur_pour(69),
+            Err(ErreurEcriture::DisquePlein(_))
+        ));
+        // 122 (EDQUOT sous Linux) n'est pas « disque plein » sous macOS.
+        assert!(matches!(erreur_pour(122), Err(ErreurEcriture::Autre(_))));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_ac_005_6_quota_depasse_windows() {
+        assert!(matches!(
+            erreur_pour(1295),
+            Err(ErreurEcriture::DisquePlein(_))
+        ));
+        assert!(matches!(
+            erreur_pour(39),
+            Err(ErreurEcriture::DisquePlein(_))
+        ));
+    }
+}
+
 mod transaction_reussie {
     use super::*;
 
