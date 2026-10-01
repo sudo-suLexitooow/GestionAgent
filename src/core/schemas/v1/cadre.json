@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cadre.app/schemas/v1/cadre.json",
+  "type": "object",
+  "required": ["schema_version", "generator_version", "tools"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "generator_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "tools": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/adapterId" } },
+    "contexts": { "type": "array", "items": { "$ref": "#/$defs/context" } }
+  },
+  "$defs": {
+    "adapterId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" },
+    "cadreName": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9_-]{0,62}[A-Za-z0-9])?$"
+    },
+    "context": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "$ref": "#/$defs/cadreName" },
+        "title": { "type": "string" },
+        "type": { "enum": ["projet", "conventions", "architecture", "autre"], "default": "autre" },
+        "scope": { "enum": ["project", "agents"], "default": "project" },
+        "source": { "type": "string" },
+        "readonly": { "type": "boolean", "default": false }
+      }
+    }
+  }
+}
