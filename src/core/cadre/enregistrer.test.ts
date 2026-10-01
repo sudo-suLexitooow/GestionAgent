@@ -97,6 +97,18 @@ describe("enregistrer le modèle .cadre/ (US-005)", () => {
     expect(fs.instantane()).toEqual(avant);
   });
 
+  it("test_ac_077_2_le_coeur_renvoie_un_code_et_un_detail_sans_libelle", async () => {
+    const fs = new SystemeFichiersMemoire();
+    fs.echouerProchaineEcriture("DISQUE_PLEIN");
+
+    const resultat = await enregistrerCadre(fs, RACINE, cadre());
+
+    expect(resultat).toEqual({
+      ok: false,
+      erreur: { code: "DISQUE_PLEIN", detail: "écriture simulée" },
+    });
+  });
+
   it("test_ac_005_6_disque_plein_message_clair", async () => {
     const fs = new SystemeFichiersMemoire();
     fs.echouerProchaineEcriture("DISQUE_PLEIN");
