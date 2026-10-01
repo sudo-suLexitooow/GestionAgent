@@ -3,7 +3,7 @@ name = "cadre"
 version = "0.0.0"
 description = "Cadre — conception et surveillance du cadrage des agents IA"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.89"
 
 [lib]
 name = "cadre_lib"

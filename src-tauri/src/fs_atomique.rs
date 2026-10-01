@@ -111,7 +111,11 @@ pub fn ecrire_fichiers_avec(
     for fichier in fichiers {
         valider_chemin(&fichier.chemin)?;
     }
-    recuperer_avec(racine, points)?;
+    dossiers_internes_reels(racine)?;
+    fs::create_dir_all(racine.join(DOSSIER_TMP)).map_err(classer)?;
+    dossiers_internes_reels(racine)?;
+    let _verrou = verrouiller_projet(racine)?;
+    recuperer_sous_verrou(racine, points)?;
     let transaction = nouveau_dossier_transaction(racine).map_err(classer)?;
     let preparation = preparer(racine, &transaction, fichiers, points).and_then(|entrees| {
         ecrire_journal(&transaction, EtatTransaction::EnCours, &entrees, points)?;
@@ -187,6 +191,45 @@ pub fn recuperer_avec(racine: &Path, points: &dyn PointsDeControle) -> Result<()
     if !dossiers_internes_reels(racine)? {
         return Ok(());
     }
+    let _verrou = verrouiller_projet(racine)?;
+    recuperer_sous_verrou(racine, points)
+}
+
+const VERROU: &str = ".cadre/tmp/verrou";
+
+/// Verrou de fichier exclusif du système (libéré par l'OS si le processus meurt), tenu
+/// pendant toute écriture et toute récupération : deux instances de Cadre ne peuvent pas
+/// travailler en même temps sur le même projet.
+fn verrouiller_projet(racine: &Path) -> Result<fs::File, ErreurEcriture> {
+    let chemin = racine.join(VERROU);
+    match fs::symlink_metadata(&chemin) {
+        Ok(meta) if !meta.is_file() => {
+            return Err(ErreurEcriture::CheminInvalide(format!(
+                "{VERROU} n'est pas un fichier ordinaire"
+            )))
+        }
+        Ok(_) => {}
+        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => {}
+        Err(erreur) => return Err(classer(erreur)),
+    }
+    let fichier = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&chemin)
+        .map_err(classer)?;
+    match fichier.try_lock() {
+        Ok(()) => Ok(fichier),
+        Err(fs::TryLockError::WouldBlock) => Err(ErreurEcriture::ProjetOccupe),
+        Err(fs::TryLockError::Error(erreur)) => Err(classer(erreur)),
+    }
+}
+
+fn recuperer_sous_verrou(
+    racine: &Path,
+    points: &dyn PointsDeControle,
+) -> Result<(), ErreurEcriture> {
     let contenu = match fs::read_dir(racine.join(DOSSIER_TMP)) {
         Ok(contenu) => contenu,
         Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => return Ok(()),
@@ -198,7 +241,7 @@ pub fn recuperer_avec(racine: &Path, points: &dyn PointsDeControle) -> Result<()
         let genre = element.file_type().map_err(classer)?;
         let chemin = element.path();
         let nom = element.file_name();
-        if genre.is_file() {
+        if genre.is_file() && nom != "verrou" {
             fs::remove_file(&chemin).map_err(classer)?;
         } else if genre.is_dir() && nom.to_string_lossy().starts_with("txn-") {
             let journal = match lire_journal(&chemin)? {
