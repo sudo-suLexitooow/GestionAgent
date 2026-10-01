@@ -25,16 +25,23 @@ export interface ProjectWarning {
   detail: string;
 }
 
-/** Nature d'une entrée de dossier ; `other` : ni fichier ni dossier (lien cassé, périphérique…). */
-export type EntryKind = "file" | "directory" | "other";
+/**
+ * Nature d'une entrée de dossier, lue sans suivre les liens. `link` : lien symbolique ou jonction
+ * (jamais suivi, US-076) ; `other` : ni fichier, ni dossier, ni lien (FIFO, périphérique…).
+ */
+export type EntryKind = "file" | "directory" | "link" | "other";
 
 export interface DirEntry {
   name: string;
   kind: EntryKind;
 }
 
-/** Motif de refus d'une lecture, tel que le rapportent les commandes système. */
-export type ReadError = "outside-project" | "unreadable" | "too-large";
+/**
+ * Motif de refus d'une lecture, tel que le rapportent les commandes système. `outside-project` :
+ * aucun projet ouvert, racine autre que celle du projet ouvert, ou chemin refusé (`..`, absolu,
+ * préfixe ou nom réservé Windows) ; `link` : le chemin passe par un lien ou une jonction (US-076).
+ */
+export type ReadError = "outside-project" | "unreadable" | "too-large" | "link";
 
 /** Rejet d'une lecture du projet : porte le motif rapporté par la commande système. */
 export class ProjectReadError extends Error {
