@@ -240,6 +240,15 @@ describe("modèle incomplet (AC-006-5) ou absent (AC-006-6)", () => {
     },
   );
 
+  test("test_ac_006_5_cadre_yaml_lien_symbolique_modele_incomplet_avec_le_motif", async () => {
+    const files = new InMemoryProjectFiles(ROOT, {}).addLink(".cadre/cadre.yaml");
+
+    expect(await chargerModele(files, ROOT)).toEqual({
+      etat: "incomplet",
+      erreur: { fichier: ".cadre/cadre.yaml", code: "LINK" },
+    });
+  });
+
   test.each([
     ["sans_dossier_cadre", { "CLAUDE.md": "# P\n" }],
     ["dossier_cadre_avec_seulement_le_verrou", { ".cadre/tmp/verrou": "" }],
