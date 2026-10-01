@@ -55,4 +55,16 @@ describe("écran d'accueil → écran principal", () => {
     );
     expect(screen.getByRole("heading", { name: "Cadre" })).toBeInTheDocument();
   });
+
+  test("test_ac_001_5_annuler_le_selecteur_reste_sur_l_accueil_sans_message", async () => {
+    const { folders } = renderApp({ "/projets/x": "not-found" });
+    folders.answerPickerWith("/projets/x").answerPickerWith(null);
+    await clickOpen();
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+
+    await clickOpen();
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ouvrir un dossier" })).toBeInTheDocument();
+  });
 });
