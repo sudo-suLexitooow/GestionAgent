@@ -51,11 +51,14 @@ export class ProjectReadError extends Error {
   }
 }
 
-/** Raison affichable d'un échec de lecture d'un fichier : trop gros, sinon illisible. */
-export function readFailureReason(error: unknown): "unreadable" | "too-large" {
-  return error instanceof ProjectReadError && error.reason === "too-large"
-    ? "too-large"
-    : "unreadable";
+/** Raison affichable d'un échec de lecture d'un fichier : trop gros, lien, sinon illisible. */
+export function readFailureReason(error: unknown): "unreadable" | "too-large" | "link" {
+  if (
+    error instanceof ProjectReadError &&
+    (error.reason === "too-large" || error.reason === "link")
+  )
+    return error.reason;
+  return "unreadable";
 }
 
 /**

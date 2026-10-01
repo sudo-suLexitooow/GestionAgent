@@ -13,7 +13,7 @@ export interface ReadContextFile {
 /** Avertissement d'import : fichier d'origine et raison. */
 export interface ContextImportWarning {
   source: string;
-  code: "encoding" | "unreadable" | "too-large";
+  code: "encoding" | "unreadable" | "too-large" | "link";
 }
 
 /** Résultat d'un import de contextes, en mémoire : rien n'est écrit ici. */
@@ -82,8 +82,11 @@ export async function detectContextFiles(
 ): Promise<ContextFileSpec[]> {
   const entries = (await files.listDir(root, "")) ?? [];
   if (entries.some((entry) => entry.name === ".cadre" && entry.kind === "directory")) return [];
+  // Un lien n'est pas suivi (US-076) : il est proposé pour que l'import le signale.
   const present = new Set(
-    entries.filter((entry) => entry.kind === "file").map((entry) => entry.name),
+    entries
+      .filter((entry) => entry.kind === "file" || entry.kind === "link")
+      .map((entry) => entry.name),
   );
   const candidates = [...(adapter.contextFiles ?? []), ...GENERIC_CONTEXT_FILES];
   return candidates.filter((spec) => present.has(spec.file));
