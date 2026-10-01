@@ -52,7 +52,7 @@ export async function importContexts(
   return buildContextImport(read);
 }
 
-/** Contexte importé depuis `spec` : métadonnées pour `cadre.yaml`, contenu brut (ADR-001, D2). */
+/** Contexte importé depuis `spec` : métadonnées pour `cadre.yaml`, copie des octets bruts (ADR-001, D2). */
 function importedContext(spec: ContextFileSpec, bytes: Uint8Array): ImportedContext {
   const entry: ContextEntry = {
     name: spec.name,
@@ -61,7 +61,7 @@ function importedContext(spec: ContextFileSpec, bytes: Uint8Array): ImportedCont
     source: spec.file,
   };
   if (spec.readonly) entry.readonly = true;
-  return { entry, path: `.cadre/contexte/${spec.name}.md`, content: bytes };
+  return { entry, path: `.cadre/contexte/${spec.name}.md`, content: bytes.slice() };
 }
 
 /**
