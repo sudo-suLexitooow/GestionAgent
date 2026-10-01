@@ -78,7 +78,10 @@ describe("glisser-déposer natif de la webview", () => {
     await tauriDropSource.onDrop((paths) => received.push(paths));
 
     await emit("tauri://drag-over", { position: { x: 1, y: 1 } });
-    await emit("tauri://drag-drop", { paths: ["/home/lea/a", "/home/lea/b"], position: { x: 1, y: 1 } });
+    await emit("tauri://drag-drop", {
+      paths: ["/home/lea/a", "/home/lea/b"],
+      position: { x: 1, y: 1 },
+    });
 
     expect(received).toEqual([["/home/lea/a", "/home/lea/b"]]);
   });

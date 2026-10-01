@@ -38,23 +38,20 @@ describe("glisser-déposer sur l'accueil", () => {
   test.each([
     ["un fichier", ["/home/lea/notes.txt"]],
     ["plusieurs dossiers", ["/home/lea/a", "/home/lea/b"]],
-  ])(
-    "test_ac_001_3_deposer_%s_n_ouvre_rien_et_demande_un_seul_dossier",
-    async (_label, paths) => {
-      const { drops } = renderApp({
-        "/home/lea/notes.txt": "not-a-directory",
-        "/home/lea/a": "ok",
-        "/home/lea/b": "ok",
-      });
+  ])("test_ac_001_3_deposer_%s_n_ouvre_rien_et_demande_un_seul_dossier", async (_label, paths) => {
+    const { drops } = renderApp({
+      "/home/lea/notes.txt": "not-a-directory",
+      "/home/lea/a": "ok",
+      "/home/lea/b": "ok",
+    });
 
-      await drop(drops, paths);
+    await drop(drops, paths);
 
-      expect(await screen.findByRole("alert")).toHaveTextContent(
-        "Déposez un seul dossier : pas un fichier, ni plusieurs éléments.",
-      );
-      expect(screen.getByRole("heading", { name: "Cadre" })).toBeInTheDocument();
-    },
-  );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Déposez un seul dossier : pas un fichier, ni plusieurs éléments.",
+    );
+    expect(screen.getByRole("heading", { name: "Cadre" })).toBeInTheDocument();
+  });
 
   test("test_ac_001_2_la_zone_de_depot_est_indiquee_sur_l_accueil", () => {
     renderApp();
@@ -113,7 +110,11 @@ describe("écran d'accueil → écran principal", () => {
   });
 
   test.each([
-    ["inexistant", "not-found", "Ce dossier n'existe pas (ou plus). Vérifiez le chemin puis réessayez."],
+    [
+      "inexistant",
+      "not-found",
+      "Ce dossier n'existe pas (ou plus). Vérifiez le chemin puis réessayez.",
+    ],
     ["illisible", "unreadable", "Ce dossier ne peut pas être lu : droits d'accès insuffisants."],
   ] as const)(
     "test_ac_001_4_dossier_%s_affiche_un_message_clair_et_reste_sur_l_accueil",

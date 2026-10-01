@@ -29,7 +29,7 @@ fn test_ac_001_4_dossier_inexistant() {
 }
 
 /// Le cas « droits insuffisants » s'appuie sur les permissions POSIX : il ne s'exécute que sous
-/// Linux et macOS (`#[cfg(unix)]`, pas `#[ignore]`). Sous Windows, la correspondance
+/// Linux et macOS (compilation conditionnelle `cfg(unix)`, aucun test désactivé). Sous Windows, la correspondance
 /// « accès refusé → illisible » est couverte par le test unitaire de `folder.rs`.
 /// Il doit tourner sous un utilisateur non administrateur : root ignore les permissions.
 #[cfg(unix)]
