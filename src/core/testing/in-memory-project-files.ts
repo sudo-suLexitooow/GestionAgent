@@ -6,8 +6,9 @@ import {
 } from "../project/ports";
 
 /**
- * Faux contenu de projet en mémoire, fidèle aux commandes système : un élément absent donne `null`,
- * lister un fichier, lire un dossier ou lire un chemin marqué en échec rejette avec un `ProjectReadError`.
+ * Faux contenu de projet en mémoire, fidèle aux commandes système : un élément absent (ou un fichier
+ * à lister comme dossier) donne `null` ; lire un dossier ou un chemin marqué en échec rejette avec un
+ * `ProjectReadError`.
  * Clés : chemins relatifs à la racine, séparateur `/` ; une clé finissant par `/` est un dossier vide.
  */
 export class InMemoryProjectFiles implements ProjectFiles {
@@ -42,7 +43,6 @@ export class InMemoryProjectFiles implements ProjectFiles {
   listDir(root: string, path: string): Promise<DirEntry[] | null> {
     const failure = this.failures.get(path);
     if (failure) return reject(failure);
-    if (this.files.has(path)) return reject("unreadable");
     if (root !== this.root || !this.directories.has(path)) return Promise.resolve(null);
     const prefix = path === "" ? "" : `${path}/`;
     const entries = new Map<string, DirEntry>();

@@ -33,12 +33,17 @@ export class ProjectReadError extends Error {
 
 /**
  * Lecture seule du contenu d'un projet (SKL-01, PRJ-02). `path` est relatif à la racine `root`,
- * séparateur `/` ; un chemin qui sortirait du projet est refusé. Un élément absent donne `null` ;
- * un échec de lecture (`ReadError`) rejette la promesse.
+ * séparateur `/` ; un chemin relatif qui sortirait de la racine fournie (`..`, chemin absolu) est
+ * refusé. Ni la racine elle-même ni les liens symboliques (suivis) ne sont contrôlés.
+ * Un élément absent donne `null` ; un échec rejette avec un `ProjectReadError`.
  */
 export interface ProjectFiles {
+  /** Entrées du dossier ; `null` s'il est absent ou si ce n'est pas un dossier. */
   listDir(root: string, path: string): Promise<DirEntry[] | null>;
-  /** Octets bruts du fichier, sans aucune conversion (encodage, fins de ligne). */
+  /**
+   * Octets bruts du fichier, sans aucune conversion (encodage, fins de ligne). Seul un fichier
+   * ordinaire de 8 Mio au plus est lu (sinon `unreadable` ou `too-large`).
+   */
   readFile(root: string, path: string): Promise<Uint8Array | null>;
 }
 
