@@ -1,5 +1,5 @@
 import type { ToolAdapter } from "../adapters/adapter";
-import { ProjectReadError, type ProjectFiles } from "../project/ports";
+import { readFailureReason, type ProjectFiles } from "../project/ports";
 import { decodeUtf8 } from "../text/utf8";
 import type { ContextEntry, ContextFileSpec, ImportedContext } from "./context";
 import { GENERIC_CONTEXT_FILES } from "./generic-format";
@@ -52,8 +52,7 @@ export async function importContexts(
       const bytes = await files.readFile(root, spec.file);
       if (bytes !== null) read.push({ spec, bytes });
     } catch (error) {
-      const tooLarge = error instanceof ProjectReadError && error.reason === "too-large";
-      failures.push({ source: spec.file, code: tooLarge ? "too-large" : "unreadable" });
+      failures.push({ source: spec.file, code: readFailureReason(error) });
     }
   }
   const built = buildContextImport(read);
