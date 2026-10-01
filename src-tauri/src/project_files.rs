@@ -15,6 +15,8 @@ use std::path::{Component, Path, PathBuf};
 pub enum EntryKind {
     File,
     Directory,
+    /// Lien symbolique ou jonction : jamais suivi (US-076).
+    Link,
     Other,
 }
 
@@ -32,6 +34,8 @@ pub enum ReadError {
     OutsideProject,
     Unreadable,
     TooLarge,
+    /// Le chemin passe par un lien symbolique ou une jonction, non suivi (US-076).
+    Link,
 }
 
 /// Taille maximale d'un fichier lu (8 Mio) : au-delà, la lecture est refusée (`TooLarge`).

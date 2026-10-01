@@ -204,13 +204,15 @@ mod fichiers_speciaux_unix {
             .expect("la lecture bloque ou ne finit pas")
     }
 
+    /// US-076 (décision de l'orchestrateur, aucun lien suivi) : le refus porte désormais le
+    /// motif `Link` (auparavant `Unreadable`) ; toujours sans bloquer.
     #[test]
     fn test_ac_002_3_un_lien_vers_dev_zero_est_refuse_sans_bloquer() {
         let project = project_with_skill_md(|path| symlink("/dev/zero", path).unwrap());
 
         assert_eq!(
             read_skill_md_without_blocking(&project),
-            Err(ReadError::Unreadable)
+            Err(ReadError::Link)
         );
     }
 
@@ -230,8 +232,10 @@ mod fichiers_speciaux_unix {
         );
     }
 
+    /// US-076 (décision de l'orchestrateur) : un lien, même interne au projet, n'est plus suivi
+    /// (auparavant : lu, et test nommé `..._est_lu`).
     #[test]
-    fn test_ac_002_1_un_lien_vers_un_fichier_du_projet_est_lu() {
+    fn test_ac_002_1_un_lien_vers_un_fichier_du_projet_n_est_pas_suivi() {
         let project = project_with_skill_md(|path| {
             fs::write(path.with_file_name("vrai.md"), "contenu").unwrap();
             symlink(path.with_file_name("vrai.md"), path).unwrap();
@@ -243,13 +247,14 @@ mod fichiers_speciaux_unix {
                 project.path(),
                 ".claude/skills/a/SKILL.md"
             ),
-            Ok(Some(b"contenu".to_vec()))
+            Err(ReadError::Link)
         );
     }
 
+    /// US-076 (décision de l'orchestrateur) : un lien est listé comme lien, sans être suivi
+    /// (auparavant : dossier pour un lien valide, autre pour un lien cassé).
     #[test]
-    fn test_ac_002_1_un_lien_vers_un_dossier_est_liste_comme_dossier_et_un_lien_casse_comme_autre()
-    {
+    fn test_ac_002_1_un_lien_vers_un_dossier_et_un_lien_casse_sont_listes_comme_liens() {
         let project = tempfile::tempdir().unwrap();
         let shared = tempfile::tempdir().unwrap();
         let skills = project.path().join(".claude/skills");
@@ -266,11 +271,11 @@ mod fichiers_speciaux_unix {
             vec![
                 DirEntry {
                     name: "cassee".into(),
-                    kind: EntryKind::Other
+                    kind: EntryKind::Link
                 },
                 DirEntry {
                     name: "partagee".into(),
-                    kind: EntryKind::Directory
+                    kind: EntryKind::Link
                 },
             ]
         );
