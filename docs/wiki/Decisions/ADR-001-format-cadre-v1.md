@@ -247,6 +247,18 @@ Chaque erreur porte le fichier et, si possible, la ligne (AC-006-3). E = erreur 
 | 31 | `parameters: { language: fr }` | W `PARAM_IS_PRESET` (AC-037-3) |
 | 32 | Fichier d'agent dont la racine est une liste | E `SCHEMA` (type object) |
 
+## Écarts constatés à l'implémentation (2026-10-01)
+
+Relevés pendant US-005 (PR #4). Statut de ces points : **en attente du merge d'US-005**.
+
+- **Sauvegarde** : faite APRÈS validation, à partir de la copie `.ancien` (et non avant l'écriture) ; garantie équivalente.
+- **`index.yaml`** : écrit en JSON, qui est du YAML 1.2 valide.
+- **Verrou** : fichier de verrou permanent `.cadre/tmp/verrou`.
+- **Transactions irrécupérables** : mises de côté en `.cadre/tmp/de-cote-txn-…`.
+- **Non implémenté** : le repli « temporaire à côté de la cible si volume différent ».
+
+Décisions de l'orchestrateur prises pendant US-005 (même statut) : annulation (pas de rejeu) à la récupération ; `.gitignore` modifié seulement si le projet est un dépôt Git (racine ou parent) ; racine du projet tenue côté Rust via `ouvrir_projet` ; toute opération de fichier passe par une résolution sûre qui refuse tout lien/jonction sur chaque segment.
+
 ## Alternatives écartées et pourquoi
 
 - **Marqueur « généré par Cadre » dans le fichier** (commentaire HTML, clé d'en-tête) : casse l'aller-retour octet pour octet (AC-009-3, AC-010-2) ; dans `CLAUDE.md`, coûte des jetons envoyés au modèle ; avant `---`, empêche Claude Code de lire l'en-tête ; et un marqueur copié à la main ferait passer un fichier utilisateur pour généré. Le manifeste avec empreinte détecte en plus les modifications externes (Q-03).
