@@ -49,6 +49,9 @@ mod tests {
 
     #[test]
     fn test_ac_001_4_chemin_absent_signifie_inexistant() {
-        assert_eq!(status_for_error(ErrorKind::NotFound), FolderStatus::NotFound);
+        assert_eq!(
+            status_for_error(ErrorKind::NotFound),
+            FolderStatus::NotFound
+        );
     }
 }
