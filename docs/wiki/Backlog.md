@@ -1,6 +1,6 @@
 # Product Backlog — Cadre
 
-Version : 2026-10-01 · Auteur : analyste-backlog · Mis à jour le 2026-10-01 par scribe-wiki (porte 1).
+Version : 2026-10-01 · Auteur : analyste-backlog · Mis à jour le 2026-10-01 par scribe-wiki (porte 1 ; puis merges US-001/002/003, ajout US-076, US-077 et section Dette).
 
 **Statut : validé par le PO le 2026-10-01 (porte 1), tel quel.** Options par défaut Q-01 à Q-22 acceptées par délégation : les stories auparavant « Bloquée (Q-xx) » sont « À faire ». SP-03 suit l'option Q-11 (runners GitHub).
 
@@ -19,6 +19,7 @@ Source : [Cahier des charges](Cahier-des-charges). Questions ouvertes : [Questio
 7. [Détail des stories — MVP 1 Should](#7-détail-des-stories--mvp-1-should)
 8. [Exigences non fonctionnelles transverses](#8-exigences-non-fonctionnelles-transverses)
 9. [Proposition de découpage en sprints](#9-proposition-de-découpage-en-sprints)
+10. [Dette technique](#10-dette-technique)
 
 ---
 
@@ -55,10 +56,10 @@ Ordre = valeur + réduction du risque, en fermant d'abord la boucle centrale : *
 | Ordre | ID | Titre | Étape | Points | Statut | Exigences | Zone sensible |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | SP-01 | Spike : format `.cadre/` (schéma YAML, versionnage) | MVP 0 | 2 | Done (Sprint 1, 2026-10-01) | §7.4, PRJ-02, NF-12 | non |
-| 2 | US-001 | Ouvrir un dossier de projet | MVP 0 | 2 | Sprint 1 | PRJ-01, ACC-01 | non |
-| 3 | US-002 | Lister les skills du projet (**référence**) | MVP 0 | 2 | Sprint 1 | SKL-01, PRJ-02 | non |
-| 4 | US-003 | Importer CLAUDE.md et AGENTS.md comme contextes | MVP 0 | 2 | Sprint 1 | PRJ-02, ADP-02 | non |
-| 5 | US-005 | Enregistrer le modèle `.cadre/` de façon atomique | MVP 0 | 3 | Sprint 1 | §7.4, NF-12, NF-13 | **oui** (écritures atomiques) |
+| 2 | US-001 | Ouvrir un dossier de projet | MVP 0 | 2 | Done (Sprint 1, PR #3, 2026-10-01) | PRJ-01, ACC-01 | non |
+| 3 | US-002 | Lister les skills du projet (**référence**) | MVP 0 | 2 | Done (Sprint 1, PR #5, 2026-10-01) | SKL-01, PRJ-02 | non |
+| 4 | US-003 | Importer CLAUDE.md et AGENTS.md comme contextes | MVP 0 | 2 | Done (Sprint 1, PR #6, 2026-10-01) | PRJ-02, ADP-02 | non |
+| 5 | US-005 | Enregistrer le modèle `.cadre/` de façon atomique | MVP 0 | 3 | En cours (Sprint 1, PR #4) | §7.4, NF-12, NF-13 | **oui** (écritures atomiques) |
 | 6 | US-004 | Importer les skills existantes sans perte | MVP 0 | 3 | À faire | PRJ-02, ADP-01, ADP-02 | non |
 | 7 | SP-02 | Spike : relevé de ce que Claude Code applique réellement | MVP 0 | 3 | À faire | AGT-06, AGT-07, ADP-05, NF-11, §13.2 | non |
 | 8 | US-006 | Rouvrir un projet depuis `.cadre/` | MVP 0 | 3 | À faire | §7.4, PRJ-02 | non |
@@ -67,81 +68,83 @@ Ordre = valeur + réduction du risque, en fermant d'abord la boucle centrale : *
 | 11 | US-009 | Exporter skills et contextes vers Claude Code, aller-retour sans perte | MVP 0 | 3 | À faire | ADP-02, PRJ-02, NF-12 | **oui** (écritures atomiques, fichiers de l'utilisateur) |
 | 12 | US-010 | Importer les sous-agents Claude Code existants | MVP 0 | 3 | À faire | PRJ-02, ADP-02 | non |
 | 13 | US-011 | Dupliquer, renommer et supprimer un agent | MVP 0 | 2 | À faire | AGT-01 | **oui** (suppression de fichiers générés) |
-| 14 | SP-03 | Spike : machine et projet de référence | MVP 0 | 2 | À faire | NF-04, NF-01 à NF-03 | non |
-| 15 | US-012 | Attacher et détacher des skills à un agent | MVP 1 | 2 | À faire | AGT-05 | non |
-| 16 | US-013 | Déclarer la portée d'un agent par dossier | MVP 1 | 3 | À faire | AGT-07 | **oui** (portée des agents) |
-| 17 | US-014 | Exporter la portée vers Claude Code avec son niveau de garantie | MVP 1 | 3 | À faire | AGT-07, ADP-02, ADP-05, NF-11 | **oui** (permissions, portée) |
-| 18 | US-015 | Déclarer les outils autorisés d'un agent | MVP 1 | 2 | À faire | AGT-06 | **oui** (permissions) |
-| 19 | US-016 | Exporter les outils autorisés avec leur niveau de garantie | MVP 1 | 3 | À faire | AGT-06, ADP-02, ADP-05, NF-11 | **oui** (permissions) |
-| 20 | US-017 | Détecter Claude Code et sa version | MVP 1 | 3 | À faire | CLI-01, CLI-03, NF-06 | non |
-| 21 | SP-06 | Spike : worktree, diff et application au dépôt avec git2 | MVP 1 | 3 | À faire | RUN-03, RUN-04, RUN-05 | **oui** (worktrees) |
-| 22 | SP-05 | Spike : pseudo-terminal et arbre de processus Windows/macOS | MVP 1 | 3 | À faire | RUN-01, RUN-02, RUN-06 | **oui** (processus) |
-| 23 | US-019 | Créer un worktree Git dédié pour une exécution | MVP 1 | 3 | À faire | RUN-03 | **oui** (worktrees) |
-| 24 | US-020 | Lancer un agent sur une tâche avec son cadrage | MVP 1 | 3 | À faire | RUN-01, NF-07, NF-10 | **oui** (processus) |
-| 25 | US-021 | Suivre la sortie de l'agent dans un terminal intégré | MVP 1 | 3 | À faire | RUN-02 | non |
-| 26 | US-022 | Un seul agent à la fois par projet (verrou) | MVP 1 | 2 | À faire | RUN-08 | **oui** (gestion des processus) |
-| 27 | US-023 | Lister les changements d'une exécution | MVP 1 | 3 | À faire | RUN-04 | non |
-| 28 | US-024 | Afficher le diff d'un fichier changé | MVP 1 | 2 | À faire | RUN-04 | non |
-| 29 | US-025 | Signaler les changements hors portée | MVP 1 | 3 | À faire | RUN-05, AGT-07 | **oui** (portée des agents) |
-| 30 | US-026 | Rejeter toute une exécution | MVP 1 | 3 | À faire | RUN-05 | **oui** (worktrees) |
-| 31 | US-027 | Accepter toute une exécution | MVP 1 | 5 | À faire | RUN-05 | **oui** (worktrees, écritures) |
-| 32 | US-028 | Accepter ou rejeter fichier par fichier | MVP 1 | 3 | À faire | RUN-05 | **oui** (worktrees, écritures) |
-| 33 | US-029 | Arrêter l'agent et tous ses processus | MVP 1 | 5 | À faire | RUN-06 | **oui** (arrêt des processus) |
-| 34 | US-030 | Fermer l'app pendant une exécution | MVP 1 | 3 | À faire | RUN-07 | **oui** (arrêt des processus) |
-| 35 | US-018 | Guider l'utilisateur quand Claude Code est absent | MVP 1 | 2 | À faire | CLI-02, ACC-03 | non |
-| 36 | US-039 | Afficher le niveau de support de chaque réglage | MVP 1 | 2 | À faire | ADP-05, NF-11 | **oui** (permissions affichées) |
-| 37 | US-040 | Aperçu du cadrage final de l'agent | MVP 1 | 3 | À faire | AGT-08 | non |
-| 38 | SP-04 | Spike : spécification Agent Skills pour le validateur | MVP 1 | 2 | À faire (doit confirmer les règles de skills d'ADR-001) | SKL-05 | non |
-| 39 | US-031 | Créer, renommer, dupliquer et supprimer une skill | MVP 1 | 3 | À faire | SKL-02 | non |
-| 40 | US-032 | Éditer une skill (formulaire + Markdown) | MVP 1 | 3 | À faire | SKL-03 | non |
-| 41 | US-033 | Valider une skill selon la spécification Agent Skills | MVP 1 | 3 | À faire | SKL-05 | non |
-| 42 | US-034 | Voir les agents qui utilisent une skill | MVP 1 | 1 | À faire | SKL-08 | non |
-| 43 | US-035 | Éditer les fichiers de contexte | MVP 1 | 3 | À faire | CTX-01 | non |
-| 44 | US-036 | Lier un contexte à des agents | MVP 1 | 2 | À faire | CTX-03 | non |
-| 45 | US-041 | Panneau Santé du cadrage | MVP 1 | 3 | À faire | VAL-01 | non |
-| 46 | US-042 | Détecter les skills sans description, inutilisées ou en double | MVP 1 | 3 | À faire | VAL-02 | non |
-| 47 | US-043 | Détecter les contradictions de portée | MVP 1 | 3 | À faire | VAL-03 | non |
-| 48 | US-044 | Carte agents × skills | MVP 1 | 3 | À faire | VAL-04 | non |
-| 49 | US-037 | Paramètres libres d'un agent | MVP 1 | 2 | À faire | AGT-03 | non |
-| 50 | US-038 | Paramètres prédéfinis d'un agent | MVP 1 | 3 | À faire | AGT-04 | non |
-| 51 | US-046 | Arborescence du projet | MVP 1 | 3 | À faire | PRJ-05 | non |
-| 52 | US-045 | Projets récents avec leur état de cadrage | MVP 1 | 2 | À faire | PRJ-04 | non |
-| 53 | US-049 | Branche courante et fichiers de cadrage modifiés | MVP 1 | 2 | À faire | GIT-01 | non |
-| 54 | SP-07 | Spike : surveillance du dossier, écritures de Cadre vs externes | MVP 1 | 2 | À faire | PRJ-07, PRJ-08 | non |
-| 55 | US-047 | Recharger le cadrage modifié hors de l'app | MVP 1 | 5 | À faire | PRJ-07 | **oui** (fichiers modifiés par l'utilisateur) |
-| 56 | US-048 | Résoudre un conflit entre Cadre et l'extérieur | MVP 1 | 3 | À faire | PRJ-08 | **oui** (écritures, fichiers de l'utilisateur) |
-| 57 | US-051 | Annuler la dernière écriture d'un fichier de cadrage | MVP 1 | 2 | À faire | NF-13 | **oui** (écritures atomiques) |
-| 58 | US-050 | Réglages : éditeur externe, chemins des CLI, thème, langue | MVP 1 | 3 | À faire | ACC-03, NF-17 | non |
-| 59 | US-052 | Installer la bêta signée sur Windows et macOS | MVP 1 | 3 | À faire | NF-05, NF-09 | **oui** (signature) |
-| 60 | US-053 | Historique des exécutions | MVP 1 (Should) | 3 | À faire | RUN-09 | non |
-| 61 | US-054 | Prévisualiser le diff avant d'écrire les fichiers générés | MVP 1 (Should) | 3 | À faire | ADP-06 | non |
-| 62 | US-055 | Exporter vers le format générique (SKILL.md, AGENTS.md) | MVP 1 (Should) | 3 | À faire | ADP-03, NF-19 | **oui** (écritures atomiques) |
-| 63 | US-056 | Gérer les fichiers annexes d'une skill | MVP 1 (Should) | 3 | À faire | SKL-04 | non |
-| 64 | US-057 | Estimer la taille du contexte envoyé à l'IA | MVP 1 (Should) | 2 | À faire | CTX-04 | non |
-| 65 | US-058 | Ouvrir un fichier dans l'éditeur externe | MVP 1 (Should) | 1 | À faire | PRJ-06 | non |
-| 66 | US-059 | Assistant de rédaction du contexte par sections | MVP 1 (Should) | 3 | À faire | CTX-02 | non |
-| 67 | US-060 | Mise à jour automatique signée | MVP 1 (Should) | 5 | À faire | ACC-04, NF-09 | **oui** (signature et mise à jour) |
-| 68 | US-061 | Importer un projet Codex | MVP 2 | ~5 | À affiner | ADP-04 | non |
-| 69 | US-062 | Exporter vers Codex avec niveaux de garantie | MVP 2 | ~5 | À affiner | ADP-04, NF-11 | **oui** (permissions) |
-| 70 | US-063 | Vue comparée des capacités par outil | MVP 2 | ~3 | À affiner | ADP-05, §4.3 | non |
-| 71 | US-064 | Bibliothèque personnelle de skills | MVP 2 | ~5 | À affiner | SKL-06 | non |
-| 72 | US-065 | Modèles d'agents prêts à l'emploi | MVP 2 | ~3 | À affiner | AGT-09 | non |
-| 73 | US-066 | Créer un projet à partir d'un modèle de cadrage | MVP 2 | ~3 | À affiner | PRJ-03 | non |
-| 74 | US-067 | Commit assisté des fichiers de cadrage | MVP 2 | ~3 | À affiner | GIT-02 | non |
-| 75 | US-068 | Comptes, offre Pro et paiement | V1 | > 5, à découper | À affiner | ACC-02, NF-08 | **oui** (paiement, stockage des clés) |
-| 76 | US-069 | Statistiques d'usage anonymes opt-in | V1 | ~3 | À affiner | ACC-05, NF-07 | non |
-| 77 | US-070 | Support Linux (Ubuntu 22.04+) | V1 | ~5 | À affiner | NF-05 | **oui** (processus, worktrees sur un nouvel OS) |
-| 78 | US-071 | Documentation complète | V1 | ~3 | À affiner | §4.4, NF-15 | non |
-| 79 | US-072 | Importer une skill depuis un dépôt Git public ou une archive | Future | ~3 | À affiner | SKL-07 | non |
-| 80 | US-073 | Comparer deux agents côte à côte | Future | ~2 | À affiner | AGT-10 | non |
-| 81 | US-074 | Suggestions d'amélioration générées par IA | Future | ~5 | À affiner | VAL-05 | non |
-| 82 | US-075 | Plusieurs agents en parallèle | Future | > 5, à découper | À affiner | RUN-10 | **oui** (processus, worktrees) |
+| 14 | US-076 | Aligner les commandes de lecture sur la racine du projet ouvert | MVP 0 | 2 (proposé) | À faire | SKL-01, PRJ-02 (proposées) | **oui** (portée) |
+| 15 | US-077 | Enregistrer le cadrage depuis l'interface | MVP 0 | 3 (proposé) | À faire | §7.4, NF-12, PRJ-02 (proposées) | **oui** (écritures atomiques) |
+| 16 | SP-03 | Spike : machine et projet de référence | MVP 0 | 2 | À faire | NF-04, NF-01 à NF-03 | non |
+| 17 | US-012 | Attacher et détacher des skills à un agent | MVP 1 | 2 | À faire | AGT-05 | non |
+| 18 | US-013 | Déclarer la portée d'un agent par dossier | MVP 1 | 3 | À faire | AGT-07 | **oui** (portée des agents) |
+| 19 | US-014 | Exporter la portée vers Claude Code avec son niveau de garantie | MVP 1 | 3 | À faire | AGT-07, ADP-02, ADP-05, NF-11 | **oui** (permissions, portée) |
+| 20 | US-015 | Déclarer les outils autorisés d'un agent | MVP 1 | 2 | À faire | AGT-06 | **oui** (permissions) |
+| 21 | US-016 | Exporter les outils autorisés avec leur niveau de garantie | MVP 1 | 3 | À faire | AGT-06, ADP-02, ADP-05, NF-11 | **oui** (permissions) |
+| 22 | US-017 | Détecter Claude Code et sa version | MVP 1 | 3 | À faire | CLI-01, CLI-03, NF-06 | non |
+| 23 | SP-06 | Spike : worktree, diff et application au dépôt avec git2 | MVP 1 | 3 | À faire | RUN-03, RUN-04, RUN-05 | **oui** (worktrees) |
+| 24 | SP-05 | Spike : pseudo-terminal et arbre de processus Windows/macOS | MVP 1 | 3 | À faire | RUN-01, RUN-02, RUN-06 | **oui** (processus) |
+| 25 | US-019 | Créer un worktree Git dédié pour une exécution | MVP 1 | 3 | À faire | RUN-03 | **oui** (worktrees) |
+| 26 | US-020 | Lancer un agent sur une tâche avec son cadrage | MVP 1 | 3 | À faire | RUN-01, NF-07, NF-10 | **oui** (processus) |
+| 27 | US-021 | Suivre la sortie de l'agent dans un terminal intégré | MVP 1 | 3 | À faire | RUN-02 | non |
+| 28 | US-022 | Un seul agent à la fois par projet (verrou) | MVP 1 | 2 | À faire | RUN-08 | **oui** (gestion des processus) |
+| 29 | US-023 | Lister les changements d'une exécution | MVP 1 | 3 | À faire | RUN-04 | non |
+| 30 | US-024 | Afficher le diff d'un fichier changé | MVP 1 | 2 | À faire | RUN-04 | non |
+| 31 | US-025 | Signaler les changements hors portée | MVP 1 | 3 | À faire | RUN-05, AGT-07 | **oui** (portée des agents) |
+| 32 | US-026 | Rejeter toute une exécution | MVP 1 | 3 | À faire | RUN-05 | **oui** (worktrees) |
+| 33 | US-027 | Accepter toute une exécution | MVP 1 | 5 | À faire | RUN-05 | **oui** (worktrees, écritures) |
+| 34 | US-028 | Accepter ou rejeter fichier par fichier | MVP 1 | 3 | À faire | RUN-05 | **oui** (worktrees, écritures) |
+| 35 | US-029 | Arrêter l'agent et tous ses processus | MVP 1 | 5 | À faire | RUN-06 | **oui** (arrêt des processus) |
+| 36 | US-030 | Fermer l'app pendant une exécution | MVP 1 | 3 | À faire | RUN-07 | **oui** (arrêt des processus) |
+| 37 | US-018 | Guider l'utilisateur quand Claude Code est absent | MVP 1 | 2 | À faire | CLI-02, ACC-03 | non |
+| 38 | US-039 | Afficher le niveau de support de chaque réglage | MVP 1 | 2 | À faire | ADP-05, NF-11 | **oui** (permissions affichées) |
+| 39 | US-040 | Aperçu du cadrage final de l'agent | MVP 1 | 3 | À faire | AGT-08 | non |
+| 40 | SP-04 | Spike : spécification Agent Skills pour le validateur | MVP 1 | 2 | À faire (doit confirmer les règles de skills d'ADR-001) | SKL-05 | non |
+| 41 | US-031 | Créer, renommer, dupliquer et supprimer une skill | MVP 1 | 3 | À faire | SKL-02 | non |
+| 42 | US-032 | Éditer une skill (formulaire + Markdown) | MVP 1 | 3 | À faire | SKL-03 | non |
+| 43 | US-033 | Valider une skill selon la spécification Agent Skills | MVP 1 | 3 | À faire | SKL-05 | non |
+| 44 | US-034 | Voir les agents qui utilisent une skill | MVP 1 | 1 | À faire | SKL-08 | non |
+| 45 | US-035 | Éditer les fichiers de contexte | MVP 1 | 3 | À faire | CTX-01 | non |
+| 46 | US-036 | Lier un contexte à des agents | MVP 1 | 2 | À faire | CTX-03 | non |
+| 47 | US-041 | Panneau Santé du cadrage | MVP 1 | 3 | À faire | VAL-01 | non |
+| 48 | US-042 | Détecter les skills sans description, inutilisées ou en double | MVP 1 | 3 | À faire | VAL-02 | non |
+| 49 | US-043 | Détecter les contradictions de portée | MVP 1 | 3 | À faire | VAL-03 | non |
+| 50 | US-044 | Carte agents × skills | MVP 1 | 3 | À faire | VAL-04 | non |
+| 51 | US-037 | Paramètres libres d'un agent | MVP 1 | 2 | À faire | AGT-03 | non |
+| 52 | US-038 | Paramètres prédéfinis d'un agent | MVP 1 | 3 | À faire | AGT-04 | non |
+| 53 | US-046 | Arborescence du projet | MVP 1 | 3 | À faire | PRJ-05 | non |
+| 54 | US-045 | Projets récents avec leur état de cadrage | MVP 1 | 2 | À faire | PRJ-04 | non |
+| 55 | US-049 | Branche courante et fichiers de cadrage modifiés | MVP 1 | 2 | À faire | GIT-01 | non |
+| 56 | SP-07 | Spike : surveillance du dossier, écritures de Cadre vs externes | MVP 1 | 2 | À faire | PRJ-07, PRJ-08 | non |
+| 57 | US-047 | Recharger le cadrage modifié hors de l'app | MVP 1 | 5 | À faire | PRJ-07 | **oui** (fichiers modifiés par l'utilisateur) |
+| 58 | US-048 | Résoudre un conflit entre Cadre et l'extérieur | MVP 1 | 3 | À faire | PRJ-08 | **oui** (écritures, fichiers de l'utilisateur) |
+| 59 | US-051 | Annuler la dernière écriture d'un fichier de cadrage | MVP 1 | 2 | À faire | NF-13 | **oui** (écritures atomiques) |
+| 60 | US-050 | Réglages : éditeur externe, chemins des CLI, thème, langue | MVP 1 | 3 | À faire | ACC-03, NF-17 | non |
+| 61 | US-052 | Installer la bêta signée sur Windows et macOS | MVP 1 | 3 | À faire | NF-05, NF-09 | **oui** (signature) |
+| 62 | US-053 | Historique des exécutions | MVP 1 (Should) | 3 | À faire | RUN-09 | non |
+| 63 | US-054 | Prévisualiser le diff avant d'écrire les fichiers générés | MVP 1 (Should) | 3 | À faire | ADP-06 | non |
+| 64 | US-055 | Exporter vers le format générique (SKILL.md, AGENTS.md) | MVP 1 (Should) | 3 | À faire | ADP-03, NF-19 | **oui** (écritures atomiques) |
+| 65 | US-056 | Gérer les fichiers annexes d'une skill | MVP 1 (Should) | 3 | À faire | SKL-04 | non |
+| 66 | US-057 | Estimer la taille du contexte envoyé à l'IA | MVP 1 (Should) | 2 | À faire | CTX-04 | non |
+| 67 | US-058 | Ouvrir un fichier dans l'éditeur externe | MVP 1 (Should) | 1 | À faire | PRJ-06 | non |
+| 68 | US-059 | Assistant de rédaction du contexte par sections | MVP 1 (Should) | 3 | À faire | CTX-02 | non |
+| 69 | US-060 | Mise à jour automatique signée | MVP 1 (Should) | 5 | À faire | ACC-04, NF-09 | **oui** (signature et mise à jour) |
+| 70 | US-061 | Importer un projet Codex | MVP 2 | ~5 | À affiner | ADP-04 | non |
+| 71 | US-062 | Exporter vers Codex avec niveaux de garantie | MVP 2 | ~5 | À affiner | ADP-04, NF-11 | **oui** (permissions) |
+| 72 | US-063 | Vue comparée des capacités par outil | MVP 2 | ~3 | À affiner | ADP-05, §4.3 | non |
+| 73 | US-064 | Bibliothèque personnelle de skills | MVP 2 | ~5 | À affiner | SKL-06 | non |
+| 74 | US-065 | Modèles d'agents prêts à l'emploi | MVP 2 | ~3 | À affiner | AGT-09 | non |
+| 75 | US-066 | Créer un projet à partir d'un modèle de cadrage | MVP 2 | ~3 | À affiner | PRJ-03 | non |
+| 76 | US-067 | Commit assisté des fichiers de cadrage | MVP 2 | ~3 | À affiner | GIT-02 | non |
+| 77 | US-068 | Comptes, offre Pro et paiement | V1 | > 5, à découper | À affiner | ACC-02, NF-08 | **oui** (paiement, stockage des clés) |
+| 78 | US-069 | Statistiques d'usage anonymes opt-in | V1 | ~3 | À affiner | ACC-05, NF-07 | non |
+| 79 | US-070 | Support Linux (Ubuntu 22.04+) | V1 | ~5 | À affiner | NF-05 | **oui** (processus, worktrees sur un nouvel OS) |
+| 80 | US-071 | Documentation complète | V1 | ~3 | À affiner | §4.4, NF-15 | non |
+| 81 | US-072 | Importer une skill depuis un dépôt Git public ou une archive | Future | ~3 | À affiner | SKL-07 | non |
+| 82 | US-073 | Comparer deux agents côte à côte | Future | ~2 | À affiner | AGT-10 | non |
+| 83 | US-074 | Suggestions d'amélioration générées par IA | Future | ~5 | À affiner | VAL-05 | non |
+| 84 | US-075 | Plusieurs agents en parallèle | Future | > 5, à découper | À affiner | RUN-10 | **oui** (processus, worktrees) |
 
 ### Totaux
 
 | Étape | Stories | Points stories | Spikes | Total |
 | --- | --- | --- | --- | --- |
-| MVP 0 | 11 (US-001 à US-011) | 28 | 3 (SP-01 à SP-03) = 7 | 35 |
+| MVP 0 | 13 (US-001 à US-011, US-076, US-077) | 33 | 3 (SP-01 à SP-03) = 7 | 40 |
 | MVP 1 Must | 41 (US-012 à US-052) | 116 | 4 (SP-04 à SP-07) = 10 | 126 |
 | MVP 1 Should | 8 (US-053 à US-060) | 23 | — | 23 |
 | MVP 2 | 7 (US-061 à US-067) | ~27 | — | ~27 |
@@ -200,6 +203,7 @@ Les étiquettes `[EXIGENCE]` sur chaque critère servent à la traçabilité. Ch
 En tant que développeur solo, je veux ouvrir un dossier de projet local via un sélecteur ou un glisser-déposer afin de commencer à cadrer ce projet dans Cadre.
 - Étape : MVP 0 · Estimation : 2 points · Dépendances : aucune · Zone sensible : non
 - Exigences : PRJ-01, ACC-01
+- Done le 2026-10-01 (PR #3).
 
 Critères d'acceptation :
 - AC-001-1 [PRJ-01] : Étant donné l'écran d'accueil, quand l'utilisateur choisit un dossier existant dans le sélecteur, alors l'écran principal s'affiche avec le nom et le chemin du projet.
@@ -213,6 +217,7 @@ Critères d'acceptation :
 En tant que développeur solo, je veux voir la liste des skills présentes dans mon projet afin de savoir de quelles capacités disposent mes agents.
 - Étape : MVP 0 · Estimation : 2 points · Dépendances : US-001 · Zone sensible : non
 - Exigences : SKL-01, PRJ-02
+- Done le 2026-10-01 (PR #5). Décisions d'implémentation : lecture plafonnée à 8 Mio (motif `too-large`) ; commandes de lecture async ; liens suivis en lecture (skills partagées) ; un fichier `.claude/skills` ou `.cadre` est traité comme absent (décision orchestrateur).
 
 Critères d'acceptation :
 - AC-002-1 [SKL-01] : Étant donné un projet contenant `.claude/skills/a/SKILL.md` et `.claude/skills/b/SKILL.md` avec un en-tête valide, quand le projet est ouvert, alors la liste affiche les skills `a` et `b` avec leur nom et leur description.
@@ -226,6 +231,7 @@ En tant que développeur qui code déjà avec Claude Code, je veux que Cadre dé
 - Étape : MVP 0 · Estimation : 2 points · Dépendances : US-001, SP-01 · Zone sensible : non
 - Exigences : PRJ-02, ADP-02
 - Note : le traitement complet du format générique (AGENTS.md en export) relève d'US-055 ; voir Q-04.
+- Done le 2026-10-01 (PR #6). Livrée sans écriture : modèle en mémoire, affiché « Non enregistré » (US-005 pas encore mergée ; enregistrement → US-077). Un CLAUDE.md non UTF-8 est importé tel quel avec un avertissement.
 
 Critères d'acceptation :
 - AC-003-1 [PRJ-02] : Étant donné un projet sans `.cadre/` contenant `CLAUDE.md` à la racine, quand il est ouvert, alors Cadre propose l'import en listant les fichiers détectés.
@@ -250,6 +256,7 @@ Critères d'acceptation :
 En tant que développeur solo, je veux que mon cadrage soit enregistré dans `.cadre/` sans jamais pouvoir être corrompu afin de ne pas perdre mon travail en cas de plantage.
 - Étape : MVP 0 · Estimation : 3 points · Dépendances : US-001, SP-01 · **Zone sensible : oui (écritures atomiques) → porte 3**
 - Exigences : §7.4, NF-12, NF-13
+- En cours (PR #4) au 2026-10-01. Décisions orchestrateur : annulation (pas rejeu) à la récupération ; `.gitignore` seulement si projet Git (racine ou parent) ; AC-005-6 accepté au niveau résultat typé (l'affichage viendra avec le bouton Enregistrer, US-077) ; racine tenue côté Rust via `ouvrir_projet`. Écarts au format : voir [ADR-001](ADR-001-format-cadre-v1), section « Écarts constatés ».
 
 Critères d'acceptation :
 - AC-005-1 [§7.4] : Étant donné un projet sans `.cadre/`, quand l'utilisateur enregistre, alors `.cadre/cadre.yaml` est créé avec `schema_version`, `generator_version` et les outils actifs, conforme au schéma de SP-01.
@@ -334,6 +341,30 @@ Critères d'acceptation :
 - AC-011-3 [AGT-01] : Étant donné un agent, quand l'utilisateur demande la suppression, alors une confirmation est demandée ; en cas d'annulation rien ne change.
 - AC-011-4 [AGT-01] : Étant donné un agent supprimé, quand l'utilisateur exporte, alors son fichier généré est retiré ; un fichier non généré par Cadre portant le même nom n'est jamais supprimé.
 - AC-011-5 [AGT-01] : Étant donné un renommage vers un nom déjà pris ou invalide, quand l'utilisateur valide, alors il est refusé avec les mêmes règles qu'AC-007-3 et AC-007-4.
+
+### US-076 — Aligner les commandes de lecture sur la racine du projet ouvert
+En tant que développeur solo, je veux que Cadre ne lise que dans le projet que j'ai ouvert afin qu'aucun fichier extérieur au projet ne puisse être lu ou recopié à mon insu.
+- Étape : MVP 0 · Estimation proposée : 2 points · Dépendances : US-005 · **Zone sensible : oui (portée) → porte 3**
+- Exigences (proposées, héritées d'US-002 et US-003) : SKL-01, PRJ-02
+- Origine : revues d'US-005 (PR #4), 2026-10-01. Ajoutée au backlog le 2026-10-01, statut « À faire » ; estimation et exigences à confirmer au prochain Sprint Planning.
+- Contenu : `list_project_dir` et `read_project_file` utilisent la racine tenue côté Rust (état posé par `ouvrir_projet`) et la même résolution sûre que l'écriture (refus de tout lien/jonction sur chaque segment).
+
+Critères d'acceptation :
+- AC-076-1 : Étant donné qu'aucun projet n'est ouvert, quand une commande de lecture est appelée, alors elle est refusée.
+- AC-076-2 : Étant donné un projet ouvert, quand une commande de lecture vise une autre racine, alors elle est refusée.
+- AC-076-3 : Étant donné un lien symbolique ou une jonction qui pointe hors du projet, quand une commande de lecture le traverse, alors elle est refusée.
+- AC-076-4 : Les tests d'US-002 et d'US-003 restent verts (non-régression).
+
+### US-077 — Enregistrer le cadrage depuis l'interface
+En tant que développeur solo, je veux un bouton « Enregistrer » qui écrit mon cadrage dans `.cadre/` afin de ne pas perdre les contextes importés.
+- Étape : MVP 0 · Estimation proposée : 3 points · Dépendances : US-003, US-005 · **Zone sensible : oui (écritures atomiques) → porte 3**
+- Exigences (proposées, héritées d'US-003 et US-005) : §7.4, NF-12, PRJ-02
+- Origine : US-003 livrée sans écriture (modèle en mémoire, « Non enregistré ») car US-005 n'était pas mergée. Ajoutée au backlog le 2026-10-01, statut « À faire » ; estimation et exigences à confirmer au prochain Sprint Planning.
+
+Critères d'acceptation :
+- AC-077-1 : Étant donné un projet ouvert avec des contextes importés (US-003), quand l'utilisateur clique « Enregistrer », alors `.cadre/` est écrit via US-005 : `cadre.yaml`, les contextes importés, et leur adoption dans `generated.yaml` selon [ADR-001](ADR-001-format-cadre-v1) D5.
+- AC-077-2 : Étant donné un échec d'enregistrement (cas d'AC-005-6), quand l'utilisateur enregistre, alors le message d'erreur correspondant s'affiche.
+- AC-077-3 : Étant donné un enregistrement réussi, quand il se termine, alors l'état « Non enregistré » disparaît.
 
 ---
 
@@ -939,6 +970,22 @@ Remarques :
 - Les sprints 5 à 7 concentrent les zones sensibles (processus, worktrees) : chacune exige deux revues `relecteur` et la porte 3, ce qui ralentit le débit ; il vaut mieux les traiter tôt que juste avant la bêta.
 - SP-02 est placé au Sprint 2 car il conditionne tout le marquage de garantie (NF-11), principal risque produit (« faux sentiment de sécurité »). Le PO peut choisir de l'avancer au Sprint 1.
 - La boucle centrale est fermée à la fin du Sprint 7, avant les éditeurs visuels : on prouve d'abord la valeur différenciante (exécution surveillée), puis le confort d'édition.
+
+---
+
+## 10. Dette technique
+
+Points relevés le 2026-10-01, non transformés en stories. À reprendre au Sprint Planning ou dans la story concernée.
+
+| Point | À traiter |
+| --- | --- |
+| Ouverture en double possible (double clic) — US-001 | à planifier |
+| Import des contextes en double possible — US-003 | à planifier |
+| Liens symboliques sur les fichiers cibles et conservation des droits | avant US-008 / US-009 |
+| Casse de `claude.md` à vérifier | en SP-02 |
+| IPC binaire (`tauri::ipc::Response`) | pour US-004 |
+| Couverture Rust non mesurée | à planifier |
+| Commandes d'écriture synchrones | à planifier |
 
 ---
 
