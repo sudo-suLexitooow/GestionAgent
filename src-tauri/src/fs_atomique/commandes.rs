@@ -48,13 +48,40 @@ pub struct ProjetOuvert(Mutex<Option<PathBuf>>);
 
 /// Ouvre un projet : retient sa racine canonique, puis termine ou annule une écriture
 /// interrompue (AC-005-4, « au prochain démarrage »).
-pub fn ouvrir(_etat: &ProjetOuvert, _chemin: &str) -> Result<(), ErreurEcriture> {
-    Ok(())
+pub fn ouvrir(etat: &ProjetOuvert, chemin: &str) -> Result<(), ErreurEcriture> {
+    let racine = canonique(chemin)?;
+    if !racine.is_dir() {
+        return Err(ErreurEcriture::CheminInvalide(format!(
+            "{chemin} n'est pas un dossier"
+        )));
+    }
+    *verrouiller_etat(etat) = Some(racine.clone());
+    recuperer(&racine)
+}
+
+fn canonique(chemin: &str) -> Result<PathBuf, ErreurEcriture> {
+    fs::canonicalize(chemin)
+        .map_err(|erreur| ErreurEcriture::CheminInvalide(format!("{chemin} : {erreur}")))
+}
+
+fn verrouiller_etat(etat: &ProjetOuvert) -> std::sync::MutexGuard<'_, Option<PathBuf>> {
+    // Un panic pendant une commande ne doit pas rendre le projet inutilisable.
+    etat.0
+        .lock()
+        .unwrap_or_else(|empoisonne| empoisonne.into_inner())
 }
 
 /// Racine du projet ouvert si `racine` la désigne ; sinon `CheminInvalide`.
-fn racine_autorisee(_etat: &ProjetOuvert, racine: &str) -> Result<PathBuf, ErreurEcriture> {
-    Ok(PathBuf::from(racine))
+fn racine_autorisee(etat: &ProjetOuvert, racine: &str) -> Result<PathBuf, ErreurEcriture> {
+    let ouverte = verrouiller_etat(etat)
+        .clone()
+        .ok_or_else(|| ErreurEcriture::CheminInvalide("aucun projet ouvert".to_owned()))?;
+    if canonique(racine)? != ouverte {
+        return Err(ErreurEcriture::CheminInvalide(format!(
+            "{racine} n'est pas le projet ouvert"
+        )));
+    }
+    Ok(ouverte)
 }
 
 pub fn ecrire(

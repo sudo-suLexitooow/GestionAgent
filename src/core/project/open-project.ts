@@ -7,7 +7,12 @@ export interface Project {
 }
 
 export type OpenError =
-  "not-found" | "unreadable" | "not-a-directory" | "drop-single-folder" | "unexpected";
+  | "not-found"
+  | "unreadable"
+  | "not-a-directory"
+  | "drop-single-folder"
+  | "project-preparation-failed"
+  | "unexpected";
 
 export type OpenOutcome =
   | { kind: "opened"; project: Project }
@@ -51,6 +56,11 @@ async function withoutCrash(open: () => Promise<OpenOutcome>): Promise<OpenOutco
 async function openPath(folders: FolderAccess, path: string): Promise<OpenOutcome> {
   const status = await folders.inspectFolder(path);
   if (status !== "ok") return { kind: "error", error: status };
+  try {
+    await folders.prepareProject(path);
+  } catch {
+    return { kind: "error", error: "project-preparation-failed" };
+  }
   return { kind: "opened", project: { name: projectName(path), path } };
 }
 
