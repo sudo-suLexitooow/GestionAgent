@@ -13,6 +13,7 @@ export type OpenOutcome =
   | { kind: "error"; error: OpenError };
 
 export async function openFromPicker(folders: FolderAccess): Promise<OpenOutcome> {
-  const path = (await folders.pickFolder()) ?? "";
+  const path = await folders.pickFolder();
+  if (path === null) return { kind: "cancelled" };
   return { kind: "opened", project: { name: path.split("/").pop() ?? path, path } };
 }
