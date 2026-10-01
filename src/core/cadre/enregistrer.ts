@@ -48,13 +48,21 @@ export async function enregistrerCadre(
     await fs.ecrireTransaction(racine, fichiers);
     return { ok: true };
   } catch (erreur) {
-    const code = erreur instanceof ErreurSystemeFichiers ? erreur.code : "ECHEC";
-    const detail =
-      erreur instanceof ErreurSystemeFichiers
-        ? erreur.detail
-        : erreur instanceof Error
-          ? erreur.message
-          : String(erreur);
-    return { ok: false, erreur: { code, message: MESSAGES_ERREUR_ENREGISTREMENT[code], detail } };
+    return { ok: false, erreur: versErreurEnregistrement(erreur) };
   }
+}
+
+function versErreurEnregistrement(erreur: unknown): ErreurEnregistrement {
+  if (erreur instanceof ErreurSystemeFichiers) {
+    return {
+      code: erreur.code,
+      message: MESSAGES_ERREUR_ENREGISTREMENT[erreur.code],
+      detail: erreur.detail,
+    };
+  }
+  return {
+    code: "ECHEC",
+    message: MESSAGES_ERREUR_ENREGISTREMENT.ECHEC,
+    detail: erreur instanceof Error ? erreur.message : String(erreur),
+  };
 }
