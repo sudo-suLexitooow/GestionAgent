@@ -10,6 +10,11 @@ const fr = {
   "error.not-a-directory": "Ce chemin n'est pas un dossier.",
   "error.drop-single-folder": "Déposez un seul dossier : pas un fichier, ni plusieurs éléments.",
   "error.unexpected": "Le dossier n'a pas pu être ouvert. Réessayez.",
+  "contexts.title": "Contextes",
+  "contexts.detected":
+    "Fichiers de contexte détectés. Les importer dans Cadre ? Les fichiers d'origine ne seront pas modifiés.",
+  "contexts.import": "Importer",
+  "contexts.decline": "Ne pas importer",
   "skills.title": "Skills",
   "skills.none": "Aucune skill détectée.",
   "skills.failed": "Les skills n'ont pas pu être lues.",
