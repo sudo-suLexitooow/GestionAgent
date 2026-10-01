@@ -34,6 +34,39 @@ function listees(region: string): (string | null)[] {
     .map((item) => item.textContent);
 }
 
+describe("créer le modèle par un agent sans importer (régression US-007)", () => {
+  test("test_ac_004_1_creer_le_modele_par_un_agent_garde_les_skills_listees_et_signale_les_autres", async () => {
+    const disque = disqueAvecSkills();
+    await ouvrir(disque);
+    fireEvent.click(await screen.findByRole("button", { name: "Ne pas importer" }));
+    const formulaire = await screen.findByRole("form", { name: "Nouvel agent" });
+    fireEvent.change(within(formulaire).getByLabelText("Nom"), { target: { value: "frontend" } });
+    fireEvent.change(within(formulaire).getByLabelText("Rôle"), { target: { value: "Front" } });
+    fireEvent.change(within(formulaire).getByLabelText("Description"), {
+      target: { value: "Écrans." },
+    });
+    fireEvent.click(within(formulaire).getByRole("button", { name: "Créer l'agent" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await waitFor(() => {
+      expect(disque.octets(".cadre/agents/frontend.yaml")).toBeDefined();
+    });
+    expect(disque.octets(".cadre/skills/revue/SKILL.md")).toEqual(REVUE_MD);
+    expect(
+      await screen.findByText(
+        ".claude/skills/liee/externe.md : lien non pris en charge ; la skill liee n'est pas importée.",
+      ),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(listees("Skills")).toEqual([
+        "casse — en erreur : YAML invalide (ligne 3)",
+        "revue — Relit le code.",
+      ]);
+    });
+  });
+});
+
 describe("import des skills depuis l'écran principal (US-004)", () => {
   test("test_ac_004_1_sans_fichier_de_contexte_les_skills_sont_proposees_a_l_import", async () => {
     await ouvrir(disqueAvecSkills());
