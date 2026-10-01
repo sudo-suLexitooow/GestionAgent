@@ -8,7 +8,17 @@ export interface FichierAEcrire {
 }
 
 /** Codes d'erreur renvoyés par le système (commandes Rust `fs_atomique`). */
-export type CodeErreurFichiers = "LECTURE_SEULE" | "DISQUE_PLEIN" | "CHEMIN_INVALIDE" | "ECHEC";
+export const CODES_ERREUR_FICHIERS = [
+  "LECTURE_SEULE",
+  "DISQUE_PLEIN",
+  "CHEMIN_INVALIDE",
+  "PROJET_OCCUPE",
+  "ANNULATION_INCOMPLETE",
+  "RECUPERATION_IMPOSSIBLE",
+  "ECHEC",
+] as const;
+
+export type CodeErreurFichiers = (typeof CODES_ERREUR_FICHIERS)[number];
 
 export class ErreurSystemeFichiers extends Error {
   constructor(

@@ -1,22 +1,15 @@
 // Implémentation réelle du port de fichiers : commandes Rust `fs_atomique::commandes`.
 import { invoke, type InvokeArgs } from "@tauri-apps/api/core";
 import {
+  CODES_ERREUR_FICHIERS,
   ErreurSystemeFichiers,
-  type CodeErreurFichiers,
   type FichierAEcrire,
   type SystemeFichiersProjet,
 } from "../core/fichiers/systeme-fichiers";
 
-const CODES: readonly CodeErreurFichiers[] = [
-  "LECTURE_SEULE",
-  "DISQUE_PLEIN",
-  "CHEMIN_INVALIDE",
-  "ECHEC",
-];
-
 function versErreur(erreur: unknown): ErreurSystemeFichiers {
   if (typeof erreur === "object" && erreur !== null && "code" in erreur && "detail" in erreur) {
-    const codeConnu = CODES.find((code) => code === erreur.code) ?? "ECHEC";
+    const codeConnu = CODES_ERREUR_FICHIERS.find((code) => code === erreur.code) ?? "ECHEC";
     return new ErreurSystemeFichiers(codeConnu, String(erreur.detail));
   }
   return new ErreurSystemeFichiers("ECHEC", String(erreur));
