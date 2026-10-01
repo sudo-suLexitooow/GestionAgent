@@ -1,23 +1,23 @@
 # Sprint courant
 
-Sprint actif : [Sprint 01](Sprint-01) — début 2026-10-01 · en cours.
+Sprint actif : [Sprint 02](Sprint-02) — début 2026-10-01 · en cours.
 
-Sprint Goal : « J'ouvre un projet Claude Code existant, je vois ses skills et son CLAUDE.md, et Cadre enregistre un premier modèle .cadre/ qui ne peut pas être corrompu. »
+Sprint Goal : « J'enregistre mon cadrage dans .cadre/ depuis l'application, je le retrouve en rouvrant le projet, et je crée mon premier agent. »
 
 | Story | Titre | Points | Statut | PR |
 | --- | --- | --- | --- | --- |
-| SP-01 | Spike : format `.cadre/` (schéma YAML, versionnage) | 2 | Done | — (livrable [ADR-001](ADR-001-format-cadre-v1)) |
-| US-001 | Ouvrir un dossier de projet | 2 | Done (2026-10-01) | [#3](https://github.com/sudo-suLexitooow/GestionAgent/pull/3) |
-| US-002 | Lister les skills du projet | 2 | Done (2026-10-01) | [#5](https://github.com/sudo-suLexitooow/GestionAgent/pull/5) |
-| US-003 | Importer CLAUDE.md et AGENTS.md comme contextes | 2 | Done (2026-10-01) | [#6](https://github.com/sudo-suLexitooow/GestionAgent/pull/6) |
-| US-005 | Enregistrer le modèle `.cadre/` de façon atomique (zone sensible) | 3 | En cours | [#4](https://github.com/sudo-suLexitooow/GestionAgent/pull/4) |
+| US-077 | Enregistrer le cadrage depuis l'interface (zone sensible) | 3 | À faire | — |
+| US-006 | Rouvrir un projet depuis `.cadre/` | 3 | À faire | — |
+| US-007 | Créer un agent (rôle, description, outil cible) | 2 | À faire | — |
+| US-076 | Aligner les commandes de lecture sur la racine du projet ouvert (zone sensible) | 2 | À faire | — |
+| SP-02 | Spike : relevé de ce que Claude Code applique réellement | 3 | À faire | — |
 
-Total : 11 points · Done : 8.
+Total : 13 points · Done : 0.
 
-En cours : US-005 (zone sensible, PR #4). Deuxième série de revues : changements demandés ; corrections en cours (`developpeur-tdd`) avec un principe unique : toute opération de fichier passe par une résolution sûre qui refuse tout lien/jonction sur chaque segment. Ensuite : deux nouvelles revues `relecteur` indépendantes, puis porte 3 (résumé au PO).
+Sprint précédent : [Sprint 01](Sprint-01) terminé le 2026-10-01, 11/11 points (SP-01, US-001, US-002, US-003, US-005).
 
-Obstacle : publication du wiki en échec, le dépôt wiki n'existe pas encore côté GitHub ; le PO doit enregistrer la première page depuis l'interface web.
+À appliquer pendant ce sprint : actions (a) à (d) de la rétrospective du Sprint 1, voir [Sprint-01](Sprint-01).
 
-Ajoutées au backlog le 2026-10-01 : US-076, US-077 (MVP 0, À faire) et une section Dette technique, voir [Backlog](Backlog).
+Obstacle : publication du wiki en échec, le dépôt wiki n'existe pas encore côté GitHub ; le PO doit enregistrer la première page depuis l'interface web (action (d) : relance).
 
 Mis à jour le 2026-10-01.

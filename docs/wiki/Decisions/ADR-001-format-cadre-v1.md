@@ -249,15 +249,17 @@ Chaque erreur porte le fichier et, si possible, la ligne (AC-006-3). E = erreur 
 
 ## Écarts constatés à l'implémentation (2026-10-01)
 
-Relevés pendant US-005 (PR #4). Statut de ces points : **en attente du merge d'US-005**.
+Relevés pendant US-005 (PR #4). Statut : **en vigueur** — US-005 mergée le 2026-10-01 (PR #4, merge `b2ac398`).
 
 - **Sauvegarde** : faite APRÈS validation, à partir de la copie `.ancien` (et non avant l'écriture) ; garantie équivalente.
-- **`index.yaml`** : écrit en JSON, qui est du YAML 1.2 valide.
-- **Verrou** : fichier de verrou permanent `.cadre/tmp/verrou`.
-- **Transactions irrécupérables** : mises de côté en `.cadre/tmp/de-cote-txn-…`.
+- **`index.yaml`** : écrit en JSON, qui est du YAML 1.2 valide. Journal et index plafonnés à 1 Mio (journal plus gros → mis de côté ; index plus gros → reconstruit).
+- **Verrou** : fichier de verrou permanent `.cadre/tmp/verrou`, entre instances ; **jamais supprimé**, y compris par la récupération. Conséquence : après un premier enregistrement raté dans un projet sans `.cadre/`, seul `.cadre/tmp/verrou` vide subsiste.
+- **Transactions irrécupérables** : mises de côté en `.cadre/tmp/de-cote-txn-…` ; la récupération à l'ouverture ne bloque jamais l'ouverture (avertissement).
+- **Règle R1 (noms de segments)** appliquée sur chaque segment de chemin par une résolution sûre unique (`src-tauri/src/fs_atomique/acces.rs`, aucun lien ni jonction suivi) : refus des noms réservés Windows, des **noms courts 8.3** (forme `XXXXXX~N`), des **caractères ignorés par HFS+**, de `.git`, des segments de plus de 255 octets. R1 est partielle (NFC) et **appliquée aussi aux lectures**, pas seulement aux écritures.
+- **Détection d'un modèle** : un projet a un modèle Cadre si et seulement si `.cadre/cadre.yaml` existe (un dossier `.cadre/` seul, p. ex. `tmp/verrou`, n'est pas un modèle). À appliquer par US-006 (AC-006-6) et US-077 (AC-077-4) ; corrige la détection d'US-003, qui teste aujourd'hui la présence du dossier `.cadre/`.
 - **Non implémenté** : le repli « temporaire à côté de la cible si volume différent ».
 
-Décisions de l'orchestrateur prises pendant US-005 (même statut) : annulation (pas de rejeu) à la récupération ; `.gitignore` modifié seulement si le projet est un dépôt Git (racine ou parent) ; racine du projet tenue côté Rust via `ouvrir_projet` ; toute opération de fichier passe par une résolution sûre qui refuse tout lien/jonction sur chaque segment.
+Décisions de l'orchestrateur prises pendant US-005 (en vigueur) : annulation (pas de rejeu) à la récupération ; `.gitignore` modifié seulement si le projet est un dépôt Git (racine ou parent) ; racine du projet tenue côté Rust via `ouvrir_projet` ; toute opération de fichier passe par une résolution sûre qui refuse tout lien/jonction sur chaque segment.
 
 ## Alternatives écartées et pourquoi
 

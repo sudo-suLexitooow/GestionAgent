@@ -1,12 +1,12 @@
 # Product Backlog — Cadre
 
-Version : 2026-10-01 · Auteur : analyste-backlog · Mis à jour le 2026-10-01 par scribe-wiki (porte 1 ; puis merges US-001/002/003, ajout US-076, US-077 et section Dette).
+Version : 2026-10-01 · Auteur : analyste-backlog · Mis à jour le 2026-10-01 par scribe-wiki (porte 1 ; puis merges US-001/002/003/005, ajout US-076, US-077 et section Dette ; Sprint Review 1 : AC-006-6 et AC-077-4 ; Sprint 2 planifié).
 
 **Statut : validé par le PO le 2026-10-01 (porte 1), tel quel.** Options par défaut Q-01 à Q-22 acceptées par délégation : les stories auparavant « Bloquée (Q-xx) » sont « À faire ». SP-03 suit l'option Q-11 (runners GitHub).
 
 Source : [Cahier des charges](Cahier-des-charges). Questions ouvertes : [Questions-PO](Questions-PO). Traçabilité : [Tracabilite](Tracabilite).
 
-> Sprint 1 planifié le 2026-10-01 : voir [Sprint-01](Sprint-01).
+> Sprint 1 terminé le 2026-10-01 (11/11 points) : voir [Sprint-01](Sprint-01). Sprint 2 planifié le 2026-10-01 : voir [Sprint-02](Sprint-02).
 
 ## Sommaire
 
@@ -59,17 +59,17 @@ Ordre = valeur + réduction du risque, en fermant d'abord la boucle centrale : *
 | 2 | US-001 | Ouvrir un dossier de projet | MVP 0 | 2 | Done (Sprint 1, PR #3, 2026-10-01) | PRJ-01, ACC-01 | non |
 | 3 | US-002 | Lister les skills du projet (**référence**) | MVP 0 | 2 | Done (Sprint 1, PR #5, 2026-10-01) | SKL-01, PRJ-02 | non |
 | 4 | US-003 | Importer CLAUDE.md et AGENTS.md comme contextes | MVP 0 | 2 | Done (Sprint 1, PR #6, 2026-10-01) | PRJ-02, ADP-02 | non |
-| 5 | US-005 | Enregistrer le modèle `.cadre/` de façon atomique | MVP 0 | 3 | En cours (Sprint 1, PR #4) | §7.4, NF-12, NF-13 | **oui** (écritures atomiques) |
+| 5 | US-005 | Enregistrer le modèle `.cadre/` de façon atomique | MVP 0 | 3 | Done (Sprint 1, PR #4, 2026-10-01) | §7.4, NF-12, NF-13 | **oui** (écritures atomiques) |
 | 6 | US-004 | Importer les skills existantes sans perte | MVP 0 | 3 | À faire | PRJ-02, ADP-01, ADP-02 | non |
-| 7 | SP-02 | Spike : relevé de ce que Claude Code applique réellement | MVP 0 | 3 | À faire | AGT-06, AGT-07, ADP-05, NF-11, §13.2 | non |
-| 8 | US-006 | Rouvrir un projet depuis `.cadre/` | MVP 0 | 3 | À faire | §7.4, PRJ-02 | non |
-| 9 | US-007 | Créer un agent (rôle, description, outil cible) | MVP 0 | 2 | À faire | AGT-01, AGT-02 | non |
+| 7 | SP-02 | Spike : relevé de ce que Claude Code applique réellement | MVP 0 | 3 | Sprint 2 (À faire) | AGT-06, AGT-07, ADP-05, NF-11, §13.2 | non |
+| 8 | US-006 | Rouvrir un projet depuis `.cadre/` | MVP 0 | 3 | Sprint 2 (À faire) | §7.4, PRJ-02 | non |
+| 9 | US-007 | Créer un agent (rôle, description, outil cible) | MVP 0 | 2 | Sprint 2 (À faire) | AGT-01, AGT-02 | non |
 | 10 | US-008 | Exporter un agent vers Claude Code | MVP 0 | 3 | À faire | ADP-01, ADP-02, NF-12, NF-19 | **oui** (écritures atomiques) |
 | 11 | US-009 | Exporter skills et contextes vers Claude Code, aller-retour sans perte | MVP 0 | 3 | À faire | ADP-02, PRJ-02, NF-12 | **oui** (écritures atomiques, fichiers de l'utilisateur) |
 | 12 | US-010 | Importer les sous-agents Claude Code existants | MVP 0 | 3 | À faire | PRJ-02, ADP-02 | non |
 | 13 | US-011 | Dupliquer, renommer et supprimer un agent | MVP 0 | 2 | À faire | AGT-01 | **oui** (suppression de fichiers générés) |
-| 14 | US-076 | Aligner les commandes de lecture sur la racine du projet ouvert | MVP 0 | 2 (proposé) | À faire | SKL-01, PRJ-02 (proposées) | **oui** (portée) |
-| 15 | US-077 | Enregistrer le cadrage depuis l'interface | MVP 0 | 3 (proposé) | À faire | §7.4, NF-12, PRJ-02 (proposées) | **oui** (écritures atomiques) |
+| 14 | US-076 | Aligner les commandes de lecture sur la racine du projet ouvert | MVP 0 | 2 | Sprint 2 (À faire) | SKL-01, PRJ-02 (proposées) | **oui** (portée) |
+| 15 | US-077 | Enregistrer le cadrage depuis l'interface | MVP 0 | 3 | Sprint 2 (À faire) | §7.4, NF-12, PRJ-02 (proposées) | **oui** (écritures atomiques) |
 | 16 | SP-03 | Spike : machine et projet de référence | MVP 0 | 2 | À faire | NF-04, NF-01 à NF-03 | non |
 | 17 | US-012 | Attacher et détacher des skills à un agent | MVP 1 | 2 | À faire | AGT-05 | non |
 | 18 | US-013 | Déclarer la portée d'un agent par dossier | MVP 1 | 3 | À faire | AGT-07 | **oui** (portée des agents) |
@@ -256,7 +256,8 @@ Critères d'acceptation :
 En tant que développeur solo, je veux que mon cadrage soit enregistré dans `.cadre/` sans jamais pouvoir être corrompu afin de ne pas perdre mon travail en cas de plantage.
 - Étape : MVP 0 · Estimation : 3 points · Dépendances : US-001, SP-01 · **Zone sensible : oui (écritures atomiques) → porte 3**
 - Exigences : §7.4, NF-12, NF-13
-- En cours (PR #4) au 2026-10-01. Décisions orchestrateur : annulation (pas rejeu) à la récupération ; `.gitignore` seulement si projet Git (racine ou parent) ; AC-005-6 accepté au niveau résultat typé (l'affichage viendra avec le bouton Enregistrer, US-077) ; racine tenue côté Rust via `ouvrir_projet`. Écarts au format : voir [ADR-001](ADR-001-format-cadre-v1), section « Écarts constatés ».
+- Done le 2026-10-01 (PR #4, merge `b2ac398`). Zone sensible : 3 tours de deux revues `relecteur` indépendantes (6 revues), toutes deux ACCEPTÉ aux révisions 3 et 4 ; porte 3 tenue par l'orchestrateur (délégation du PO), résumé en langage simple au PO dans le compte rendu de sprint. Risque résiduel : voir [Sprint-01](Sprint-01), Sprint Review. Le système d'enregistrement n'a pas encore de bouton (US-077).
+- Décisions orchestrateur : annulation (pas rejeu) à la récupération ; `.gitignore` seulement si projet Git (racine ou parent) ; AC-005-6 accepté au niveau résultat typé (l'affichage viendra avec le bouton Enregistrer, US-077) ; racine tenue côté Rust via `ouvrir_projet`. Écarts au format : voir [ADR-001](ADR-001-format-cadre-v1), section « Écarts constatés ».
 
 Critères d'acceptation :
 - AC-005-1 [§7.4] : Étant donné un projet sans `.cadre/`, quand l'utilisateur enregistre, alors `.cadre/cadre.yaml` est créé avec `schema_version`, `generator_version` et les outils actifs, conforme au schéma de SP-01.
@@ -278,6 +279,7 @@ Critères d'acceptation :
 - AC-006-3 [§7.4] : Étant donné un fichier `.cadre/agents/x.yaml` invalide (YAML cassé ou non conforme au schéma), quand le projet est ouvert, alors le projet s'ouvre, l'agent est marqué en erreur avec le fichier et la ligne, et rien n'est réécrit automatiquement.
 - AC-006-4 [PRJ-02] : Étant donné un projet qui a un `.cadre/` et aussi un `CLAUDE.md`, quand il est ouvert, alors aucun import n'est reproposé et `.cadre/` fait foi.
 - AC-006-5 [§7.4] : Étant donné un `cadre.yaml` absent mais un dossier `.cadre/` présent, quand le projet est ouvert, alors Cadre signale un modèle incomplet et propose de le réparer, sans rien écrire sans accord.
+- AC-006-6 [§7.4, PRJ-02] (ajouté le 2026-10-01, Sprint Review 1) : Étant donné un dossier `.cadre/` sans `cadre.yaml` (p. ex. seulement `tmp/verrou`), quand le projet est ouvert, alors ce n'est pas un modèle : l'import est proposé. La détection d'un modèle = présence de `.cadre/cadre.yaml` ([ADR-001](ADR-001-format-cadre-v1)) ; corrige la détection d'US-003, qui teste aujourd'hui le dossier `.cadre/`.
 
 ### US-007 — Créer un agent
 En tant que développeur solo, je veux créer un agent en lui donnant un nom, un rôle, une description et un outil cible afin de commencer à le cadrer.
@@ -365,6 +367,7 @@ Critères d'acceptation :
 - AC-077-1 : Étant donné un projet ouvert avec des contextes importés (US-003), quand l'utilisateur clique « Enregistrer », alors `.cadre/` est écrit via US-005 : `cadre.yaml`, les contextes importés, et leur adoption dans `generated.yaml` selon [ADR-001](ADR-001-format-cadre-v1) D5.
 - AC-077-2 : Étant donné un échec d'enregistrement (cas d'AC-005-6), quand l'utilisateur enregistre, alors le message d'erreur correspondant s'affiche.
 - AC-077-3 : Étant donné un enregistrement réussi, quand il se termine, alors l'état « Non enregistré » disparaît.
+- AC-077-4 (ajouté le 2026-10-01, Sprint Review 1) : Étant donné un dossier `.cadre/` sans `cadre.yaml` (p. ex. seulement `tmp/verrou`), quand le projet est ouvert, alors ce n'est pas un modèle : l'import est proposé.
 
 ---
 
@@ -949,12 +952,13 @@ Les NF ne deviennent pas des stories (sauf NF-13 « annulation », voir US-051, 
 
 ## 9. Proposition de découpage en sprints
 
-**Proposition indicative ; Sprint 1 retenu tel quel le 2026-10-01 (porte 2 déléguée), sprints suivants à replanifier selon la vélocité.** La vélocité est inconnue : le Sprint 1 est volontairement modeste (11 points) pour l'étalonner. Les sprints suivants seront redimensionnés selon la vélocité mesurée.
+**Proposition indicative ; Sprint 1 retenu tel quel le 2026-10-01 (porte 2 déléguée) ; Sprint 2 replanifié le 2026-10-01 (voir ci-dessous) ; sprints suivants à replanifier selon la vélocité (Sprint 1 : 11 points).** La vélocité est inconnue : le Sprint 1 est volontairement modeste (11 points) pour l'étalonner. Les sprints suivants seront redimensionnés selon la vélocité mesurée.
 
 | Sprint | Sprint Goal proposé | Contenu | Points |
 | --- | --- | --- | --- |
 | **1** | **« J'ouvre un projet Claude Code existant, je vois ses skills et son CLAUDE.md, et Cadre enregistre un premier modèle `.cadre/` qui ne peut pas être corrompu. »** | SP-01 (2), US-001 (2), US-002 (2), US-003 (2), US-005 (3, zone sensible) | 11 |
-| 2 | « Je crée un agent et Cadre génère son fichier Claude Code. » | US-004 (3), US-006 (3), US-007 (2), US-008 (3, sensible), SP-02 (3) | 14 |
+| **2 (retenu le 2026-10-01)** | **« J'enregistre mon cadrage dans .cadre/ depuis l'application, je le retrouve en rouvrant le projet, et je crée mon premier agent. »** | US-077 (3, sensible), US-006 (3), US-007 (2), US-076 (2, sensible), SP-02 (3) | 13 |
+| 2 (proposition initiale, remplacée) | « Je crée un agent et Cadre génère son fichier Claude Code. » | US-004 (3), US-006 (3), US-007 (2), US-008 (3, sensible), SP-02 (3) | 14 |
 | 3 | « Un projet existant fait l'aller-retour Cadre → Claude Code sans perte » (**porte MVP 0**) | US-009 (3, sensible), US-010 (3), US-011 (2, sensible), SP-03 (2) | 10 |
 | 4 | « Je cadre un agent (skills, portée, outils) et je sais ce qui est garanti. » | US-012 (2), US-013 (3), US-014 (3), US-015 (2), US-016 (3), US-017 (3) | 16 |
 | 5 | « Je lance un agent dans un worktree isolé et je suis sa sortie. » | SP-05 (3), SP-06 (3), US-019 (3), US-020 (3), US-021 (3), US-022 (2) | 17 |
