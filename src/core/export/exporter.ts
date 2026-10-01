@@ -6,26 +6,36 @@ import { empreinte } from "../cadre/empreinte";
 import {
   enregistrerFichiers,
   versErreurEnregistrement,
-  type CodeErreurEnregistrement,
+  type ErreurEnregistrement,
 } from "../cadre/enregistrer";
 import { serialiserManifeste } from "../cadre/generated-yaml";
-import type { FichierAEcrire, SystemeFichiersProjet } from "../fichiers/systeme-fichiers";
+import {
+  CODES_ERREUR_FICHIERS,
+  type FichierAEcrire,
+  type SystemeFichiersProjet,
+} from "../fichiers/systeme-fichiers";
 import { readFailureReason, type ProjectFiles } from "../project/ports";
 import { lireManifeste, mettreAJourManifeste, type EntreeManifeste } from "./manifeste";
 
 /**
- * Codes d'erreur de l'export : ceux de l'enregistrement, plus les refus décidés avant toute
- * écriture : `MODELE_INVALIDE` (agent en erreur ou refusé par l'adaptateur), `ECRASEMENT_A_CONFIRMER`
- * (fichier existant non généré par Cadre, ou modifié depuis), `FICHIER_LIEN`, `FICHIER_ILLISIBLE`
- * (fichier existant que Cadre ne peut pas lire) et `MANIFESTE_INVALIDE` (`.cadre/generated.yaml`).
+ * Codes d'erreur de l'export (libellés dans `src/ui/i18n/`) : ceux du système de fichiers, plus
+ * les refus décidés avant toute écriture : `MODELE_NON_MODIFIABLE` (modèle absent, incomplet ou
+ * d'un format plus récent), `MODELE_INVALIDE` (agent en erreur ou refusé par l'adaptateur),
+ * `ECRASEMENT_A_CONFIRMER` (fichier existant non généré par Cadre, ou modifié depuis),
+ * `FICHIER_LIEN`, `FICHIER_ILLISIBLE` (fichier existant que Cadre ne peut pas lire) et
+ * `MANIFESTE_INVALIDE` (`.cadre/generated.yaml`).
  */
-export type CodeErreurExport =
-  | CodeErreurEnregistrement
-  | "MODELE_INVALIDE"
-  | "ECRASEMENT_A_CONFIRMER"
-  | "FICHIER_LIEN"
-  | "FICHIER_ILLISIBLE"
-  | "MANIFESTE_INVALIDE";
+export const CODES_ERREUR_EXPORT = [
+  ...CODES_ERREUR_FICHIERS,
+  "MODELE_NON_MODIFIABLE",
+  "MODELE_INVALIDE",
+  "ECRASEMENT_A_CONFIRMER",
+  "FICHIER_LIEN",
+  "FICHIER_ILLISIBLE",
+  "MANIFESTE_INVALIDE",
+] as const;
+
+export type CodeErreurExport = (typeof CODES_ERREUR_EXPORT)[number];
 
 export interface ErreurExport {
   code: CodeErreurExport;
@@ -62,11 +72,18 @@ export async function exporterModele(
   try {
     preparation = await preparer(disque.fichiers, racine, adaptateur, options.confirmes ?? []);
   } catch (erreur) {
-    return { ok: false, erreur: versErreurEnregistrement(erreur) };
+    return { ok: false, erreur: enErreurExport(versErreurEnregistrement(erreur)) };
   }
   if ("erreur" in preparation) return preparation;
   const resultat = await enregistrerFichiers(disque.systeme, racine, preparation.lot);
-  return resultat.ok ? { ok: true, fichiers: preparation.fichiers } : resultat;
+  if (!resultat.ok) return { ok: false, erreur: enErreurExport(resultat.erreur) };
+  return { ok: true, fichiers: preparation.fichiers };
+}
+
+/** Erreur du chemin d'écriture : seuls les codes du système de fichiers en sortent. */
+function enErreurExport({ code, detail }: ErreurEnregistrement): ErreurExport {
+  const connu = CODES_ERREUR_EXPORT.find((candidat) => candidat === code);
+  return { code: connu ?? "ECHEC", detail };
 }
 
 async function preparer(
