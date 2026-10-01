@@ -3,20 +3,28 @@
 //! Une écriture de un ou plusieurs fichiers est une transaction dans
 //! `.cadre/tmp/txn-<id>/` (même volume que le projet, donc renommages atomiques) :
 //!
+//! 0. validation des chemins (règle R1, ni `.git` ni dossiers internes, pas de doublon, aucun
+//!    parent en lien) ; `.cadre`, `.cadre/tmp` et `.cadre/backups` doivent être de vrais
+//!    dossiers ; verrou exclusif `.cadre/tmp/verrou` (une seule instance de Cadre à la fois) ;
 //! 1. récupération d'une éventuelle transaction précédente interrompue ;
 //! 2. préparation : `<i>.nouveau` (nouveau contenu) et `<i>.ancien` (copie du fichier
-//!    actuel s'il existe), chacun synchronisé sur disque (fsync) ;
+//!    actuel s'il existe), chacun synchronisé sur disque (fsync) ; le plan note aussi les
+//!    dossiers que la transaction va créer ;
 //! 3. journal `en_cours` (écrit atomiquement) : à partir d'ici, un arrêt brutal est annulé
 //!    à la récupération ;
 //! 4. remplacement de chaque fichier par renommage de `<i>.nouveau` (remplace la cible sous
 //!    Windows comme sous Unix), puis fsync du dossier (Unix) ;
 //! 5. journal `validee` : l'enregistrement a réussi ;
-//! 6. version précédente copiée dans `.cadre/backups/<chemin>` et index mis à jour ;
-//! 7. suppression du dossier de transaction.
+//! 6. version précédente copiée dans `.cadre/backups/<chemin>` et index mis à jour (une
+//!    sauvegarde impossible est abandonnée, jamais bloquante) ;
+//! 7. suppression du journal, puis du dossier de transaction.
 //!
-//! Erreur avant 5 : les fichiers déjà remplacés sont remis d'origine. Annulation et
-//! récupération ne touchent jamais un fichier dont le contenu n'est plus celui écrit par la
-//! transaction (modifié par l'utilisateur entre-temps).
+//! Erreur avant 5 : les fichiers déjà remplacés sont remis d'origine et les dossiers vides
+//! créés retirés ; si cette annulation échoue, `AnnulationIncomplete` et le journal reste.
+//! Annulation et récupération ne touchent jamais un fichier dont le contenu n'est plus celui
+//! écrit par la transaction (modifié par l'utilisateur entre-temps), ne suivent jamais un
+//! lien, et mettent de côté (`de-cote-txn-…`, sans rien supprimer) une transaction dont le
+//! journal est illisible ou désigne un chemin hors du projet.
 
 pub mod commandes;
 

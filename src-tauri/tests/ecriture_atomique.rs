@@ -650,10 +650,12 @@ fn lier_dossier(cible: &Path, lien: &Path) {
     std::os::unix::fs::symlink(cible, lien).unwrap();
     #[cfg(windows)]
     {
+        // `mklink` attend des `\` : normalise les `/` venus des chemins relatifs du test.
+        let normaliser = |chemin: &Path| chemin.components().collect::<std::path::PathBuf>();
         let statut = std::process::Command::new("cmd")
             .args(["/C", "mklink", "/J"])
-            .arg(lien)
-            .arg(cible)
+            .arg(normaliser(lien))
+            .arg(normaliser(cible))
             .status()
             .unwrap();
         assert!(statut.success(), "création de la jonction");
