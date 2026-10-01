@@ -2,39 +2,11 @@
 //! Vérifie le nom de la commande, l'argument `path` et le format JSON attendu par `FolderStatus` (TS).
 
 use serde_json::{json, Value};
-use tauri::test::{get_ipc_response, mock_builder, mock_context, noop_assets, INVOKE_KEY};
-use tauri::webview::InvokeRequest;
 
-/// Origine de l'interface selon la plateforme : le contrôle d'accès de Tauri refuse une commande
-/// venant d'une autre origine. Tauri n'expose pas cette valeur ; elle suit l'exemple de `tauri::test`.
-fn app_origin() -> &'static str {
-    if cfg!(any(windows, target_os = "android")) {
-        "http://tauri.localhost"
-    } else {
-        "tauri://localhost"
-    }
-}
+mod common;
 
 fn invoke_inspect_folder(path: &std::path::Path) -> Result<Value, Value> {
-    let app = cadre_lib::configure(mock_builder())
-        .build(mock_context(noop_assets()))
-        .unwrap();
-    let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
-        .build()
-        .unwrap();
-    get_ipc_response(
-        &webview,
-        InvokeRequest {
-            cmd: "inspect_folder".into(),
-            callback: tauri::ipc::CallbackFn(0),
-            error: tauri::ipc::CallbackFn(1),
-            url: app_origin().parse().unwrap(),
-            body: tauri::ipc::InvokeBody::Json(json!({ "path": path })),
-            headers: Default::default(),
-            invoke_key: INVOKE_KEY.to_string(),
-        },
-    )
-    .map(|body| body.deserialize::<Value>().unwrap())
+    common::invoke("inspect_folder", json!({ "path": path }))
 }
 
 #[test]
