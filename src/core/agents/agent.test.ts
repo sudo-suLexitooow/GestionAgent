@@ -51,4 +51,70 @@ describe("création d'un agent (US-007)", () => {
     expect(texte).toMatch(/\n$/);
     expect(texte).not.toMatch(/\r/);
   });
+
+  test("test_ac_007_2_refuse_une_cible_sans_adaptateur_disponible", () => {
+    expect(creerAgent({ ...SAISIE, cible: "codex" }, CONTEXTE)).toEqual({
+      ok: false,
+      refus: "CIBLE_INDISPONIBLE",
+    });
+  });
+
+  test.each(["frontend", "Frontend", "FRONTEND"])(
+    "test_ac_007_3_refuse_un_nom_deja_pris_quelle_que_soit_la_casse (%s)",
+    (nom) => {
+      const contexte = { ...CONTEXTE, nomsExistants: ["backend", "frontend"] };
+      expect(creerAgent({ ...SAISIE, nom }, contexte)).toEqual({
+        ok: false,
+        refus: "NOM_EXISTANT",
+      });
+    },
+  );
+
+  test.each([
+    ["", "NOM_VIDE"],
+    ["front<end", "NOM_CARACTERES_INTERDITS"],
+    ["a:b", "NOM_CARACTERES_INTERDITS"],
+    ['a"b', "NOM_CARACTERES_INTERDITS"],
+    ["a/b", "NOM_CARACTERES_INTERDITS"],
+    ["a\\b", "NOM_CARACTERES_INTERDITS"],
+    ["a|b", "NOM_CARACTERES_INTERDITS"],
+    ["a?b", "NOM_CARACTERES_INTERDITS"],
+    ["a*b", "NOM_CARACTERES_INTERDITS"],
+    ["a>b", "NOM_CARACTERES_INTERDITS"],
+    ["a\u0001b", "NOM_CARACTERES_INTERDITS"],
+    ["CON", "NOM_RESERVE"],
+    ["con", "NOM_RESERVE"],
+    ["Prn", "NOM_RESERVE"],
+    ["AUX", "NOM_RESERVE"],
+    ["nul", "NOM_RESERVE"],
+    ["com1", "NOM_RESERVE"],
+    ["COM0", "NOM_RESERVE"],
+    ["lpt9", "NOM_RESERVE"],
+    ["-x", "NOM_FORMAT"],
+    ["x_", "NOM_FORMAT"],
+    ["front end", "NOM_FORMAT"],
+    ["frontend.", "NOM_FORMAT"],
+    ["..", "NOM_FORMAT"],
+    ["éditeur", "NOM_FORMAT"],
+    ["a".repeat(65), "NOM_FORMAT"],
+  ])("test_ac_007_4_refuse_le_nom_%j_avec_la_regle_violee_%s", (nom, regle) => {
+    expect(creerAgent({ ...SAISIE, nom }, CONTEXTE)).toEqual({ ok: false, refus: regle });
+  });
+
+  test.each(["a", "a".repeat(64), "front_end-2", "COM10", "CONSOLE"])(
+    "test_ac_007_4_accepte_le_nom_conforme_%s",
+    (nom) => {
+      expect(creerAgent({ ...SAISIE, nom }, CONTEXTE)).toMatchObject({ ok: true });
+    },
+  );
+
+  test.each([
+    ["role", { role: "" }],
+    ["description", { description: "" }],
+    ["les_deux", { role: "", description: "" }],
+    ["blancs", { description: "  \n" }],
+  ])("test_ac_007_5_cree_l_agent_avec_l_avertissement_description_manquante (%s)", (_, vide) => {
+    const creation = creerAgent({ ...SAISIE, ...vide }, CONTEXTE);
+    expect(creation).toMatchObject({ ok: true, avertissements: ["DESCRIPTION_MANQUANTE"] });
+  });
 });
