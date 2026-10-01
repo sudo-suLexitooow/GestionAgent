@@ -31,4 +31,21 @@ describe("import de CLAUDE.md et AGENTS.md depuis l'écran principal", () => {
     expect(within(section).getByRole("button", { name: "Importer" })).toBeInTheDocument();
     expect(within(section).getByRole("button", { name: "Ne pas importer" })).toBeInTheDocument();
   });
+
+  test.each([
+    ["le_projet_a_deja_un_dossier_cadre", { "CLAUDE.md": "# P\n", ".cadre/cadre.yaml": "x" }],
+    ["aucun_fichier_de_contexte_n_est_present", { "README.md": "# Projet\n" }],
+  ])("test_ac_003_1_aucune_proposition_quand_%s", async (_cas, content) => {
+    await openProject(new InMemoryProjectFiles(ROOT, content));
+    await screen.findByText("Aucune skill détectée.");
+    await settle();
+
+    expect(screen.queryByRole("region", { name: "Contextes" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Importer" })).not.toBeInTheDocument();
+  });
 });
+
+/** Laisse se terminer les lectures en cours du faux projet. */
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
