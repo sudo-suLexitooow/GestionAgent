@@ -2,7 +2,7 @@
 //! octets bruts. Les chemins sont relatifs à la racine du projet et ne peuvent pas en sortir.
 
 use serde::Serialize;
-use std::io::ErrorKind;
+use std::io::{ErrorKind, Read};
 use std::path::{Component, Path, PathBuf};
 
 /// Nature d'une entrée de dossier, sérialisée comme le type TypeScript `EntryKind`.
@@ -75,10 +75,30 @@ fn kind_of(path: &Path) -> EntryKind {
 }
 
 /// Lit le fichier `relative` du projet `root` en octets bruts ; `None` s'il n'existe pas.
+/// Seul un fichier ordinaire (éventuellement atteint par un lien) est lu : un dossier, une FIFO ou un
+/// périphérique (`/dev/zero`) est refusé avant toute ouverture, pour ne jamais bloquer ni lire sans fin.
+/// Au-delà de `MAX_FILE_SIZE`, la lecture est refusée (`TooLarge`).
 pub fn read_file(root: &Path, relative: &str) -> Result<Option<Vec<u8>>, ReadError> {
-    match std::fs::read(resolve(root, relative)?) {
-        Ok(bytes) => Ok(Some(bytes)),
-        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
-        Err(_) => Err(ReadError::Unreadable),
+    let path = resolve(root, relative)?;
+    let metadata = match std::fs::metadata(&path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err(ReadError::Unreadable),
+    };
+    if !metadata.is_file() {
+        return Err(ReadError::Unreadable);
     }
+    if metadata.len() > MAX_FILE_SIZE {
+        return Err(ReadError::TooLarge);
+    }
+    // Le fichier peut grossir entre la vérification et la lecture : la lecture reste bornée.
+    let file = std::fs::File::open(&path).map_err(|_| ReadError::Unreadable)?;
+    let mut bytes = Vec::new();
+    file.take(MAX_FILE_SIZE + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| ReadError::Unreadable)?;
+    if bytes.len() as u64 > MAX_FILE_SIZE {
+        return Err(ReadError::TooLarge);
+    }
+    Ok(Some(bytes))
 }
