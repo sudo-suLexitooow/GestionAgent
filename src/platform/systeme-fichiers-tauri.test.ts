@@ -57,6 +57,8 @@ describe("SystemeFichiersTauri (commandes Rust fs_atomique)", () => {
 
   it("test_ac_005_6_erreur_rust_convertie_en_erreur_typee", async () => {
     intercepter(() => {
+      // Tauri rejette avec la valeur sérialisée de l'erreur Rust (`ErreurDto`), pas une Error.
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw { code: "DISQUE_PLEIN", detail: "No space left on device (os error 28)" };
     });
 
@@ -70,6 +72,8 @@ describe("SystemeFichiersTauri (commandes Rust fs_atomique)", () => {
 
   it("test_ac_005_6_erreur_inconnue_convertie_en_echec", async () => {
     intercepter(() => {
+      // Erreur de Tauri lui-même (commande absente…) : une simple chaîne.
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw "commande inconnue";
     });
 
