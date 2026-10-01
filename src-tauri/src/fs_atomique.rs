@@ -60,6 +60,10 @@ pub enum Etape {
     TransactionValidee,
     /// Journal supprimé, dossier de transaction pas encore effacé.
     JournalSupprime,
+    /// Journal « validé » écrit dans son fichier provisoire, pas encore renommé.
+    JournalValideProvisoire,
+    /// Annulation : le fichier n° i vient d'être remis dans son état d'origine.
+    FichierRestaure(usize),
 }
 
 /// Point d'injection de pannes. En production : [`SansPanne`].
@@ -85,6 +89,9 @@ pub enum ErreurEcriture {
     /// Une transaction interrompue ne peut pas être reprise sans risque : elle est mise de
     /// côté, rien n'est supprimé ; le détail indique le dossier à examiner.
     RecuperationImpossible(String),
+    /// L'enregistrement a échoué et son annulation aussi : des fichiers peuvent être
+    /// modifiés ; la récupération suivante termine l'annulation.
+    AnnulationIncomplete(String),
     Autre(String),
 }
 
@@ -166,6 +173,11 @@ pub fn valider_chemin(chemin: &str) -> Result<(), ErreurEcriture> {
 ///
 /// À appeler à l'ouverture du projet ; chaque écriture l'appelle aussi avant de commencer.
 pub fn recuperer(racine: &Path) -> Result<(), ErreurEcriture> {
+    recuperer_avec(racine, &SansPanne)
+}
+
+/// Comme [`recuperer`], avec des points d'injection de pannes.
+pub fn recuperer_avec(racine: &Path, _points: &dyn PointsDeControle) -> Result<(), ErreurEcriture> {
     if !dossiers_internes_reels(racine)? {
         return Ok(());
     }

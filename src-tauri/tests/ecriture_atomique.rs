@@ -2,7 +2,8 @@
 //! temporaires. Tournent en CI sous Linux, Windows et macOS (AC-005-7).
 
 use cadre_lib::fs_atomique::{
-    ecrire_fichiers, ecrire_fichiers_avec, recuperer, Etape, FichierAEcrire, PointsDeControle,
+    ecrire_fichiers, ecrire_fichiers_avec, recuperer, recuperer_avec, Etape, FichierAEcrire,
+    PointsDeControle,
 };
 use std::fs;
 use std::io;
@@ -948,6 +949,124 @@ mod transaction_validee_jamais_bloquante {
             .expect("écriture suivante possible");
 
         assert_eq!(lire(racine, "x/y").as_deref(), Some("y3"));
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+}
+
+/// Plusieurs pannes injectées, chacune à son étape.
+struct ErreursA(Vec<Etape>);
+
+impl PointsDeControle for ErreursA {
+    fn atteint(&self, etape: Etape) -> io::Result<()> {
+        if self.0.contains(&etape) {
+            return Err(io::Error::other(format!("panne simulée à {etape:?}")));
+        }
+        Ok(())
+    }
+}
+
+fn recuperation_arretee_brutalement(racine: &Path, etape: Etape) {
+    let arret = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _ = recuperer_avec(racine, &ArretBrutalA(etape));
+    }));
+    assert!(arret.is_err(), "l'arrêt brutal à {etape:?} n'a pas eu lieu");
+}
+
+/// Revue A, point 4 : pannes pendant l'annulation et modifications de l'utilisateur.
+mod pannes_pendant_l_annulation {
+    use super::*;
+    use cadre_lib::fs_atomique::ErreurEcriture;
+
+    #[test]
+    fn test_ac_005_3_recuperation_arretee_deux_fois_puis_reprise() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::FichierRemplace(2));
+
+        recuperation_arretee_brutalement(racine, Etape::FichierRestaure(2));
+        recuperation_arretee_brutalement(racine, Etape::FichierRestaure(1));
+        recuperer(racine).expect("récupération");
+
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_3_erreur_pendant_l_annulation_code_dedie_journal_conserve_puis_reprise() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+
+        let resultat = ecrire_fichiers_avec(
+            racine,
+            &fichiers,
+            &ErreursA(vec![Etape::FichierRemplace(1), Etape::FichierRestaure(1)]),
+        );
+
+        assert!(
+            matches!(resultat, Err(ErreurEcriture::AnnulationIncomplete(_))),
+            "{resultat:?}"
+        );
+        assert!(
+            temporaires(racine)
+                .iter()
+                .any(|chemin| chemin.ends_with("journal.json")),
+            "le journal reste pour la reprise"
+        );
+        recuperer(racine).expect("reprise");
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_3_fichier_supprime_par_l_utilisateur_apres_l_arret_reste_supprime() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::FichierRemplace(1));
+        fs::remove_file(racine.join(".cadre/cadre.yaml")).unwrap();
+
+        recuperer(racine).expect("récupération");
+
+        assert_eq!(lire(racine, ".cadre/cadre.yaml"), None);
+        assert_eq!(
+            lire(racine, ".gitignore").as_deref(),
+            Some("node_modules\r\n# perso\r\n")
+        );
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_3_fichier_cree_puis_modifie_par_l_utilisateur_est_conserve() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::FichierRemplace(2));
+        ecrire(
+            racine,
+            ".cadre/agents/frontend.yaml",
+            "name: frontend # à moi\n",
+        );
+
+        recuperer(racine).expect("récupération");
+
+        assert_eq!(
+            lire(racine, ".cadre/agents/frontend.yaml").as_deref(),
+            Some("name: frontend # à moi\n")
+        );
+        assert_eq!(
+            lire(racine, ".cadre/cadre.yaml").as_deref(),
+            Some("schema_version: 1 # retouché à la main\n")
+        );
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_3_arret_avant_le_renommage_du_journal_valide_annule_au_demarrage() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::JournalValideProvisoire);
+
+        recuperer(racine).expect("récupération");
+
+        assert_projet_inchange(racine);
         assert_eq!(temporaires(racine), Vec::<String>::new());
     }
 }

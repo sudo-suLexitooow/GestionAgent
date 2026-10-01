@@ -33,6 +33,7 @@ impl From<ErreurEcriture> for ErreurDto {
             ErreurEcriture::DisquePlein(detail) => ("DISQUE_PLEIN", detail),
             ErreurEcriture::CheminInvalide(detail) => ("CHEMIN_INVALIDE", detail),
             ErreurEcriture::RecuperationImpossible(detail) => ("RECUPERATION_IMPOSSIBLE", detail),
+            ErreurEcriture::AnnulationIncomplete(detail) => ("ANNULATION_INCOMPLETE", detail),
             ErreurEcriture::Autre(detail) => ("ECHEC", detail),
         };
         ErreurDto {
