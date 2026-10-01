@@ -19,5 +19,8 @@ export async function importerProjet(
   specs: readonly ContextFileSpec[],
 ): Promise<ProjetImporte> {
   const contextes = await importContexts(files, root, specs);
-  return { ...contextes, skills: { skills: [], failures: [] } };
+  const skills = adapter.importer
+    ? await adapter.importer(files, root)
+    : { skills: [], failures: [] };
+  return { ...contextes, skills };
 }
