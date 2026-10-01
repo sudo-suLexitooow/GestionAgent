@@ -45,6 +45,15 @@ describe("section Skills de l'écran principal", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  test("test_ac_002_2_un_fichier_claude_skills_indique_aucune_skill_detectee_sans_erreur", async () => {
+    await openProject(new InMemoryProjectFiles(ROOT, { ".claude/skills": "pas un dossier\n" }));
+
+    const section = await skillsSection();
+
+    expect(await within(section).findByText("Aucune skill détectée.")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   test("test_ac_002_3_une_skill_invalide_est_marquee_en_erreur_avec_la_raison", async () => {
     await openProject(
       new InMemoryProjectFiles(ROOT, {

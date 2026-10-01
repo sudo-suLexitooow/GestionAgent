@@ -28,6 +28,10 @@ describe("découverte des skills de Claude Code (.claude/skills/)", () => {
     expect(await detect({ "CLAUDE.md": "# Projet\n", ".claude/agents/x.md": "x" })).toEqual([]);
   });
 
+  test("test_ac_002_2_un_fichier_claude_skills_donne_une_liste_vide_sans_erreur", async () => {
+    expect(await detect({ ".claude/skills": "pas un dossier\n" })).toEqual([]);
+  });
+
   test("test_ac_002_3_une_skill_a_l_en_tete_invalide_est_en_erreur_et_les_autres_sont_listees", async () => {
     const skills = await detect({
       ".claude/skills/a/SKILL.md": skillMd("a", "Fait A."),
