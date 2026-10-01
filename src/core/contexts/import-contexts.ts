@@ -1,6 +1,7 @@
 import type { ToolAdapter } from "../adapters/adapter";
 import type { ProjectFiles } from "../project/ports";
 import type { ContextFileSpec } from "./context";
+import { GENERIC_CONTEXT_FILES } from "./generic-format";
 
 /**
  * Fichiers de contexte à proposer à l'import (PRJ-02) : seulement si le projet n'a pas encore de
@@ -15,5 +16,6 @@ export async function detectContextFiles(
   const present = new Set(
     entries.filter((entry) => entry.kind === "file").map((entry) => entry.name),
   );
-  return (adapter.contextFiles ?? []).filter((spec) => present.has(spec.file));
+  const candidates = [...(adapter.contextFiles ?? []), ...GENERIC_CONTEXT_FILES];
+  return candidates.filter((spec) => present.has(spec.file));
 }
