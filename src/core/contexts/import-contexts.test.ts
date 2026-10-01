@@ -14,4 +14,13 @@ describe("détection des fichiers de contexte à importer", () => {
 
     expect(detected.map((spec) => spec.file)).toEqual(["CLAUDE.md"]);
   });
+
+  test("test_ac_003_1_detecte_claude_md_puis_agents_md_en_lecture_seule", async () => {
+    const detected = await detect({ "AGENTS.md": "# Agents\n", "CLAUDE.md": "# Projet\n" });
+
+    expect(detected).toEqual([
+      { file: "CLAUDE.md", name: "CLAUDE", type: "projet" },
+      { file: "AGENTS.md", name: "AGENTS", type: "autre", readonly: true },
+    ]);
+  });
 });
