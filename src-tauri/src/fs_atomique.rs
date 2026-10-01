@@ -124,15 +124,26 @@ pub fn ecrire_fichiers_avec(
         let _ = fs::remove_dir_all(&transaction);
         return Err(classer(erreur));
     }
-    // Validée : l'enregistrement a réussi. Si la mise à jour des sauvegardes échoue, le
-    // journal reste et la prochaine récupération la termine.
-    let sauvegarde = points
-        .atteint(Etape::TransactionValidee)
-        .and_then(|()| sauvegarder_versions_precedentes(racine, &transaction, &entrees));
-    if sauvegarde.is_ok() {
-        let _ = fs::remove_dir_all(&transaction);
+    // Validée : l'enregistrement a réussi. Interrompu ici, le journal reste et la
+    // récupération termine les sauvegardes ; une sauvegarde impossible est abandonnée
+    // (jamais de blocage des écritures suivantes).
+    if points.atteint(Etape::TransactionValidee).is_ok() {
+        let _ = sauvegarder_versions_precedentes(racine, &transaction, &entrees);
+        let _ = nettoyer_transaction(&transaction, points);
     }
     Ok(())
+}
+
+/// Supprime le journal d'abord : un arrêt pendant l'effacement du dossier laisse une
+/// transaction sans journal, simplement effacée à la récupération suivante.
+fn nettoyer_transaction(transaction: &Path, points: &dyn PointsDeControle) -> io::Result<()> {
+    match fs::remove_file(transaction.join(JOURNAL)) {
+        Ok(()) => synchroniser_dossier(transaction)?,
+        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => {}
+        Err(erreur) => return Err(erreur),
+    }
+    points.atteint(Etape::JournalSupprime)?;
+    fs::remove_dir_all(transaction)
 }
 
 /// Chemin relatif au projet, segments séparés par `/`, sans `.`, `..`, `\`, `:` ni segment
@@ -190,11 +201,13 @@ pub fn recuperer(racine: &Path) -> Result<(), ErreurEcriture> {
                     etat: EtatTransaction::Validee,
                     entrees,
                 }) => {
-                    sauvegarder_versions_precedentes(racine, &chemin, &entrees).map_err(classer)?
+                    // L'enregistrement est déjà validé : une sauvegarde impossible est
+                    // abandonnée plutôt que de bloquer toutes les écritures suivantes.
+                    let _ = sauvegarder_versions_precedentes(racine, &chemin, &entrees);
                 }
                 None => {}
             }
-            fs::remove_dir_all(&chemin).map_err(classer)?;
+            nettoyer_transaction(&chemin, &SansPanne).map_err(classer)?;
         }
     }
     Ok(())
@@ -434,9 +447,13 @@ fn sauvegarder_versions_precedentes(
     entrees: &[Entree],
 ) -> io::Result<()> {
     for (i, entree) in entrees.iter().enumerate() {
-        if entree.empreinte_precedente.is_some() {
+        let ancien = copie_ancienne(transaction, i);
+        // Copie disparue (arrêt pendant le nettoyage) ou remplacée par autre chose qu'un
+        // fichier ordinaire (lien) : pas de sauvegarde pour ce fichier.
+        let copie_ordinaire = fs::symlink_metadata(&ancien).is_ok_and(|meta| meta.is_file());
+        if entree.empreinte_precedente.is_some() && copie_ordinaire {
             let sauvegarde = racine.join(DOSSIER_SAUVEGARDES).join(&entree.chemin);
-            let contenu = fs::read(copie_ancienne(transaction, i))?;
+            let contenu = fs::read(&ancien)?;
             remplacer_par(
                 &transaction.join(format!("{i}.sauvegarde")),
                 &sauvegarde,
