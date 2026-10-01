@@ -37,6 +37,26 @@ const fr = {
   "contexts.warning.link": "lien non pris en charge ; il n'est pas importé.",
   "contexts.unsaved":
     "Non enregistré : les contextes importés ne sont pas encore écrits dans le dossier .cadre/.",
+  "model.title": "Modèle",
+  "model.readOnly":
+    "Ce projet a été enregistré par une version plus récente de Cadre. Il est ouvert en lecture seule : mettez Cadre à jour pour le modifier.",
+  "model.agentInError": "Agent en erreur",
+  "model.contextInError": "Contexte en erreur",
+  "model.failed": "Le modèle .cadre/ n'a pas pu être lu.",
+  "model.failedLink":
+    "Le modèle .cadre/ n'a pas pu être lu : un de ses chemins est un lien symbolique ou une jonction, que Cadre ne suit pas.",
+  "model.incomplete": "Modèle incomplet",
+  "model.repair":
+    "Réparation proposée : recréer .cadre/cadre.yaml à partir du contenu de .cadre/. Rien n'a été écrit et rien ne le sera sans votre accord.",
+  "model.error.CADRE_MISSING": "fichier absent",
+  "model.error.ENCODING": "le fichier n'est pas encodé en UTF-8",
+  "model.error.YAML_SYNTAX": "YAML invalide",
+  "model.error.YAML_DUPLICATE_KEY": "clé en double",
+  "model.error.YAML_ALIASES": "trop d'alias YAML (&, *) : fichier refusé par sécurité",
+  "model.error.SCHEMA": "non conforme au format .cadre/ v1",
+  "model.error.UNREADABLE": "le fichier ne peut pas être lu",
+  "model.error.TOO_LARGE": "le fichier dépasse la taille maximale de 8 Mio",
+  "model.error.LINK": "le fichier est un lien symbolique ou une jonction, que Cadre ne suit pas",
   "skills.title": "Skills",
   "skills.none": "Aucune skill détectée.",
   "skills.failed": "Les skills n'ont pas pu être lues.",

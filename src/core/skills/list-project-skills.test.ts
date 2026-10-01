@@ -57,6 +57,14 @@ describe("skills du projet ouvert", () => {
     expect(adapter.calls).toEqual([ROOT]);
   });
 
+  test("test_ac_006_6_un_dossier_cadre_sans_cadre_yaml_n_est_pas_un_modele_et_l_adaptateur_est_utilise", async () => {
+    const adapter = new FakeAdapter([NATIVE]);
+    const files = new InMemoryProjectFiles(ROOT, { ".cadre/tmp/verrou": "" });
+
+    expect(await listProjectSkills(files, ROOT, adapter)).toEqual([NATIVE]);
+    expect(adapter.calls).toEqual([ROOT]);
+  });
+
   test("test_ac_002_5_modele_cadre_sans_skills_donne_une_liste_vide", async () => {
     const adapter = new FakeAdapter([NATIVE]);
     const files = new InMemoryProjectFiles(ROOT, {

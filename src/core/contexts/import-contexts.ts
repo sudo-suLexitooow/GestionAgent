@@ -1,4 +1,5 @@
 import type { ToolAdapter } from "../adapters/adapter";
+import { etatDossierCadre } from "../cadre/detection";
 import { readFailureReason, type ProjectFiles } from "../project/ports";
 import { decodeUtf8 } from "../text/utf8";
 import type { ContextEntry, ContextFileSpec, ImportedContext } from "./context";
@@ -73,15 +74,16 @@ function importedContext(spec: ContextFileSpec, bytes: Uint8Array): ImportedCont
 
 /**
  * Fichiers de contexte à proposer à l'import (PRJ-02) : seulement si le projet n'a pas encore de
- * modèle `.cadre/`. Lecture seule.
+ * modèle `.cadre/`, même incomplet (AC-006-4, AC-006-5) ; un `.cadre/` qui ne contient que `tmp/`
+ * n'est pas un modèle (AC-006-6). Lecture seule.
  */
 export async function detectContextFiles(
   files: ProjectFiles,
   root: string,
   adapter: ToolAdapter,
 ): Promise<ContextFileSpec[]> {
+  if ((await etatDossierCadre(files, root)) !== "aucun") return [];
   const entries = (await files.listDir(root, "")) ?? [];
-  if (entries.some((entry) => entry.name === ".cadre" && entry.kind === "directory")) return [];
   // Un lien n'est pas suivi (US-076) : il est proposé pour que l'import le signale.
   const present = new Set(
     entries
