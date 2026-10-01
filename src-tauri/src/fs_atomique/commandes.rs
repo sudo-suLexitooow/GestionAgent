@@ -20,7 +20,25 @@ use tauri::State;
 #[derive(Debug, Clone, Deserialize)]
 pub struct FichierDto {
     pub chemin: String,
-    pub contenu: String,
+    pub contenu: ContenuDto,
+}
+
+/// Contenu d'un fichier : texte (écrit en UTF-8) ou liste d'octets écrits tels quels, pour un
+/// contenu qui n'est pas forcément de l'UTF-8 (contexte importé, US-077).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum ContenuDto {
+    Texte(String),
+    Octets(Vec<u8>),
+}
+
+impl From<ContenuDto> for Vec<u8> {
+    fn from(contenu: ContenuDto) -> Self {
+        match contenu {
+            ContenuDto::Texte(texte) => texte.into_bytes(),
+            ContenuDto::Octets(octets) => octets,
+        }
+    }
 }
 
 /// Erreur renvoyée à l'interface : un code stable et le détail technique.
@@ -173,7 +191,7 @@ mod tests {
     fn dto(chemin: &str, contenu: &str) -> FichierDto {
         FichierDto {
             chemin: chemin.to_owned(),
-            contenu: contenu.to_owned(),
+            contenu: ContenuDto::Texte(contenu.to_owned()),
         }
     }
 
