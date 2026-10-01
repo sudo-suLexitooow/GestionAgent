@@ -4,7 +4,7 @@ import type { ToolAdapter } from "../adapters/adapter";
 import type { ProjectFiles } from "../project/ports";
 import type { SkillImport } from "../skills/import-skills";
 import { InMemoryProjectFiles } from "../testing/in-memory-project-files";
-import { importerProjet } from "./importer-projet";
+import { detecterImport, importerProjet } from "./importer-projet";
 
 const ROOT = "/home/lea/projet";
 
@@ -66,6 +66,41 @@ describe("le cœur importe par l'interface d'adaptateur (AC-004-4)", () => {
       .map((chemin) => relative(core, chemin));
 
     expect(fautifs).toEqual([]);
+  });
+});
+
+describe("proposition d'import des skills de l'outil", () => {
+  const LISTEES = [
+    { folder: "a", status: "ok", name: "a", description: "A." },
+    { folder: "b", status: "error", issue: { code: "link" } },
+  ] as const;
+
+  function adaptateurQuiListe() {
+    const appels: string[] = [];
+    const adapter: ToolAdapter = {
+      id: "outil-factice",
+      detectSkills: (_files, root) => {
+        appels.push(root);
+        return Promise.resolve([...LISTEES]);
+      },
+    };
+    return { adapter, appels };
+  }
+
+  test("test_ac_004_1_sans_modele_les_skills_de_l_outil_sont_proposees_a_l_import", async () => {
+    const { adapter } = adaptateurQuiListe();
+
+    const propose = await detecterImport(new InMemoryProjectFiles(ROOT, {}), ROOT, adapter);
+
+    expect(propose).toEqual({ specs: [], skills: 2 });
+  });
+
+  test("test_ac_004_1_avec_un_modele_aucune_skill_n_est_proposee", async () => {
+    const { adapter, appels } = adaptateurQuiListe();
+    const files = new InMemoryProjectFiles(ROOT, { ".cadre/cadre.yaml": "schema_version: 1\n" });
+
+    expect(await detecterImport(files, ROOT, adapter)).toEqual({ specs: [], skills: 0 });
+    expect(appels).toEqual([]);
   });
 });
 
