@@ -12,6 +12,40 @@ describe("ouverture par glisser-déposer", () => {
       project: { name: "mon-projet", path: "/home/lea/mon-projet" },
     });
   });
+
+  test("test_ac_001_3_fichier_depose_est_refuse_avec_un_seul_dossier_attendu", async () => {
+    const folders = new InMemoryFolderAccess({ "/home/lea/notes.txt": "not-a-directory" });
+
+    const outcome = await openFromDrop(folders, ["/home/lea/notes.txt"]);
+
+    expect(outcome).toEqual({ kind: "error", error: "drop-single-folder" });
+  });
+
+  test("test_ac_001_3_plusieurs_dossiers_deposes_sont_refuses_sans_rien_ouvrir", async () => {
+    const folders = new InMemoryFolderAccess({ "/home/lea/a": "ok", "/home/lea/b": "ok" });
+
+    const outcome = await openFromDrop(folders, ["/home/lea/a", "/home/lea/b"]);
+
+    expect(outcome).toEqual({ kind: "error", error: "drop-single-folder" });
+    expect(folders.inspected).toEqual([]);
+  });
+
+  test("test_ac_001_4_dossier_depose_illisible_produit_une_erreur", async () => {
+    const folders = new InMemoryFolderAccess({ "/home/lea/secret": "unreadable" });
+
+    const outcome = await openFromDrop(folders, ["/home/lea/secret"]);
+
+    expect(outcome).toEqual({ kind: "error", error: "unreadable" });
+  });
+
+  test("test_ac_001_4_echec_systeme_pendant_un_depot_produit_une_erreur", async () => {
+    const folders = new InMemoryFolderAccess();
+    folders.inspectFolder = () => Promise.reject(new Error("IPC indisponible"));
+
+    const outcome = await openFromDrop(folders, ["/home/lea/x"]);
+
+    expect(outcome).toEqual({ kind: "error", error: "unexpected" });
+  });
 });
 
 describe("ouverture depuis le sélecteur", () => {
