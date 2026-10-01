@@ -212,3 +212,50 @@ describe("projet de 200 skills (AC-004-5)", () => {
     expect(copies).toHaveLength(400);
   });
 });
+
+describe("skills modifiées hors de Cadre entre l'import et l'enregistrement", () => {
+  async function refuse(modifier: (disque: DisqueMemoire) => void, detail: string) {
+    const { disque, enregistrer } = await projetImporte();
+    modifier(disque);
+
+    expect(await enregistrer()).toEqual({ ok: false, erreur: { code: "SOURCE_MODIFIEE", detail } });
+    expect(disque.transactions).toEqual([]);
+  }
+
+  test("test_ac_004_1_annexe_modifie_depuis_l_import_refuse_sans_rien_ecrire", async () => {
+    const guide = ".claude/skills/revue/references/guide.md";
+    await refuse((disque) => {
+      disque.modifierHorsCadre(guide, "# Guide modifié\n");
+    }, guide);
+  });
+
+  test("test_ac_004_1_skill_md_supprime_depuis_l_import_refuse", async () => {
+    const skillMd = ".claude/skills/revue/SKILL.md";
+    await refuse((disque) => {
+      disque.supprimerHorsCadre(skillMd);
+    }, ".claude/skills/revue");
+  });
+
+  test("test_ac_004_1_fichier_ajoute_dans_une_skill_depuis_l_import_refuse", async () => {
+    await refuse((disque) => {
+      disque.modifierHorsCadre(".claude/skills/revue/nouveau.md", "# Nouveau\n");
+    }, ".claude/skills/revue/nouveau.md");
+  });
+
+  test("test_ac_004_1_skill_apparue_depuis_l_import_refuse", async () => {
+    await refuse((disque) => {
+      disque.modifierHorsCadre(".claude/skills/neuve/SKILL.md", "---\nname: neuve\n---\n");
+    }, ".claude/skills/neuve");
+  });
+
+  test("test_ac_004_1_une_conversion_crlf_en_lf_n_est_pas_une_modification", async () => {
+    const { disque, enregistrer } = await projetImporte();
+    disque.modifierHorsCadre(
+      ".claude/skills/revue/SKILL.md",
+      new TextDecoder().decode(REVUE_MD).replaceAll("\r\n", "\n"),
+    );
+
+    expect(await enregistrer()).toEqual({ ok: true });
+    expect(disque.octets(".cadre/skills/revue/SKILL.md")).toEqual(REVUE_MD);
+  });
+});
