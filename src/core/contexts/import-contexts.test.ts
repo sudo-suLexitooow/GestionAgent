@@ -104,4 +104,13 @@ describe("construction des contextes importés (en mémoire)", () => {
     expect(result.contexts.map((context) => context.entry.name)).toEqual(["CLAUDE", "AGENTS"]);
     expect(result.contexts[0]?.content).toEqual(latin1);
   });
+
+  test("test_ac_003_4_un_claude_md_vide_donne_un_contexte_vide_sans_avertissement", () => {
+    const result = buildContextImport([{ spec: CLAUDE_SPEC, bytes: new Uint8Array(0) }]);
+
+    expect(result.contexts).toHaveLength(1);
+    expect(result.contexts[0]?.entry.name).toBe("CLAUDE");
+    expect(result.contexts[0]?.content).toEqual(new Uint8Array(0));
+    expect(result.warnings).toEqual([]);
+  });
 });
