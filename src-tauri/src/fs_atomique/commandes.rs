@@ -1,8 +1,11 @@
 //! Commandes Tauri de lecture et d'écriture des fichiers du projet (appelées par
 //! `src/platform/`). Toute écriture passe par la transaction atomique.
 
-use super::ErreurEcriture;
+use super::{classer, ecrire_fichiers, recuperer, valider_chemin, ErreurEcriture, FichierAEcrire};
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::io;
+use std::path::Path;
 
 /// Fichier à écrire, tel que reçu de l'interface.
 #[derive(Debug, Clone, Deserialize)]
@@ -19,35 +22,51 @@ pub struct ErreurDto {
 }
 
 impl From<ErreurEcriture> for ErreurDto {
-    fn from(_erreur: ErreurEcriture) -> Self {
+    fn from(erreur: ErreurEcriture) -> Self {
+        let (code, detail) = match erreur {
+            ErreurEcriture::LectureSeule(detail) => ("LECTURE_SEULE", detail),
+            ErreurEcriture::DisquePlein(detail) => ("DISQUE_PLEIN", detail),
+            ErreurEcriture::CheminInvalide(detail) => ("CHEMIN_INVALIDE", detail),
+            ErreurEcriture::Autre(detail) => ("ECHEC", detail),
+        };
         ErreurDto {
-            code: String::new(),
-            detail: String::new(),
+            code: code.to_owned(),
+            detail,
         }
     }
 }
 
+/// Écrit tous les fichiers ou aucun, avec sauvegarde de la version précédente.
 #[tauri::command]
-pub fn ecrire_fichiers_projet(
-    _racine: String,
-    _fichiers: Vec<FichierDto>,
-) -> Result<(), ErreurDto> {
-    Ok(())
+pub fn ecrire_fichiers_projet(racine: String, fichiers: Vec<FichierDto>) -> Result<(), ErreurDto> {
+    let fichiers: Vec<FichierAEcrire> = fichiers
+        .into_iter()
+        .map(|fichier| FichierAEcrire::new(&fichier.chemin, fichier.contenu))
+        .collect();
+    Ok(ecrire_fichiers(Path::new(&racine), &fichiers)?)
+}
+
+/// À appeler à l'ouverture d'un projet : termine ou annule une écriture interrompue.
+#[tauri::command]
+pub fn recuperer_ecritures_projet(racine: String) -> Result<(), ErreurDto> {
+    Ok(recuperer(Path::new(&racine))?)
+}
+
+/// Contenu texte (UTF-8) d'un fichier du projet, `None` s'il n'existe pas.
+#[tauri::command]
+pub fn lire_fichier_projet(racine: String, chemin: String) -> Result<Option<String>, ErreurDto> {
+    valider_chemin(&chemin)?;
+    match fs::read_to_string(Path::new(&racine).join(&chemin)) {
+        Ok(contenu) => Ok(Some(contenu)),
+        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(erreur) => Err(classer(erreur).into()),
+    }
 }
 
 #[tauri::command]
-pub fn recuperer_ecritures_projet(_racine: String) -> Result<(), ErreurDto> {
-    Ok(())
-}
-
-#[tauri::command]
-pub fn lire_fichier_projet(_racine: String, _chemin: String) -> Result<Option<String>, ErreurDto> {
-    Ok(None)
-}
-
-#[tauri::command]
-pub fn chemin_projet_existe(_racine: String, _chemin: String) -> Result<bool, ErreurDto> {
-    Ok(false)
+pub fn chemin_projet_existe(racine: String, chemin: String) -> Result<bool, ErreurDto> {
+    valider_chemin(&chemin)?;
+    Ok(Path::new(&racine).join(&chemin).exists())
 }
 
 #[cfg(test)]
