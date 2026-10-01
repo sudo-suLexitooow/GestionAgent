@@ -1,10 +1,13 @@
 // Port d'accès aux fichiers du projet. Implémentations : `src/platform/` (commandes Tauri)
 // et `src/core/testing/` (en mémoire, pour les tests).
 
-/** Fichier à écrire : chemin relatif à la racine du projet, séparateur `/`. */
+/**
+ * Fichier à écrire : chemin relatif à la racine du projet, séparateur `/`. Contenu texte (écrit en
+ * UTF-8) ou octets écrits tels quels (contexte importé, pas forcément en UTF-8).
+ */
 export interface FichierAEcrire {
   chemin: string;
-  contenu: string;
+  contenu: string | Uint8Array;
 }
 
 /** Codes d'erreur renvoyés par le système (commandes Rust `fs_atomique`). */

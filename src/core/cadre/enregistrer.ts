@@ -8,67 +8,61 @@ import {
 import { serialiserCadre, type CadreYaml } from "./cadre-yaml";
 import { completerGitignore } from "./gitignore";
 
+/**
+ * Codes d'erreur d'enregistrement : ceux du système de fichiers (AC-005-6), plus les refus décidés
+ * avant toute écriture (US-077) : `SOURCE_MODIFIEE` (un fichier importé a changé depuis l'import,
+ * détail = son chemin) et `MODELE_EXISTANT` (un modèle `.cadre/` est apparu entre-temps).
+ */
+export type CodeErreurEnregistrement = CodeErreurFichiers | "SOURCE_MODIFIEE" | "MODELE_EXISTANT";
+
+/** Erreur d'enregistrement : code stable (libellé dans `src/ui/i18n/`, AC-005-6) et détail. */
 export interface ErreurEnregistrement {
-  code: CodeErreurFichiers;
-  /** Libellé à afficher à l'utilisateur. */
-  message: string;
+  code: CodeErreurEnregistrement;
   /** Détail technique (journal, rapport de bogue). */
   detail: string;
 }
 
 export type ResultatEnregistrement = { ok: true } | { ok: false; erreur: ErreurEnregistrement };
 
-const RASSURANCE = "Vos fichiers n'ont pas été modifiés.";
-
-/** Libellés utilisateur (fr, Q-22) des erreurs d'enregistrement (AC-005-6). */
-export const MESSAGES_ERREUR_ENREGISTREMENT: Record<CodeErreurFichiers, string> = {
-  LECTURE_SEULE: `Enregistrement impossible : le dossier du projet est en lecture seule ou son accès est refusé. ${RASSURANCE}`,
-  DISQUE_PLEIN: `Enregistrement impossible : le disque est plein. Libérez de l'espace puis réessayez. ${RASSURANCE}`,
-  CHEMIN_INVALIDE: `Enregistrement impossible : un chemin de fichier est invalide ou passe par un lien symbolique (par exemple un .gitignore lié à un autre fichier). ${RASSURANCE}`,
-  PROJET_OCCUPE:
-    "Le projet est en cours d'enregistrement par une autre fenêtre de Cadre. Réessayez.",
-  ANNULATION_INCOMPLETE:
-    "L'enregistrement a échoué et n'a pas pu être entièrement annulé ; Cadre terminera l'annulation à la prochaine opération.",
-  RECUPERATION_IMPOSSIBLE:
-    "Enregistrement impossible : une écriture interrompue n'a pas pu être reprise. Des fichiers du projet peuvent être partiellement modifiés ; les copies d'origine sont dans le dossier indiqué dans le détail, rien n'a été supprimé. Réessayez pour enregistrer.",
-  ECHEC: `Enregistrement impossible à cause d'une erreur inattendue. ${RASSURANCE}`,
-};
-
 /**
  * Écrit `.cadre/cadre.yaml` et, dans un projet Git, complète le `.gitignore` racine :
  * le tout en une seule transaction (tout ou rien).
  */
-export async function enregistrerCadre(
+export function enregistrerCadre(
   fs: SystemeFichiersProjet,
   racine: string,
   cadre: CadreYaml,
 ): Promise<ResultatEnregistrement> {
+  return enregistrerFichiers(fs, racine, [
+    { chemin: ".cadre/cadre.yaml", contenu: serialiserCadre(cadre) },
+  ]);
+}
+
+/**
+ * Écrit `fichiers` et, dans un projet Git, complète le `.gitignore` racine : le tout en une seule
+ * transaction (tout ou rien), seul chemin d'écriture du projet (US-005).
+ */
+export async function enregistrerFichiers(
+  fs: SystemeFichiersProjet,
+  racine: string,
+  fichiers: readonly FichierAEcrire[],
+): Promise<ResultatEnregistrement> {
   try {
-    const fichiers: FichierAEcrire[] = [
-      { chemin: ".cadre/cadre.yaml", contenu: serialiserCadre(cadre) },
-    ];
+    const lot = [...fichiers];
     if (await fs.estDansUnDepotGit(racine)) {
       const gitignore = completerGitignore(await fs.lireTexte(racine, ".gitignore"));
-      if (gitignore !== null) fichiers.push({ chemin: ".gitignore", contenu: gitignore });
+      if (gitignore !== null) lot.push({ chemin: ".gitignore", contenu: gitignore });
     }
-    await fs.ecrireTransaction(racine, fichiers);
+    await fs.ecrireTransaction(racine, lot);
     return { ok: true };
   } catch (erreur) {
     return { ok: false, erreur: versErreurEnregistrement(erreur) };
   }
 }
 
-function versErreurEnregistrement(erreur: unknown): ErreurEnregistrement {
+export function versErreurEnregistrement(erreur: unknown): ErreurEnregistrement {
   if (erreur instanceof ErreurSystemeFichiers) {
-    return {
-      code: erreur.code,
-      message: MESSAGES_ERREUR_ENREGISTREMENT[erreur.code],
-      detail: erreur.detail,
-    };
+    return { code: erreur.code, detail: erreur.detail };
   }
-  return {
-    code: "ECHEC",
-    message: MESSAGES_ERREUR_ENREGISTREMENT.ECHEC,
-    detail: erreur instanceof Error ? erreur.message : String(erreur),
-  };
+  return { code: "ECHEC", detail: erreur instanceof Error ? erreur.message : String(erreur) };
 }

@@ -12,7 +12,7 @@ import {
  * Clés : chemins relatifs à la racine, séparateur `/` ; une clé finissant par `/` est un dossier vide.
  */
 export class InMemoryProjectFiles implements ProjectFiles {
-  private readonly files = new Map<string, Uint8Array>();
+  protected readonly files = new Map<string, Uint8Array>();
   private readonly directories = new Set<string>([""]);
   private readonly failures = new Map<string, ReadError>();
   private readonly links = new Set<string>();
@@ -90,7 +90,7 @@ export class InMemoryProjectFiles implements ProjectFiles {
   }
 
   /** Déclare le dossier formé par `segments` et tous ses dossiers parents. */
-  private addDirectoryAndParents(segments: string[]): void {
+  protected addDirectoryAndParents(segments: string[]): void {
     for (let i = 1; i <= segments.length; i++) {
       this.directories.add(segments.slice(0, i).join("/"));
     }

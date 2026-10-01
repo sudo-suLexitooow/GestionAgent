@@ -8,13 +8,13 @@ import {
 } from "../fichiers/systeme-fichiers";
 
 export class SystemeFichiersMemoire implements SystemeFichiersProjet {
-  private readonly contenus: Map<string, string>;
+  private readonly contenus: Map<string, string | Uint8Array>;
   private echecEcriture: CodeErreurFichiers | null = null;
   private echecLecture: CodeErreurFichiers | null = null;
   /** Lots passés à `ecrireTransaction`, réussis ou non. */
   readonly transactions: FichierAEcrire[][] = [];
 
-  constructor(fichiers: Record<string, string> = {}) {
+  constructor(fichiers: Record<string, string | Uint8Array> = {}) {
     this.contenus = new Map(Object.entries(fichiers));
   }
 
@@ -28,11 +28,18 @@ export class SystemeFichiersMemoire implements SystemeFichiersProjet {
     this.echecLecture = code;
   }
 
+  /** Contenu texte (octets décodés en UTF-8). */
   contenu(chemin: string): string | undefined {
+    const contenu = this.contenus.get(chemin);
+    return contenu === undefined ? undefined : enTexte(contenu);
+  }
+
+  /** Contenu exact, tel qu'écrit (texte ou octets). */
+  brut(chemin: string): string | Uint8Array | undefined {
     return this.contenus.get(chemin);
   }
 
-  instantane(): Record<string, string> {
+  instantane(): Record<string, string | Uint8Array> {
     return Object.fromEntries(this.contenus);
   }
 
@@ -42,7 +49,8 @@ export class SystemeFichiersMemoire implements SystemeFichiersProjet {
       this.echecLecture = null;
       return Promise.reject(new ErreurSystemeFichiers(echec, `lecture simulée de ${chemin}`));
     }
-    return Promise.resolve(this.contenus.get(chemin) ?? null);
+    const contenu = this.contenus.get(chemin);
+    return Promise.resolve(contenu === undefined ? null : enTexte(contenu));
   }
 
   /** Simule un `.git` dans un dossier parent du projet (hors du faux système). */
@@ -65,4 +73,8 @@ export class SystemeFichiersMemoire implements SystemeFichiersProjet {
     for (const fichier of fichiers) this.contenus.set(fichier.chemin, fichier.contenu);
     return Promise.resolve();
   }
+}
+
+function enTexte(contenu: string | Uint8Array): string {
+  return typeof contenu === "string" ? contenu : new TextDecoder().decode(contenu);
 }

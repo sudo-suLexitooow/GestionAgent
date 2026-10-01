@@ -20,7 +20,25 @@ use tauri::State;
 #[derive(Debug, Clone, Deserialize)]
 pub struct FichierDto {
     pub chemin: String,
-    pub contenu: String,
+    pub contenu: ContenuDto,
+}
+
+/// Contenu d'un fichier : texte (écrit en UTF-8) ou liste d'octets écrits tels quels, pour un
+/// contenu qui n'est pas forcément de l'UTF-8 (contexte importé, US-077).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum ContenuDto {
+    Texte(String),
+    Octets(Vec<u8>),
+}
+
+impl From<ContenuDto> for Vec<u8> {
+    fn from(contenu: ContenuDto) -> Self {
+        match contenu {
+            ContenuDto::Texte(texte) => texte.into_bytes(),
+            ContenuDto::Octets(octets) => octets,
+        }
+    }
 }
 
 /// Erreur renvoyée à l'interface : un code stable et le détail technique.
@@ -173,7 +191,7 @@ mod tests {
     fn dto(chemin: &str, contenu: &str) -> FichierDto {
         FichierDto {
             chemin: chemin.to_owned(),
-            contenu: contenu.to_owned(),
+            contenu: ContenuDto::Texte(contenu.to_owned()),
         }
     }
 
@@ -250,6 +268,29 @@ mod tests {
         assert_eq!(
             fs::read_to_string(dossier.path().join(".gitignore")).unwrap(),
             ".cadre/tmp/\n"
+        );
+    }
+
+    /// US-077 : un contexte importé non UTF-8 (Latin-1, BOM, CRLF) est écrit à l'octet près ;
+    /// l'interface transmet alors le contenu comme une liste d'octets.
+    #[test]
+    fn test_ac_077_1_commande_ecrit_un_contenu_en_octets_a_l_octet_pres() {
+        let (dossier, etat) = projet_ouvert();
+        let fichiers: Vec<FichierDto> = serde_json::from_value(serde_json::json!([
+            { "chemin": ".cadre/contexte/CLAUDE.md", "contenu": [0xef, 0xbb, 0xbf, 0x52, 0xe8, 0x0d, 0x0a] },
+            { "chemin": ".cadre/cadre.yaml", "contenu": "schema_version: 1\n" }
+        ]))
+        .expect("désérialisation");
+
+        ecrire(&etat, &racine(&dossier), fichiers).expect("écriture");
+
+        assert_eq!(
+            fs::read(dossier.path().join(".cadre/contexte/CLAUDE.md")).unwrap(),
+            vec![0xef, 0xbb, 0xbf, 0x52, 0xe8, 0x0d, 0x0a]
+        );
+        assert_eq!(
+            fs::read_to_string(dossier.path().join(".cadre/cadre.yaml")).unwrap(),
+            "schema_version: 1\n"
         );
     }
 

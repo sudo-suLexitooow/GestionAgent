@@ -90,3 +90,60 @@ fn test_ac_005_3_ecriture_dans_le_projet_ouvert_et_refus_ailleurs() {
     assert_eq!(refus.unwrap_err()["code"], "CHEMIN_INVALIDE");
     assert!(!autre.path().join("CLAUDE.md").exists());
 }
+
+/// US-077 : l'interface transmet un contexte importé non UTF-8 comme liste d'octets
+/// (`SystemeFichiersTauri`) ; il est écrit à l'octet près, dans la même transaction.
+#[test]
+fn test_ac_077_1_contenu_en_octets_ecrit_a_l_octet_pres_par_l_ipc() {
+    let projet = tempfile::tempdir().unwrap();
+    let fenetre = fenetre();
+    invoquer(
+        &fenetre,
+        "ouvrir_projet",
+        json!({ "chemin": projet.path() }),
+    )
+    .unwrap();
+    let latin1_crlf = [0xef_u8, 0xbb, 0xbf, 0x52, 0xe8, 0x0d, 0x0a, 0x20];
+
+    let reponse = invoquer(
+        &fenetre,
+        "ecrire_fichiers_projet",
+        json!({ "racine": projet.path(), "fichiers": [
+            { "chemin": ".cadre/cadre.yaml", "contenu": "schema_version: 1\n" },
+            { "chemin": ".cadre/contexte/CLAUDE.md", "contenu": latin1_crlf },
+            { "chemin": ".cadre/generated.yaml", "contenu": "files: []\n" }
+        ] }),
+    );
+
+    assert!(reponse.is_ok(), "{reponse:?}");
+    assert_eq!(
+        std::fs::read(projet.path().join(".cadre/contexte/CLAUDE.md")).unwrap(),
+        latin1_crlf
+    );
+    assert!(projet.path().join(".cadre/generated.yaml").is_file());
+}
+
+/// Un contenu ni texte ni liste d'octets (valeur hors 0..=255) est refusé : rien n'est écrit.
+#[test]
+fn test_ac_077_2_contenu_invalide_refuse_rien_n_est_ecrit() {
+    let projet = tempfile::tempdir().unwrap();
+    let fenetre = fenetre();
+    invoquer(
+        &fenetre,
+        "ouvrir_projet",
+        json!({ "chemin": projet.path() }),
+    )
+    .unwrap();
+
+    let reponse = invoquer(
+        &fenetre,
+        "ecrire_fichiers_projet",
+        json!({ "racine": projet.path(), "fichiers": [
+            { "chemin": ".cadre/cadre.yaml", "contenu": "schema_version: 1\n" },
+            { "chemin": ".cadre/contexte/CLAUDE.md", "contenu": [65, 256] }
+        ] }),
+    );
+
+    assert!(reponse.is_err());
+    assert!(!projet.path().join(".cadre/cadre.yaml").exists());
+}

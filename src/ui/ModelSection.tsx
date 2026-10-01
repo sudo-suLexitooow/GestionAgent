@@ -12,6 +12,8 @@ import { t } from "./i18n";
 export interface ModelSectionProps {
   root: string;
   files: ProjectFiles;
+  /** Modèle chargé (p. ex. pour désactiver l'enregistrement d'un modèle en lecture seule). */
+  onLoaded?: (chargement: ChargementModele) => void;
 }
 
 /**
@@ -19,7 +21,7 @@ export interface ModelSectionProps {
  * ou contextes en erreur, modèle illisible) et contextes du modèle. Rien sans modèle. Lecture
  * seule : rien n'est écrit.
  */
-export function ModelSection({ root, files }: ModelSectionProps) {
+export function ModelSection({ root, files, onLoaded }: ModelSectionProps) {
   /** `null` : chargement en cours ; `echec` : un dossier du modèle n'a pas pu être lu. */
   const [chargement, setChargement] = useState<
     ChargementModele | { etat: "echec"; lien: boolean } | null
@@ -29,7 +31,9 @@ export function ModelSection({ root, files }: ModelSectionProps) {
     let current = true;
     chargerModele(files, root).then(
       (resultat) => {
-        if (current) setChargement(resultat);
+        if (!current) return;
+        setChargement(resultat);
+        onLoaded?.(resultat);
       },
       (erreur: unknown) => {
         if (current) setChargement({ etat: "echec", lien: readFailureReason(erreur) === "link" });
@@ -38,7 +42,7 @@ export function ModelSection({ root, files }: ModelSectionProps) {
     return () => {
       current = false;
     };
-  }, [files, root]);
+  }, [files, root, onLoaded]);
 
   if (chargement === null || chargement.etat === "aucun") return null;
   if (chargement.etat === "echec") {

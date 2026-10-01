@@ -33,6 +33,30 @@ describe("SystemeFichiersTauri (commandes Rust fs_atomique)", () => {
     ]);
   });
 
+  it("test_ac_077_1_contenu_en_octets_transmis_comme_liste_d_octets", async () => {
+    const appels = intercepter(() => null);
+    // Latin-1, CRLF : pas de l'UTF-8, écrit à l'octet près (une chaîne JSON ne le peut pas).
+    const octets = Uint8Array.of(0x52, 0xe8, 0x0d, 0x0a);
+
+    await new SystemeFichiersTauri().ecrireTransaction(RACINE, [
+      { chemin: ".cadre/contexte/CLAUDE.md", contenu: octets },
+      { chemin: ".cadre/cadre.yaml", contenu: "schema_version: 1\n" },
+    ]);
+
+    expect(appels).toEqual([
+      {
+        commande: "ecrire_fichiers_projet",
+        args: {
+          racine: RACINE,
+          fichiers: [
+            { chemin: ".cadre/contexte/CLAUDE.md", contenu: [0x52, 0xe8, 0x0d, 0x0a] },
+            { chemin: ".cadre/cadre.yaml", contenu: "schema_version: 1\n" },
+          ],
+        },
+      },
+    ]);
+  });
+
   it("test_ac_005_2_detection_d_un_depot_git_transmise", async () => {
     const appels = intercepter(() => true);
 

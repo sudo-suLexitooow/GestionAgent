@@ -89,12 +89,22 @@ describe("enregistrer le modèle .cadre/ (US-005)", () => {
       ok: false,
       erreur: {
         code: "LECTURE_SEULE",
-        message:
-          "Enregistrement impossible : le dossier du projet est en lecture seule ou son accès est refusé. Vos fichiers n'ont pas été modifiés.",
         detail: "écriture simulée",
       },
     });
     expect(fs.instantane()).toEqual(avant);
+  });
+
+  it("test_ac_077_2_le_coeur_renvoie_un_code_et_un_detail_sans_libelle", async () => {
+    const fs = new SystemeFichiersMemoire();
+    fs.echouerProchaineEcriture("DISQUE_PLEIN");
+
+    const resultat = await enregistrerCadre(fs, RACINE, cadre());
+
+    expect(resultat).toEqual({
+      ok: false,
+      erreur: { code: "DISQUE_PLEIN", detail: "écriture simulée" },
+    });
   });
 
   it("test_ac_005_6_disque_plein_message_clair", async () => {
@@ -107,8 +117,7 @@ describe("enregistrer le modèle .cadre/ (US-005)", () => {
       ok: false,
       erreur: {
         code: "DISQUE_PLEIN",
-        message:
-          "Enregistrement impossible : le disque est plein. Libérez de l'espace puis réessayez. Vos fichiers n'ont pas été modifiés.",
+        detail: "écriture simulée",
       },
     });
     expect(fs.instantane()).toEqual({});
@@ -124,8 +133,8 @@ describe("enregistrer le modèle .cadre/ (US-005)", () => {
       expect(resultat.ok).toBe(false);
       if (!resultat.ok) {
         expect(resultat.erreur.code).toBe(code);
-        expect(resultat.erreur.message).toMatch(/^Enregistrement impossible.+\.$/);
-        expect(resultat.erreur.message).toContain("Vos fichiers n'ont pas été modifiés.");
+        // Libellés : `src/ui/i18n/erreurs-enregistrement.test.ts` (US-077).
+        expect(resultat.erreur.detail).toBe("écriture simulée");
       }
     }
   });
@@ -138,7 +147,7 @@ describe("enregistrer le modèle .cadre/ (US-005)", () => {
     const resultat = await enregistrerCadre(fs, RACINE, cadre());
 
     expect(resultat).toMatchObject({ ok: false, erreur: { code: "CHEMIN_INVALIDE" } });
-    if (!resultat.ok) expect(resultat.erreur.message).toContain("lien symbolique");
+    if (!resultat.ok) expect(resultat.erreur.detail).toBe("lecture simulée de .gitignore");
     expect(fs.transactions).toEqual([]);
   });
 
@@ -162,8 +171,6 @@ describe("enregistrer le modèle .cadre/ (US-005)", () => {
       ok: false,
       erreur: {
         code: "ECHEC",
-        message:
-          "Enregistrement impossible à cause d'une erreur inattendue. Vos fichiers n'ont pas été modifiés.",
         detail: "panne IPC",
       },
     });
@@ -179,8 +186,7 @@ describe("enregistrer le modèle .cadre/ (US-005)", () => {
       ok: false,
       erreur: {
         code: "PROJET_OCCUPE",
-        message:
-          "Le projet est en cours d'enregistrement par une autre fenêtre de Cadre. Réessayez.",
+        detail: "écriture simulée",
       },
     });
   });
@@ -195,8 +201,7 @@ describe("enregistrer le modèle .cadre/ (US-005)", () => {
       ok: false,
       erreur: {
         code: "ANNULATION_INCOMPLETE",
-        message:
-          "L'enregistrement a échoué et n'a pas pu être entièrement annulé ; Cadre terminera l'annulation à la prochaine opération.",
+        detail: "écriture simulée",
       },
     });
   });
@@ -217,8 +222,6 @@ describe("enregistrer le modèle .cadre/ (US-005)", () => {
       ok: false,
       erreur: {
         code: "RECUPERATION_IMPOSSIBLE",
-        message:
-          "Enregistrement impossible : une écriture interrompue n'a pas pu être reprise. Des fichiers du projet peuvent être partiellement modifiés ; les copies d'origine sont dans le dossier indiqué dans le détail, rien n'a été supprimé. Réessayez pour enregistrer.",
         detail: "dossier à examiner : /p/.cadre/tmp/de-cote-txn-1",
       },
     });
