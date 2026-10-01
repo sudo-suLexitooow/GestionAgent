@@ -1,6 +1,6 @@
 # Product Backlog — Cadre
 
-Version : 2026-10-01 · Auteur : analyste-backlog · Mis à jour le 2026-10-01 par scribe-wiki (porte 1 ; puis merges US-001/002/003/005, ajout US-076, US-077 et section Dette ; Sprint Review 1 : AC-006-6 et AC-077-4 ; Sprint 2 planifié).
+Version : 2026-10-01 · Auteur : analyste-backlog · Mis à jour le 2026-10-01 par scribe-wiki (porte 1 ; puis merges US-001/002/003/005, ajout US-076, US-077 et section Dette ; Sprint Review 1 : AC-006-6 et AC-077-4 ; Sprint 2 planifié ; 2026-10-01 : SP-02, US-076, US-006 Done, US-079 et AC-077-5 ajoutés, AC-006-5/6 reformulés, dette complétée).
 
 **Statut : validé par le PO le 2026-10-01 (porte 1), tel quel.** Options par défaut Q-01 à Q-22 acceptées par délégation : les stories auparavant « Bloquée (Q-xx) » sont « À faire ». SP-03 suit l'option Q-11 (runners GitHub).
 
@@ -61,15 +61,16 @@ Ordre = valeur + réduction du risque, en fermant d'abord la boucle centrale : *
 | 4 | US-003 | Importer CLAUDE.md et AGENTS.md comme contextes | MVP 0 | 2 | Done (Sprint 1, PR #6, 2026-10-01) | PRJ-02, ADP-02 | non |
 | 5 | US-005 | Enregistrer le modèle `.cadre/` de façon atomique | MVP 0 | 3 | Done (Sprint 1, PR #4, 2026-10-01) | §7.4, NF-12, NF-13 | **oui** (écritures atomiques) |
 | 6 | US-004 | Importer les skills existantes sans perte | MVP 0 | 3 | À faire | PRJ-02, ADP-01, ADP-02 | non |
-| 7 | SP-02 | Spike : relevé de ce que Claude Code applique réellement | MVP 0 | 3 | Sprint 2 (À faire) | AGT-06, AGT-07, ADP-05, NF-11, §13.2 | non |
-| 8 | US-006 | Rouvrir un projet depuis `.cadre/` | MVP 0 | 3 | Sprint 2 (À faire) | §7.4, PRJ-02 | non |
+| 7 | SP-02 | Spike : relevé de ce que Claude Code applique réellement | MVP 0 | 3 | Done (Sprint 2, 2026-10-01, [ADR-003](ADR-003-capacites-claude-code)) | AGT-06, AGT-07, ADP-05, NF-11, §13.2 | non |
+| 8 | US-006 | Rouvrir un projet depuis `.cadre/` | MVP 0 | 3 | Done (Sprint 2, PR #10, 2026-10-01) | §7.4, PRJ-02 | non |
 | 9 | US-007 | Créer un agent (rôle, description, outil cible) | MVP 0 | 2 | Sprint 2 (À faire) | AGT-01, AGT-02 | non |
 | 10 | US-008 | Exporter un agent vers Claude Code | MVP 0 | 3 | À faire | ADP-01, ADP-02, NF-12, NF-19 | **oui** (écritures atomiques) |
 | 11 | US-009 | Exporter skills et contextes vers Claude Code, aller-retour sans perte | MVP 0 | 3 | À faire | ADP-02, PRJ-02, NF-12 | **oui** (écritures atomiques, fichiers de l'utilisateur) |
 | 12 | US-010 | Importer les sous-agents Claude Code existants | MVP 0 | 3 | À faire | PRJ-02, ADP-02 | non |
 | 13 | US-011 | Dupliquer, renommer et supprimer un agent | MVP 0 | 2 | À faire | AGT-01 | **oui** (suppression de fichiers générés) |
-| 14 | US-076 | Aligner les commandes de lecture sur la racine du projet ouvert | MVP 0 | 2 | Sprint 2 (À faire) | SKL-01, PRJ-02 (proposées) | **oui** (portée) |
-| 15 | US-077 | Enregistrer le cadrage depuis l'interface | MVP 0 | 3 | Sprint 2 (À faire) | §7.4, NF-12, PRJ-02 (proposées) | **oui** (écritures atomiques) |
+| 14 | US-076 | Aligner les commandes de lecture sur la racine du projet ouvert | MVP 0 | 2 | Done (Sprint 2, PR #9, 2026-10-01) | SKL-01, PRJ-02 (proposées) | **oui** (portée) |
+| 15 | US-077 | Enregistrer le cadrage depuis l'interface | MVP 0 | 3 | Sprint 2 (en développement) | §7.4, NF-12, PRJ-02 (proposées) | **oui** (écritures atomiques) |
+| 15b | US-079 | Message dédié quand `.claude`, `.claude/skills` ou `.cadre` est un lien | MVP 0 | 1 | À faire | SKL-01, PRJ-02 (proposées) | non |
 | 16 | SP-03 | Spike : machine et projet de référence | MVP 0 | 2 | À faire | NF-04, NF-01 à NF-03 | non |
 | 17 | US-012 | Attacher et détacher des skills à un agent | MVP 1 | 2 | À faire | AGT-05 | non |
 | 18 | US-013 | Déclarer la portée d'un agent par dossier | MVP 1 | 3 | À faire | AGT-07 | **oui** (portée des agents) |
@@ -144,7 +145,7 @@ Ordre = valeur + réduction du risque, en fermant d'abord la boucle centrale : *
 
 | Étape | Stories | Points stories | Spikes | Total |
 | --- | --- | --- | --- | --- |
-| MVP 0 | 13 (US-001 à US-011, US-076, US-077) | 33 | 3 (SP-01 à SP-03) = 7 | 40 |
+| MVP 0 | 14 (US-001 à US-011, US-076, US-077, US-079) | 34 | 3 (SP-01 à SP-03) = 7 | 41 |
 | MVP 1 Must | 41 (US-012 à US-052) | 116 | 4 (SP-04 à SP-07) = 10 | 126 |
 | MVP 1 Should | 8 (US-053 à US-060) | 23 | — | 23 |
 | MVP 2 | 7 (US-061 à US-067) | ~27 | — | ~27 |
@@ -168,6 +169,10 @@ Un spike a une durée limitée (au plus la moitié d'un sprint) et produit **une
 - Méthode : expériences reproductibles par réglage, résultats consignés dans un tableau « réglage → mécanisme → niveau → preuve ».
 - Livrable : ADR « Capacités de l'adaptateur Claude Code » + tableau de capacités + liste des versions testées.
 - Débloque : US-014, US-016, US-017, US-020, US-038, US-039. Exigences : AGT-06, AGT-07, ADP-05, NF-06, NF-11. Estimation : 3.
+- **Statut : Done (2026-10-01)** — livrable : [ADR-003 — Capacités de l'adaptateur Claude Code](ADR-003-capacites-claude-code). Points clés :
+  - les permissions Claude Code sont par session et non par sous-agent : Cadre lance un processus par agent avec un `--settings` propre ;
+  - tout reste « non garanti » tant que les tests d'intégration réels (US-017/US-020) ne sont pas verts ;
+  - question ouverte pour le PO : [Q-23](Questions-PO) (clé d'API Anthropic en secret de CI pour ces tests).
 
 ### SP-03 — Machine et projet de référence (NF-04)
 - Question : quelle machine de référence par OS (matériel ou runner CI), quel projet de référence (10 000 fichiers, 500 Mo, 200 fichiers de cadrage : généré par script, reproductible), comment mesurer automatiquement NF-01 (démarrage), NF-02 (ouverture), NF-03 (mémoire au repos) à chaque version.
@@ -217,7 +222,7 @@ Critères d'acceptation :
 En tant que développeur solo, je veux voir la liste des skills présentes dans mon projet afin de savoir de quelles capacités disposent mes agents.
 - Étape : MVP 0 · Estimation : 2 points · Dépendances : US-001 · Zone sensible : non
 - Exigences : SKL-01, PRJ-02
-- Done le 2026-10-01 (PR #5). Décisions d'implémentation : lecture plafonnée à 8 Mio (motif `too-large`) ; commandes de lecture async ; liens suivis en lecture (skills partagées) ; un fichier `.claude/skills` ou `.cadre` est traité comme absent (décision orchestrateur).
+- Done le 2026-10-01 (PR #5). Décisions d'implémentation : lecture plafonnée à 8 Mio (motif `too-large`) ; commandes de lecture async ; liens suivis en lecture (skills partagées ; **remplacé le 2026-10-01 par US-076 : aucun lien suivi**) ; un fichier `.claude/skills` ou `.cadre` est traité comme absent (décision orchestrateur).
 
 Critères d'acceptation :
 - AC-002-1 [SKL-01] : Étant donné un projet contenant `.claude/skills/a/SKILL.md` et `.claude/skills/b/SKILL.md` avec un en-tête valide, quand le projet est ouvert, alors la liste affiche les skills `a` et `b` avec leur nom et leur description.
@@ -272,14 +277,20 @@ Critères d'acceptation :
 En tant que développeur solo, je veux retrouver mon cadrage en rouvrant un projet afin de reprendre mon travail là où je l'ai laissé.
 - Étape : MVP 0 · Estimation : 3 points · Dépendances : US-005 · Zone sensible : non
 - Exigences : §7.4, PRJ-02
+- Done le 2026-10-01 (PR #10, merge `b023a5b`). Revue `relecteur` : changements demandés (alias YAML en masse, rejets muets, contextes en erreur), corrigés, puis ACCEPTÉ.
+- Décisions :
+  - détection à trois états (décision orchestrateur, présentée au PO) : `modele` = `.cadre/cadre.yaml` présent ; `aucun` = `.cadre/` absent, ou ne contenant que `tmp/`, `runs/`, `backups/` ; `incomplet` = autre contenu ;
+  - interpréteur JSON Schema maison sans `eval`, compatible avec la CSP ;
+  - codes d'erreur `YAML_ALIASES` et `YAML_SYNTAX` ;
+  - ligne d'erreur YAML = début de la clé fautive (perte de précision acceptée).
 
 Critères d'acceptation :
 - AC-006-1 [§7.4] : Étant donné un projet enregistré, quand il est rouvert, alors le modèle chargé est identique à celui enregistré (agents, skills, contextes).
 - AC-006-2 [§7.4] : Étant donné un `cadre.yaml` dont la `schema_version` est plus récente que celle supportée, quand le projet est ouvert, alors Cadre refuse de le modifier, l'ouvre en lecture seule et invite à mettre à jour l'app.
 - AC-006-3 [§7.4] : Étant donné un fichier `.cadre/agents/x.yaml` invalide (YAML cassé ou non conforme au schéma), quand le projet est ouvert, alors le projet s'ouvre, l'agent est marqué en erreur avec le fichier et la ligne, et rien n'est réécrit automatiquement.
 - AC-006-4 [PRJ-02] : Étant donné un projet qui a un `.cadre/` et aussi un `CLAUDE.md`, quand il est ouvert, alors aucun import n'est reproposé et `.cadre/` fait foi.
-- AC-006-5 [§7.4] : Étant donné un `cadre.yaml` absent mais un dossier `.cadre/` présent, quand le projet est ouvert, alors Cadre signale un modèle incomplet et propose de le réparer, sans rien écrire sans accord.
-- AC-006-6 [§7.4, PRJ-02] (ajouté le 2026-10-01, Sprint Review 1) : Étant donné un dossier `.cadre/` sans `cadre.yaml` (p. ex. seulement `tmp/verrou`), quand le projet est ouvert, alors ce n'est pas un modèle : l'import est proposé. La détection d'un modèle = présence de `.cadre/cadre.yaml` ([ADR-001](ADR-001-format-cadre-v1)) ; corrige la détection d'US-003, qui teste aujourd'hui le dossier `.cadre/`.
+- AC-006-5 [§7.4] (reformulés le 2026-10-01, décision orchestrateur) : Étant donné un dossier `.cadre/` sans `cadre.yaml` qui contient autre chose que `tmp/`, `runs/` et `backups/` (état `incomplet`), quand le projet est ouvert, alors Cadre signale un modèle incomplet et propose de le réparer, sans rien écrire sans accord, et l'import n'est pas proposé.
+- AC-006-6 [§7.4, PRJ-02] (ajouté le 2026-10-01, Sprint Review 1 ; reformulés le 2026-10-01, décision orchestrateur) : Étant donné un projet sans `.cadre/`, ou dont le dossier `.cadre/` ne contient que `tmp/`, `runs/` et/ou `backups/` sans `cadre.yaml` (p. ex. seulement `tmp/verrou`), quand le projet est ouvert, alors ce n'est pas un modèle (état `aucun`) : l'import est proposé. Un modèle = présence de `.cadre/cadre.yaml` ([ADR-001](ADR-001-format-cadre-v1)).
 
 ### US-007 — Créer un agent
 En tant que développeur solo, je veux créer un agent en lui donnant un nom, un rôle, une description et un outil cible afin de commencer à le cadrer.
@@ -350,6 +361,10 @@ En tant que développeur solo, je veux que Cadre ne lise que dans le projet que 
 - Exigences (proposées, héritées d'US-002 et US-003) : SKL-01, PRJ-02
 - Origine : revues d'US-005 (PR #4), 2026-10-01. Ajoutée au backlog le 2026-10-01, statut « À faire » ; estimation et exigences à confirmer au prochain Sprint Planning.
 - Contenu : `list_project_dir` et `read_project_file` utilisent la racine tenue côté Rust (état posé par `ouvrir_projet`) et la même résolution sûre que l'écriture (refus de tout lien/jonction sur chaque segment).
+- Done le 2026-10-01 (PR #9, merge `104406c`). Zone sensible : deux revues `relecteur` indépendantes, toutes deux ACCEPTÉ.
+- Décision orchestrateur : aucun lien suivi en lecture, même interne au projet. Trois assertions d'US-002 modifiées en conséquence (`/dev/zero` → `Link` ; lien interne non suivi ; liens listés comme liens), présentées au PO.
+- Correction du texte de PR : la preuve RED du test d'architecture a été écrite après le code.
+- Risque résiduel : course TOCTOU ; un lien physique (hard link) reste lisible ; points de montage ; webview compromise ; les skills partagées par lien ne sont plus lues.
 
 Critères d'acceptation :
 - AC-076-1 : Étant donné qu'aucun projet n'est ouvert, quand une commande de lecture est appelée, alors elle est refusée.
@@ -368,6 +383,17 @@ Critères d'acceptation :
 - AC-077-2 : Étant donné un échec d'enregistrement (cas d'AC-005-6), quand l'utilisateur enregistre, alors le message d'erreur correspondant s'affiche.
 - AC-077-3 : Étant donné un enregistrement réussi, quand il se termine, alors l'état « Non enregistré » disparaît.
 - AC-077-4 (ajouté le 2026-10-01, Sprint Review 1) : Étant donné un dossier `.cadre/` sans `cadre.yaml` (p. ex. seulement `tmp/verrou`), quand le projet est ouvert, alors ce n'est pas un modèle : l'import est proposé.
+- AC-077-5 (ajouté le 2026-10-01, issu d'US-006) : Étant donné un modèle ouvert en lecture seule (format plus récent, AC-006-2), quand l'utilisateur veut enregistrer, alors l'enregistrement est refusé avec une explication.
+
+### US-079 — Message dédié quand un dossier de cadrage est un lien
+En tant que développeur solo, je veux un message explicite quand `.claude`, `.claude/skills` ou `.cadre` est lui-même un lien afin de comprendre pourquoi Cadre ne lit pas ce dossier.
+- Étape : MVP 0 · Estimation : 1 point · Dépendances : US-076 · Zone sensible : non
+- Exigences (proposées, héritées d'US-076) : SKL-01, PRJ-02
+- Origine : dette relevée sur US-076 (PR #9), 2026-10-01. Statut : À faire.
+
+Critères d'acceptation :
+- AC-079-1 : Étant donné un projet dont `.claude` ou `.claude/skills` est un lien, quand le projet est ouvert, alors un message dédié indique que ce dossier est un lien non pris en charge, sans le suivre.
+- AC-079-2 : Étant donné un projet dont `.cadre` est un lien, quand le projet est ouvert, alors un message dédié indique que ce dossier est un lien non pris en charge, sans le suivre ni y écrire.
 
 ---
 
@@ -979,7 +1005,7 @@ Remarques :
 
 ## 10. Dette technique
 
-Points relevés le 2026-10-01, non transformés en stories. À reprendre au Sprint Planning ou dans la story concernée.
+Points relevés le 2026-10-01, non transformés en stories (le message dédié pour un dossier de cadrage lié est devenu US-079). À reprendre au Sprint Planning ou dans la story concernée.
 
 | Point | À traiter |
 | --- | --- |
@@ -990,6 +1016,14 @@ Points relevés le 2026-10-01, non transformés en stories. À reprendre au Spri
 | IPC binaire (`tauri::ipc::Response`) | pour US-004 |
 | Couverture Rust non mesurée | à planifier |
 | Commandes d'écriture synchrones | à planifier |
+| `lire_fichier_projet` : lecture bornée et asynchrone — US-076 | à planifier |
+| Ouverture des fichiers avec `O_NOFOLLOW` — US-076 | à planifier |
+| Faux `InMemoryProjectFiles` à aligner sur le motif `outside-project` — US-076 | à planifier |
+| Test « racine = sous-dossier » — US-076 | à planifier |
+| Noms spéciaux Windows `CONIN$` et `CONOUT$` — US-076 | à planifier |
+| `tools.terminal: {}` dans `agent.json` accepte n'importe quelle valeur — US-006 | avant US-015 |
+| Bouton de réparation d'un modèle incomplet — US-006 | à planifier |
+| Contrôles d'unicité de D11 ([ADR-001](ADR-001-format-cadre-v1)) — US-006 | à planifier |
 
 ---
 
