@@ -32,15 +32,7 @@ export class SystemeFichiersTauri implements SystemeFichiersProjet {
     return appeler("projet_dans_un_depot_git", { racine });
   }
 
-  existe(racine: string, chemin: string): Promise<boolean> {
-    return appeler("chemin_projet_existe", { racine, chemin });
-  }
-
   ecrireTransaction(racine: string, fichiers: FichierAEcrire[]): Promise<void> {
     return appeler("ecrire_fichiers_projet", { racine, fichiers });
-  }
-
-  recupererEcritures(racine: string): Promise<void> {
-    return appeler("recuperer_ecritures_projet", { racine });
   }
 }

@@ -40,25 +40,12 @@ describe("SystemeFichiersTauri (commandes Rust fs_atomique)", () => {
     expect(appels).toEqual([{ commande: "projet_dans_un_depot_git", args: { racine: RACINE } }]);
   });
 
-  it("test_ac_005_4_recuperation_transmise", async () => {
-    const appels = intercepter(() => null);
+  it("test_ac_005_2_lecture_transmise", async () => {
+    const appels = intercepter(() => "dist\n");
 
-    await new SystemeFichiersTauri().recupererEcritures(RACINE);
-
-    expect(appels).toEqual([{ commande: "recuperer_ecritures_projet", args: { racine: RACINE } }]);
-  });
-
-  it("test_ac_005_2_lecture_et_existence_transmises", async () => {
-    const appels = intercepter((commande) =>
-      commande === "lire_fichier_projet" ? "dist\n" : true,
-    );
-    const fs = new SystemeFichiersTauri();
-
-    expect(await fs.lireTexte(RACINE, ".gitignore")).toBe("dist\n");
-    expect(await fs.existe(RACINE, ".git")).toBe(true);
+    expect(await new SystemeFichiersTauri().lireTexte(RACINE, ".gitignore")).toBe("dist\n");
     expect(appels).toEqual([
       { commande: "lire_fichier_projet", args: { racine: RACINE, chemin: ".gitignore" } },
-      { commande: "chemin_projet_existe", args: { racine: RACINE, chemin: ".git" } },
     ]);
   });
 

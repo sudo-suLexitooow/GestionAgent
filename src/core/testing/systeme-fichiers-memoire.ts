@@ -48,15 +48,11 @@ export class SystemeFichiersMemoire implements SystemeFichiersProjet {
   /** Simule un `.git` dans un dossier parent du projet (hors du faux système). */
   depotGitDansUnAncetre = false;
 
-  async estDansUnDepotGit(racine: string): Promise<boolean> {
-    return this.depotGitDansUnAncetre || (await this.existe(racine, ".git"));
-  }
-
-  existe(_racine: string, chemin: string): Promise<boolean> {
-    const prefixe = `${chemin}/`;
-    return Promise.resolve(
-      this.contenus.has(chemin) || [...this.contenus.keys()].some((c) => c.startsWith(prefixe)),
-    );
+  /** Projet Git : `.git` (fichier ou dossier) dans le faux système, ou dans un parent. */
+  estDansUnDepotGit(): Promise<boolean> {
+    const git =
+      this.contenus.has(".git") || [...this.contenus.keys()].some((c) => c.startsWith(".git/"));
+    return Promise.resolve(this.depotGitDansUnAncetre || git);
   }
 
   ecrireTransaction(_racine: string, fichiers: FichierAEcrire[]): Promise<void> {
@@ -67,11 +63,6 @@ export class SystemeFichiersMemoire implements SystemeFichiersProjet {
       return Promise.reject(new ErreurSystemeFichiers(echec, "écriture simulée"));
     }
     for (const fichier of fichiers) this.contenus.set(fichier.chemin, fichier.contenu);
-    return Promise.resolve();
-  }
-
-  /** En mémoire, une écriture n'est jamais interrompue : rien à récupérer. */
-  recupererEcritures(): Promise<void> {
     return Promise.resolve();
   }
 }

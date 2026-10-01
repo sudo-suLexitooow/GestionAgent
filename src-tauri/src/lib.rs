@@ -19,9 +19,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::read_project_file,
             fs_atomique::commandes::ouvrir_projet,
             fs_atomique::commandes::ecrire_fichiers_projet,
-            fs_atomique::commandes::recuperer_ecritures_projet,
             fs_atomique::commandes::lire_fichier_projet,
-            fs_atomique::commandes::chemin_projet_existe,
             fs_atomique::commandes::projet_dans_un_depot_git,
         ])
 }

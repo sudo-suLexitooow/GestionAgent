@@ -10,7 +10,7 @@ use super::{
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::State;
 
@@ -101,10 +101,6 @@ pub fn ecrire(
     ecrire_fichiers(&racine, &fichiers)
 }
 
-pub fn recuperer_projet(etat: &ProjetOuvert, racine: &str) -> Result<(), ErreurEcriture> {
-    recuperer(&racine_autorisee(etat, racine)?)
-}
-
 pub fn lire(
     etat: &ProjetOuvert,
     racine: &str,
@@ -117,12 +113,6 @@ pub fn lire(
         Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => Ok(None),
         Err(erreur) => Err(classer(erreur)),
     }
-}
-
-pub fn existe(etat: &ProjetOuvert, racine: &str, chemin: &str) -> Result<bool, ErreurEcriture> {
-    let racine = racine_autorisee(etat, racine)?;
-    valider_chemin_relatif(chemin)?;
-    Ok(Path::new(&racine).join(chemin).exists())
 }
 
 /// Vrai si `.git` (dossier, ou fichier d'un worktree) est à la racine du projet ouvert ou
@@ -157,15 +147,6 @@ pub fn ecrire_fichiers_projet(
     Ok(ecrire(&etat, &racine, fichiers)?)
 }
 
-/// Termine ou annule une écriture interrompue.
-#[tauri::command]
-pub fn recuperer_ecritures_projet(
-    etat: State<'_, ProjetOuvert>,
-    racine: String,
-) -> Result<(), ErreurDto> {
-    Ok(recuperer_projet(&etat, &racine)?)
-}
-
 /// Contenu texte (UTF-8) d'un fichier du projet, `None` s'il n'existe pas.
 #[tauri::command]
 pub fn lire_fichier_projet(
@@ -174,15 +155,6 @@ pub fn lire_fichier_projet(
     chemin: String,
 ) -> Result<Option<String>, ErreurDto> {
     Ok(lire(&etat, &racine, &chemin)?)
-}
-
-#[tauri::command]
-pub fn chemin_projet_existe(
-    etat: State<'_, ProjetOuvert>,
-    racine: String,
-    chemin: String,
-) -> Result<bool, ErreurDto> {
-    Ok(existe(&etat, &racine, &chemin)?)
 }
 
 #[cfg(test)]
@@ -283,18 +255,6 @@ mod tests {
     }
 
     #[test]
-    fn test_ac_005_4_commande_de_recuperation_vide_les_temporaires() {
-        let (dossier, etat) = projet_ouvert();
-        let orphelin = dossier.path().join(".cadre/tmp/orphelin");
-        fs::create_dir_all(orphelin.parent().unwrap()).unwrap();
-        fs::write(&orphelin, "x").unwrap();
-
-        recuperer_projet(&etat, &racine(&dossier)).expect("récupération");
-
-        assert!(!orphelin.exists());
-    }
-
-    #[test]
     fn test_ac_005_2_lecture_d_un_fichier_du_projet() {
         let (dossier, etat) = projet_ouvert();
         let r = racine(&dossier);
@@ -311,21 +271,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_ac_005_2_detection_d_un_projet_git() {
-        let (dossier, etat) = projet_ouvert();
-        let r = racine(&dossier);
-        assert!(!existe(&etat, &r, ".git").unwrap());
-
-        fs::create_dir(dossier.path().join(".git")).unwrap();
-
-        assert!(existe(&etat, &r, ".git").unwrap());
-        assert_eq!(
-            code(existe(&etat, &r, "/etc").unwrap_err()),
-            "CHEMIN_INVALIDE"
-        );
-    }
-
     /// Revue B n° 8 : la racine est tenue côté Rust.
     #[test]
     fn test_securite_aucun_projet_ouvert_toute_commande_refusee() {
@@ -338,9 +283,8 @@ mod tests {
             "CHEMIN_INVALIDE"
         );
         assert_eq!(code(lire(&etat, &r, "x").unwrap_err()), "CHEMIN_INVALIDE");
-        assert_eq!(code(existe(&etat, &r, "x").unwrap_err()), "CHEMIN_INVALIDE");
         assert_eq!(
-            code(recuperer_projet(&etat, &r).unwrap_err()),
+            code(dans_un_depot_git(&etat, &r).unwrap_err()),
             "CHEMIN_INVALIDE"
         );
         assert!(!dossier.path().join("CLAUDE.md").exists());
@@ -362,11 +306,7 @@ mod tests {
             "CHEMIN_INVALIDE"
         );
         assert_eq!(
-            code(existe(&etat, &r, "secret.txt").unwrap_err()),
-            "CHEMIN_INVALIDE"
-        );
-        assert_eq!(
-            code(recuperer_projet(&etat, &r).unwrap_err()),
+            code(dans_un_depot_git(&etat, &r).unwrap_err()),
             "CHEMIN_INVALIDE"
         );
         assert!(!autre.path().join("CLAUDE.md").exists());
