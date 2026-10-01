@@ -47,9 +47,14 @@ fn resolve(root: &Path, relative: &str) -> Result<PathBuf, ReadError> {
     }
 }
 
-/// Liste le dossier `relative` du projet `root` ; `None` s'il n'existe pas.
+/// Liste le dossier `relative` du projet `root` ; `None` s'il n'existe pas ou si ce n'est pas un
+/// dossier (un fichier `.cadre` n'est pas un modèle, un fichier `.claude/skills` ne contient aucune skill).
 pub fn list_dir(root: &Path, relative: &str) -> Result<Option<Vec<DirEntry>>, ReadError> {
-    let reader = match std::fs::read_dir(resolve(root, relative)?) {
+    let path = resolve(root, relative)?;
+    if kind_of(&path) == EntryKind::File {
+        return Ok(None);
+    }
+    let reader = match std::fs::read_dir(path) {
         Ok(reader) => reader,
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
         Err(_) => return Err(ReadError::Unreadable),
