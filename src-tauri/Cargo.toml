@@ -20,3 +20,5 @@ tauri-plugin-dialog = "2"
 
 [dev-dependencies]
 tempfile = "3"
+# Moteur simulé (`tauri::test`) pour tester les commandes sans fenêtre réelle.
+tauri = { version = "2", features = ["test"] }
