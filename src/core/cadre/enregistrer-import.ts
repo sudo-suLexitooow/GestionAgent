@@ -7,7 +7,7 @@ import type { ImportedContext } from "../contexts/context";
 import { GENERIC_ADAPTER_ID } from "../contexts/generic-format";
 import type { FichierAEcrire, SystemeFichiersProjet } from "../fichiers/systeme-fichiers";
 import type { ProjectFiles } from "../project/ports";
-import type { ImportedSkill } from "../skills/import-skills";
+import type { ImportedSkill, SkillImportFailure } from "../skills/import-skills";
 import { nouveauCadre, serialiserCadre } from "./cadre-yaml";
 import { etatDossierCadre } from "./detection";
 import { empreinte } from "./empreinte";
@@ -39,23 +39,36 @@ export async function enregistrerContextesImportes(
   options: OptionsEnregistrement,
   /** Agents créés depuis l'ouverture (US-007), écrits dans la même transaction. */
   agents: readonly AgentNouveau[] = [],
-  /** Skills importées par l'adaptateur (US-004), copiées dans `.cadre/skills/`. */
-  skills: readonly ImportedSkill[] = [],
+  /**
+   * Skills importées par l'adaptateur (US-004), copiées dans `.cadre/skills/`. Absentes (import
+   * non demandé) : elles sont importées maintenant, car créer le modèle ne doit faire disparaître
+   * aucune skill de la liste ; celles qui ne peuvent pas l'être sont signalées dans le résultat.
+   */
+  skills?: readonly ImportedSkill[],
 ): Promise<ResultatEnregistrement> {
   // Ne rejette jamais : toute exception de la préparation (lecture, empreinte, sérialisation)
   // devient une erreur `ECHEC`, sans rien écrire.
   let fichiers: FichierAEcrire[];
+  let nonImportees: SkillImportFailure[] = [];
   try {
     const refus =
       (await modeleApparu(disque.fichiers, racine)) ??
       (await sourceModifiee(disque.fichiers, racine, contextes)) ??
-      (await skillModifiee(disque.fichiers, racine, skills, options.adapter));
+      (await skillModifiee(disque.fichiers, racine, skills ?? [], options.adapter));
     if (refus) return { ok: false, erreur: refus };
-    fichiers = await preparer(contextes, agents, skills, options);
+    let aCopier = skills ?? [];
+    if (skills === undefined && options.adapter.importer) {
+      const importees = await options.adapter.importer(disque.fichiers, racine);
+      aCopier = importees.skills;
+      nonImportees = importees.failures;
+    }
+    fichiers = await preparer(contextes, agents, aCopier, options);
   } catch (erreur) {
     return { ok: false, erreur: versErreurEnregistrement(erreur) };
   }
-  return enregistrerFichiers(disque.systeme, racine, fichiers);
+  const resultat = await enregistrerFichiers(disque.systeme, racine, fichiers);
+  if (!resultat.ok || nonImportees.length === 0) return resultat;
+  return { ok: true, skillsNonImportees: nonImportees };
 }
 
 /**
