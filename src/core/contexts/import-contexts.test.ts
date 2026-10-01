@@ -1,6 +1,6 @@
 import { claudeCodeAdapter } from "../adapters/claude-code/claude-code-adapter";
 import { InMemoryProjectFiles } from "../testing/in-memory-project-files";
-import { buildContextImport, detectContextFiles } from "./import-contexts";
+import { buildContextImport, detectContextFiles, importContexts } from "./import-contexts";
 
 const ROOT = "/home/lea/projet";
 
@@ -111,6 +111,24 @@ describe("construction des contextes importés (en mémoire)", () => {
     expect(result.contexts).toHaveLength(1);
     expect(result.contexts[0]?.entry.name).toBe("CLAUDE");
     expect(result.contexts[0]?.content).toEqual(new Uint8Array(0));
+    expect(result.warnings).toEqual([]);
+  });
+});
+
+describe("import des contextes détectés depuis le projet", () => {
+  test("test_ac_003_2_importe_les_octets_lus_dans_le_projet_sans_conversion", async () => {
+    const claude = bytesOf("# Projet\r\nRègles\r\n", { bom: true });
+    const agents = bytesOf("# Agents\n\n\n");
+    const files = new InMemoryProjectFiles(ROOT, { "CLAUDE.md": claude, "AGENTS.md": agents });
+
+    const result = await importContexts(files, ROOT, [CLAUDE_SPEC, AGENTS_SPEC]);
+
+    expect(result.contexts.map((context) => context.entry.source)).toEqual([
+      "CLAUDE.md",
+      "AGENTS.md",
+    ]);
+    expect(result.contexts[0]?.content).toEqual(claude);
+    expect(result.contexts[1]?.content).toEqual(agents);
     expect(result.warnings).toEqual([]);
   });
 });
