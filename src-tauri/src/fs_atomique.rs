@@ -1,5 +1,7 @@
 //! Écriture atomique de fichiers du projet (NF-12, NF-13, ADR-001 D6).
 
+pub mod commandes;
+
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
