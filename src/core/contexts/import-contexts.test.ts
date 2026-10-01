@@ -149,4 +149,23 @@ describe("import des contextes détectés depuis le projet", () => {
     expect(await disk.readFile(ROOT, "AGENTS.md")).toEqual(before.agents);
     expect([...recorded.used].sort()).toEqual(["listDir", "readFile"]);
   });
+
+  test("test_ac_003_4_un_fichier_illisible_ou_trop_gros_donne_un_avertissement_sans_planter", async () => {
+    const files = new InMemoryProjectFiles(ROOT, {
+      "CLAUDE.md": "# Projet\n",
+      "AGENTS.md": "# Agents\n",
+    })
+      .failWith("CLAUDE.md", "too-large")
+      .makeUnreadable("AGENTS.md");
+
+    const result = await importContexts(files, ROOT, [CLAUDE_SPEC, AGENTS_SPEC]);
+
+    expect(result).toEqual({
+      contexts: [],
+      warnings: [
+        { source: "CLAUDE.md", code: "too-large" },
+        { source: "AGENTS.md", code: "unreadable" },
+      ],
+    });
+  });
 });

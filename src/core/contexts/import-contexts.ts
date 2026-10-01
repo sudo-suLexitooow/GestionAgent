@@ -13,7 +13,7 @@ export interface ReadContextFile {
 /** Avertissement d'import : fichier d'origine et raison. */
 export interface ContextImportWarning {
   source: string;
-  code: "encoding";
+  code: "encoding" | "unreadable" | "too-large";
 }
 
 /** Résultat d'un import de contextes, en mémoire : rien n'est écrit ici. */
