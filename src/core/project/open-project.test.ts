@@ -39,4 +39,22 @@ describe("ouverture depuis le sélecteur", () => {
       expect(outcome).toEqual({ kind: "error", error: status });
     },
   );
+
+  test("test_ac_001_4_echec_systeme_pendant_la_verification_produit_une_erreur", async () => {
+    const folders = new InMemoryFolderAccess().answerPickerWith("/projets/x");
+    folders.inspectFolder = () => Promise.reject(new Error("IPC indisponible"));
+
+    const outcome = await openFromPicker(folders);
+
+    expect(outcome).toEqual({ kind: "error", error: "unexpected" });
+  });
+
+  test("test_ac_001_4_echec_systeme_du_selecteur_produit_une_erreur", async () => {
+    const folders = new InMemoryFolderAccess();
+    folders.pickFolder = () => Promise.reject(new Error("dialogue indisponible"));
+
+    const outcome = await openFromPicker(folders);
+
+    expect(outcome).toEqual({ kind: "error", error: "unexpected" });
+  });
 });

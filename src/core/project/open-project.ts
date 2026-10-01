@@ -5,7 +5,12 @@ export interface Project {
   path: string;
 }
 
-export type OpenError = "not-found" | "unreadable" | "not-a-directory" | "drop-single-folder";
+export type OpenError =
+  | "not-found"
+  | "unreadable"
+  | "not-a-directory"
+  | "drop-single-folder"
+  | "unexpected";
 
 export type OpenOutcome =
   | { kind: "opened"; project: Project }
