@@ -1,4 +1,22 @@
 //! Écriture atomique de fichiers du projet (NF-12, NF-13, ADR-001 D6).
+//!
+//! Une écriture de un ou plusieurs fichiers est une transaction dans
+//! `.cadre/tmp/txn-<id>/` (même volume que le projet, donc renommages atomiques) :
+//!
+//! 1. récupération d'une éventuelle transaction précédente interrompue ;
+//! 2. préparation : `<i>.nouveau` (nouveau contenu) et `<i>.ancien` (copie du fichier
+//!    actuel s'il existe), chacun synchronisé sur disque (fsync) ;
+//! 3. journal `en_cours` (écrit atomiquement) : à partir d'ici, un arrêt brutal est annulé
+//!    à la récupération ;
+//! 4. remplacement de chaque fichier par renommage de `<i>.nouveau` (remplace la cible sous
+//!    Windows comme sous Unix), puis fsync du dossier (Unix) ;
+//! 5. journal `validee` : l'enregistrement a réussi ;
+//! 6. version précédente copiée dans `.cadre/backups/<chemin>` et index mis à jour ;
+//! 7. suppression du dossier de transaction.
+//!
+//! Erreur avant 5 : les fichiers déjà remplacés sont remis d'origine. Annulation et
+//! récupération ne touchent jamais un fichier dont le contenu n'est plus celui écrit par la
+//! transaction (modifié par l'utilisateur entre-temps).
 
 pub mod commandes;
 
