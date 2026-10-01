@@ -35,6 +35,27 @@ describe("glisser-déposer sur l'accueil", () => {
     expect(screen.getByText("/home/lea/mon-projet")).toBeInTheDocument();
   });
 
+  test.each([
+    ["un fichier", ["/home/lea/notes.txt"]],
+    ["plusieurs dossiers", ["/home/lea/a", "/home/lea/b"]],
+  ])(
+    "test_ac_001_3_deposer_%s_n_ouvre_rien_et_demande_un_seul_dossier",
+    async (_label, paths) => {
+      const { drops } = renderApp({
+        "/home/lea/notes.txt": "not-a-directory",
+        "/home/lea/a": "ok",
+        "/home/lea/b": "ok",
+      });
+
+      await drop(drops, paths);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Déposez un seul dossier : pas un fichier, ni plusieurs éléments.",
+      );
+      expect(screen.getByRole("heading", { name: "Cadre" })).toBeInTheDocument();
+    },
+  );
+
   test("test_ac_001_2_la_zone_de_depot_est_indiquee_sur_l_accueil", () => {
     renderApp();
 
