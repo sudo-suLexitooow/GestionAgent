@@ -175,6 +175,24 @@ describe("agent invalide (AC-006-3)", () => {
     });
   });
 
+  test("test_ac_006_3_agent_lien_symbolique_marque_en_erreur_lien_non_suivi", async () => {
+    const files = new InMemoryProjectFiles(ROOT, {
+      ".cadre/cadre.yaml": CADRE_V1,
+      ".cadre/agents/valide.yaml": AGENT_VALIDE,
+    }).addLink(".cadre/agents/lien.yaml");
+
+    const resultat = await chargerModele(files, ROOT);
+
+    expect(resultat).toMatchObject({
+      modele: {
+        agents: [
+          { statut: "erreur", erreur: { fichier: ".cadre/agents/lien.yaml", code: "LINK" } },
+          { statut: "ok", fichier: ".cadre/agents/valide.yaml" },
+        ],
+      },
+    });
+  });
+
   test("test_ac_006_3_le_chargement_ne_fait_que_lire", async () => {
     const { files, used } = recordingProjectFiles(
       new InMemoryProjectFiles(ROOT, {
