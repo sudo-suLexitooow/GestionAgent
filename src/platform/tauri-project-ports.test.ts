@@ -51,6 +51,16 @@ describe("vérification d'un dossier par la commande système", () => {
   });
 });
 
+describe("glisser-déposer hors d'une fenêtre Tauri (navigateur de développement)", () => {
+  test("test_ac_001_2_hors_de_tauri_le_depot_est_inactif_sans_erreur", async () => {
+    const unsubscribe = await tauriDropSource.onDrop(() => undefined);
+
+    expect(() => {
+      unsubscribe();
+    }).not.toThrow();
+  });
+});
+
 describe("glisser-déposer natif de la webview", () => {
   beforeEach(() => {
     mockWindows("main");
