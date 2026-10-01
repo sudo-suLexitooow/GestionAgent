@@ -38,4 +38,11 @@ describe(".gitignore racine (AC-005-2)", () => {
   it("test_ac_005_2_toutes_les_lignes_presentes_aucune_ecriture", () => {
     expect(completerGitignore(".cadre/tmp/\n.cadre/runs/\n.cadre/backups/")).toBeNull();
   });
+
+  it("test_ac_005_2_bom_en_premiere_ligne_ligne_reconnue", () => {
+    expect(completerGitignore("﻿.cadre/runs/\n.cadre/backups/\n.cadre/tmp/\n")).toBeNull();
+    expect(completerGitignore("﻿.cadre/runs/\r\n")).toBe(
+      "﻿.cadre/runs/\r\n.cadre/backups/\r\n.cadre/tmp/\r\n",
+    );
+  });
 });

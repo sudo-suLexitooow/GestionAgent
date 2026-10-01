@@ -33,6 +33,13 @@ describe("SystemeFichiersTauri (commandes Rust fs_atomique)", () => {
     ]);
   });
 
+  it("test_ac_005_2_detection_d_un_depot_git_transmise", async () => {
+    const appels = intercepter(() => true);
+
+    expect(await new SystemeFichiersTauri().estDansUnDepotGit(RACINE)).toBe(true);
+    expect(appels).toEqual([{ commande: "projet_dans_un_depot_git", args: { racine: RACINE } }]);
+  });
+
   it("test_ac_005_4_recuperation_transmise", async () => {
     const appels = intercepter(() => null);
 

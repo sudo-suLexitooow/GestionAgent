@@ -125,6 +125,13 @@ pub fn existe(etat: &ProjetOuvert, racine: &str, chemin: &str) -> Result<bool, E
     Ok(Path::new(&racine).join(chemin).exists())
 }
 
+/// Vrai si `.git` (dossier, ou fichier d'un worktree) est à la racine du projet ouvert ou
+/// dans l'un de ses dossiers parents.
+pub fn dans_un_depot_git(etat: &ProjetOuvert, racine: &str) -> Result<bool, ErreurEcriture> {
+    racine_autorisee(etat, racine)?;
+    Ok(false)
+}
+
 #[tauri::command]
 pub fn ouvrir_projet(etat: State<'_, ProjetOuvert>, chemin: String) -> Result<(), ErreurDto> {
     Ok(ouvrir(&etat, &chemin)?)
@@ -380,6 +387,27 @@ mod tests {
         ecrire(&etat, &equivalente, vec![dto("CLAUDE.md", "x")]).expect("même projet");
 
         assert!(dossier.path().join("CLAUDE.md").exists());
+    }
+
+    /// Revue B n° 12 : un projet dans un sous-dossier d'un dépôt Git est un projet Git.
+    #[test]
+    fn test_ac_005_2_projet_dans_un_sous_dossier_d_un_depot_git() {
+        let depot = tempfile::tempdir().unwrap();
+        fs::create_dir(depot.path().join(".git")).unwrap();
+        let projet = depot.path().join("apps/web");
+        fs::create_dir_all(&projet).unwrap();
+        let etat = ProjetOuvert::default();
+        let r = projet.to_string_lossy().into_owned();
+        ouvrir(&etat, &r).expect("ouverture");
+
+        assert!(dans_un_depot_git(&etat, &r).unwrap());
+    }
+
+    #[test]
+    fn test_ac_005_2_projet_hors_de_tout_depot_git() {
+        let (dossier, etat) = projet_ouvert();
+
+        assert!(!dans_un_depot_git(&etat, &racine(&dossier)).unwrap());
     }
 
     /// Revue B n° 9 : AC-005-4 « après le prochain démarrage » = à l'ouverture du projet.

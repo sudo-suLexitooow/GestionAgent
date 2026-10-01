@@ -64,6 +64,15 @@ describe("enregistrer le modèle .cadre/ (US-005)", () => {
     expect(fs.transactions[0]?.map((f) => f.chemin)).toEqual([".cadre/cadre.yaml"]);
   });
 
+  it("test_ac_005_2_projet_dans_un_sous_dossier_d_un_depot_git_gitignore_a_la_racine_du_projet", async () => {
+    const fs = new SystemeFichiersMemoire();
+    fs.depotGitDansUnAncetre = true;
+
+    await enregistrerCadre(fs, RACINE, cadre());
+
+    expect(fs.contenu(".gitignore")).toBe(".cadre/runs/\n.cadre/backups/\n.cadre/tmp/\n");
+  });
+
   it("test_ac_005_6_lecture_seule_message_clair_et_fichiers_inchanges", async () => {
     const avant = {
       ".git/HEAD": "ref: refs/heads/main\n",

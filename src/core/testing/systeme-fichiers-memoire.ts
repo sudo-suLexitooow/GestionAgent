@@ -45,6 +45,13 @@ export class SystemeFichiersMemoire implements SystemeFichiersProjet {
     return Promise.resolve(this.contenus.get(chemin) ?? null);
   }
 
+  /** Simule un `.git` dans un dossier parent du projet (hors du faux système). */
+  depotGitDansUnAncetre = false;
+
+  async estDansUnDepotGit(racine: string): Promise<boolean> {
+    return this.depotGitDansUnAncetre || (await this.existe(racine, ".git"));
+  }
+
   existe(_racine: string, chemin: string): Promise<boolean> {
     const prefixe = `${chemin}/`;
     return Promise.resolve(

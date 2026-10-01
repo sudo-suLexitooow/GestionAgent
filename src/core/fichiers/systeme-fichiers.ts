@@ -25,6 +25,8 @@ export interface SystemeFichiersProjet {
   /** Contenu texte du fichier, `null` s'il n'existe pas. */
   lireTexte(racine: string, chemin: string): Promise<string | null>;
   existe(racine: string, chemin: string): Promise<boolean>;
+  /** Vrai si le projet est dans un dépôt Git : `.git` à sa racine ou dans un dossier parent. */
+  estDansUnDepotGit(racine: string): Promise<boolean>;
   /** Écrit tous les fichiers ou aucun ; la version précédente est conservée (NF-12, NF-13). */
   ecrireTransaction(racine: string, fichiers: FichierAEcrire[]): Promise<void>;
   /** Termine ou annule une écriture interrompue et supprime les temporaires (AC-005-4). */
