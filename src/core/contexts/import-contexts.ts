@@ -9,14 +9,21 @@ export interface ReadContextFile {
   bytes: Uint8Array;
 }
 
+/** Avertissement d'import : fichier d'origine et raison. */
+export interface ContextImportWarning {
+  source: string;
+  code: "encoding";
+}
+
 /** Résultat d'un import de contextes, en mémoire : rien n'est écrit ici. */
 export interface ContextImport {
   contexts: ImportedContext[];
+  warnings: ContextImportWarning[];
 }
 
 /** Construit les contextes à partir des octets lus (fonction pure). */
 export function buildContextImport(read: readonly ReadContextFile[]): ContextImport {
-  return { contexts: read.map(({ spec, bytes }) => importedContext(spec, bytes)) };
+  return { contexts: read.map(({ spec, bytes }) => importedContext(spec, bytes)), warnings: [] };
 }
 
 /** Contexte importé depuis `spec` : métadonnées pour `cadre.yaml`, contenu brut (ADR-001, D2). */

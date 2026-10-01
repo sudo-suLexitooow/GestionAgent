@@ -90,4 +90,18 @@ describe("construction des contextes importés (en mémoire)", () => {
       },
     ]);
   });
+
+  test("test_ac_003_4_un_claude_md_non_utf8_donne_un_avertissement_d_encodage_et_garde_ses_octets", () => {
+    // « Règles » en Latin-1 (0xE8) : pas de l'UTF-8 valide.
+    const latin1 = Uint8Array.of(0x52, 0xe8, 0x67, 0x6c, 0x65, 0x73, 0x0d, 0x0a);
+
+    const result = buildContextImport([
+      { spec: CLAUDE_SPEC, bytes: latin1 },
+      { spec: AGENTS_SPEC, bytes: bytesOf("# Agents\n") },
+    ]);
+
+    expect(result.warnings).toEqual([{ source: "CLAUDE.md", code: "encoding" }]);
+    expect(result.contexts.map((context) => context.entry.name)).toEqual(["CLAUDE", "AGENTS"]);
+    expect(result.contexts[0]?.content).toEqual(latin1);
+  });
 });
