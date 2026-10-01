@@ -23,4 +23,14 @@ describe("détection des fichiers de contexte à importer", () => {
       { file: "AGENTS.md", name: "AGENTS", type: "autre", readonly: true },
     ]);
   });
+
+  test("test_ac_003_1_rien_n_est_propose_si_le_projet_a_deja_un_dossier_cadre", async () => {
+    const detected = await detect({
+      "CLAUDE.md": "# Projet\n",
+      "AGENTS.md": "# Agents\n",
+      ".cadre/cadre.yaml": "schema_version: 1\n",
+    });
+
+    expect(detected).toEqual([]);
+  });
 });
