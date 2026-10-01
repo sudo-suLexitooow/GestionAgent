@@ -241,3 +241,36 @@ fn test_ac_002_4_fichier_absent_donne_none_sans_erreur() {
         Ok(None)
     );
 }
+
+/// Formes de chemin propres à Windows (lecteur relatif, chemins étendus, UNC, racine du lecteur,
+/// `\` comme séparateur) : compilées seulement sous Windows (`cfg(windows)`), où elles ont ce sens.
+/// Sous Linux et macOS, `\` est un caractère ordinaire d'un nom de fichier. Aucun test désactivé.
+#[cfg(windows)]
+mod chemins_windows {
+    use super::*;
+
+    #[test]
+    fn test_ac_002_1_la_lecture_refuse_les_prefixes_et_racines_windows() {
+        let project = tempfile::tempdir().unwrap();
+
+        for relative in [
+            r"C:relatif",
+            r"\\?\C:\x",
+            r"\\srv\share\x",
+            "//srv/share/x",
+            r"\x",
+            r"a\..\..\x",
+        ] {
+            assert_eq!(
+                read_file(project.path(), relative),
+                Err(ReadError::OutsideProject),
+                "{relative}"
+            );
+            assert_eq!(
+                list_dir(project.path(), relative),
+                Err(ReadError::OutsideProject),
+                "{relative}"
+            );
+        }
+    }
+}
