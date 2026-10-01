@@ -215,9 +215,11 @@ describe("enregistrement impossible ou déjà en cours", () => {
       });
 
     fireEvent.click(boutonEnregistrer());
+    // L'écriture est commencée et suspendue.
     await waitFor(() => {
-      expect(boutonEnregistrer()).toBeDisabled();
+      expect(disque.transactions).toHaveLength(1);
     });
+    expect(boutonEnregistrer()).toBeDisabled();
     fireEvent.click(boutonEnregistrer());
     expect(screen.getByRole("status", { name: "Enregistrement" })).toHaveTextContent(
       t("save.saving"),
@@ -225,6 +227,25 @@ describe("enregistrement impossible ou déjà en cours", () => {
     await act(async () => {
       terminer();
       await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Non enregistré/)).not.toBeInTheDocument();
+    });
+    expect(disque.transactions).toHaveLength(1);
+  });
+});
+
+describe("double clic avant le rendu suivant", () => {
+  test("test_ac_077_1_deux_clics_dans_le_meme_lot_ne_lancent_qu_un_enregistrement", async () => {
+    const disque = disqueAvecClaude();
+    await ouvrirEtImporter(disque);
+    const bouton = boutonEnregistrer();
+
+    // Les deux clics arrivent avant que React n'ait désactivé le bouton.
+    act(() => {
+      bouton.click();
+      bouton.click();
     });
 
     await waitFor(() => {

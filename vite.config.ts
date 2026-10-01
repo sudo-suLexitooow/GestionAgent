@@ -1,12 +1,16 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import paquet from "./package.json";
 
 // Tauri attend un port fixe et ne doit pas masquer les erreurs Rust.
 const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
   plugins: [react()],
+  // Version de Cadre (`generator_version` de `cadre.yaml`, ADR-001 D8), lue dans package.json à
+  // la compilation et aux tests ; utilisée via `src/ui/version.ts`.
+  define: { __CADRE_VERSION__: JSON.stringify(paquet.version) },
   clearScreen: false,
   server: {
     port: 1420,

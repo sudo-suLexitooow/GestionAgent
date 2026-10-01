@@ -20,13 +20,15 @@ export interface ContextsSectionProps {
   root: string;
   files: ProjectFiles;
   adapter: ToolAdapter;
+  /** Contextes importés en mémoire, à enregistrer (US-077). */
+  onImported?: (result: ContextImport) => void;
 }
 
 /**
  * Proposition d'import de CLAUDE.md et AGENTS.md, puis contextes importés en mémoire (PRJ-02).
- * Lecture seule : l'enregistrement dans `.cadre/` arrive avec US-005 / US-006.
+ * Lecture seule : l'enregistrement dans `.cadre/` est fait par l'écran principal (US-077).
  */
-export function ContextsSection({ root, files, adapter }: ContextsSectionProps) {
+export function ContextsSection({ root, files, adapter, onImported }: ContextsSectionProps) {
   const headingId = useId();
   const [state, setState] = useState<State>({ kind: "detecting" });
 
@@ -49,6 +51,7 @@ export function ContextsSection({ root, files, adapter }: ContextsSectionProps) 
   function accept(specs: ContextFileSpec[]) {
     void importContexts(files, root, specs).then((result) => {
       setState({ kind: "imported", result });
+      onImported?.(result);
     });
   }
 
