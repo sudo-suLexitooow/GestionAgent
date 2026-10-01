@@ -8,7 +8,9 @@ export type SkillIssueCode =
   | "duplicate-key"
   | "not-a-mapping"
   | "missing-name"
-  | "missing-description";
+  | "missing-description"
+  | "encoding"
+  | "unreadable";
 
 /** Skill trouvée dans le projet : valide (nom, description) ou en erreur (raison). */
 export type ListedSkill =

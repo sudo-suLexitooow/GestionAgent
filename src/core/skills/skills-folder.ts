@@ -1,26 +1,46 @@
 import type { ProjectFiles } from "../project/ports";
+import { decodeUtf8 } from "../text/utf8";
 import type { ListedSkill } from "./skill";
 import { parseSkillHeader } from "./skill-header";
 
 /**
  * Lit un dossier de skills au format Agent Skills (`<dir>/<nom>/SKILL.md`), commun à `.cadre/skills/`
  * et aux dossiers natifs des outils. Lecture seule ; skills triées par nom de dossier.
+ * Dossier absent : aucune skill. Sous-dossier sans `SKILL.md` ou fichier isolé : pas une skill.
+ * Une skill illisible ou invalide est listée en erreur, sans empêcher la lecture des autres.
  */
 export async function readSkillsFolder(
   files: ProjectFiles,
   root: string,
   dir: string,
 ): Promise<ListedSkill[]> {
-  const entries = (await files.listDir(root, dir)) as { name: string }[];
-  const folders = entries.map((entry) => entry.name).sort();
-  return Promise.all(
-    folders.map(async (folder): Promise<ListedSkill> => {
-      const bytes = (await files.readFile(root, `${dir}/${folder}/SKILL.md`)) as Uint8Array;
-      const header = parseSkillHeader(new TextDecoder().decode(bytes)) as {
-        name: string;
-        description: string;
-      };
-      return { folder, status: "ok", name: header.name, description: header.description };
-    }),
+  const entries = (await files.listDir(root, dir)) ?? [];
+  const folders = entries
+    .filter((entry) => entry.kind === "directory")
+    .map((entry) => entry.name)
+    .sort();
+  const skills = await Promise.all(
+    folders.map((folder) => readSkill(files, root, `${dir}/${folder}/SKILL.md`, folder)),
   );
+  return skills.filter((skill) => skill !== null);
+}
+
+async function readSkill(
+  files: ProjectFiles,
+  root: string,
+  path: string,
+  folder: string,
+): Promise<ListedSkill | null> {
+  let bytes: Uint8Array | null;
+  try {
+    bytes = await files.readFile(root, path);
+  } catch {
+    return { folder, status: "error", issue: { code: "unreadable" } };
+  }
+  if (bytes === null) return null;
+  const text = decodeUtf8(bytes);
+  if (text === null) return { folder, status: "error", issue: { code: "encoding" } };
+  const header = parseSkillHeader(text);
+  if (header.kind === "invalid") return { folder, status: "error", issue: header.issue };
+  return { folder, status: "ok", name: header.name, description: header.description };
 }
