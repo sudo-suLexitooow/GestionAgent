@@ -136,7 +136,7 @@ describe("écran d'accueil → écran principal", () => {
     ],
     [
       "RECUPERATION_IMPOSSIBLE",
-      "Une écriture interrompue n'a pas pu être reprise : elle a été mise de côté sans rien supprimer.",
+      "Une écriture interrompue n'a pas pu être reprise : des fichiers du projet peuvent être partiellement modifiés. Les copies d'origine sont dans le dossier indiqué, rien n'a été supprimé.",
     ],
     ["LECTURE_SEULE", "Une écriture interrompue n'a pas pu être reprise à l'ouverture du projet."],
   ])("test_ac_005_4_avertissement_%s_affiche_au_dessus_du_projet_ouvert", async (code, message) => {

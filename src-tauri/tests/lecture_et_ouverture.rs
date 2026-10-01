@@ -166,6 +166,24 @@ mod lecture_seule_unix {
         assert!(matches!(ouverture, Ok(None)), "{ouverture:?}");
     }
 
+    /// Re-revues révision 3, point 6 : une transaction déjà mise de côté ne déclenche pas de
+    /// reprise (ni verrou, ni avertissement à chaque ouverture).
+    #[test]
+    fn test_ac_005_4_transaction_mise_de_cote_ignoree_a_l_ouverture_en_lecture_seule() {
+        let dossier = tempfile::tempdir().unwrap();
+        precondition_non_root(dossier.path());
+        projet_enregistre(dossier.path());
+        let de_cote = dossier.path().join(".cadre/tmp/de-cote-txn-1");
+        fs::create_dir_all(&de_cote).unwrap();
+        fs::write(de_cote.join("0.ancien"), "copie").unwrap();
+        tout_en_lecture_seule(dossier.path(), true);
+
+        let ouverture = ouvrir(&ProjetOuvert::default(), &texte(dossier.path()));
+
+        tout_en_lecture_seule(dossier.path(), false);
+        assert!(matches!(ouverture, Ok(None)), "{ouverture:?}");
+    }
+
     #[test]
     fn test_ac_005_4_reprise_impossible_en_lecture_seule_le_projet_s_ouvre_avec_un_avertissement() {
         let dossier = tempfile::tempdir().unwrap();

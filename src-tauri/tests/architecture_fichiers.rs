@@ -11,17 +11,35 @@ const MODULES_SANS_ACCES_DIRECT: [(&str, &str); 2] = [
     ),
 ];
 
+/// `std::fs` et les méthodes de `Path` qui interrogent le disque (elles suivent les liens).
+const ACCES_DISQUE: [&str; 11] = [
+    "fs::",
+    "std::fs",
+    "File::",
+    ".exists(",
+    ".is_dir(",
+    ".is_file(",
+    ".metadata(",
+    ".symlink_metadata(",
+    ".read_dir(",
+    ".canonicalize(",
+    ".read_link(",
+];
+
 #[test]
 fn test_securite_aucun_acces_fichier_hors_de_la_resolution_sure() {
     for (fichier, source) in MODULES_SANS_ACCES_DIRECT {
-        // Code de production seulement : les tests unitaires préparent leurs dossiers.
-        let production = source.split("#[cfg(test)]").next().unwrap_or_default();
+        // Code de production seulement : le module de tests unitaires prépare ses dossiers.
+        let production = source
+            .split("#[cfg(test)]\nmod tests")
+            .next()
+            .unwrap_or_default();
         let appels: Vec<(usize, &str)> = production
             .lines()
             .enumerate()
             .filter(|(_, ligne)| {
                 let code = ligne.split("//").next().unwrap_or_default();
-                code.contains("fs::") || code.contains("std::fs") || code.contains("File::")
+                ACCES_DISQUE.iter().any(|motif| code.contains(motif))
             })
             .map(|(numero, ligne)| (numero + 1, ligne.trim()))
             .collect();

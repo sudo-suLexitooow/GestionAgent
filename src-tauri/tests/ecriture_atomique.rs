@@ -1311,7 +1311,10 @@ mod dossiers_crees_retires {
     }
 
     #[test]
-    fn test_ac_005_3_echec_dans_un_projet_sans_cadre_arborescence_strictement_identique() {
+    /// Décision de l'orchestrateur (re-revues, révision 3) : le fichier de verrou n'est
+    /// JAMAIS supprimé, pour éviter une course entre instances. Le seul résidu admis après
+    /// un échec dans un projet sans `.cadre/` est donc `.cadre/tmp/verrou` (vide).
+    fn test_ac_005_3_echec_dans_un_projet_sans_cadre_seul_residu_le_verrou_vide() {
         for etape in [
             Etape::TemporaireEcrit(0),
             Etape::AvantRemplacement,
@@ -1327,7 +1330,11 @@ mod dossiers_crees_retires {
             let resultat = ecrire_fichiers_avec(racine, &lot(), &ErreurA(etape));
 
             assert!(resultat.is_err(), "{etape:?}");
-            assert_eq!(arborescence(racine), avant, "{etape:?}");
+            let mut attendu = avant.clone();
+            attendu.extend([".cadre", ".cadre/tmp", ".cadre/tmp/verrou"].map(String::from));
+            attendu.sort();
+            assert_eq!(arborescence(racine), attendu, "{etape:?}");
+            assert_eq!(lire(racine, ".cadre/tmp/verrou").as_deref(), Some(""));
         }
     }
 
@@ -1544,6 +1551,107 @@ mod re_revues {
             Some("schema_version: 1\n"),
             "rien n'est restauré sans copie d'origine"
         );
+    }
+
+    /// Re-revues révision 3, point 1 : caractères ignorés par HFS+ (`.g\u{200c}it` = `.git`).
+    #[test]
+    fn test_securite_caracteres_ignores_par_hfs_refuses() {
+        for chemin in [
+            ".g\u{200c}it/config",
+            ".git\u{feff}/hooks/pre-commit",
+            ".cadre/t\u{200d}mp/x",
+            ".cadre/backups\u{202e}/x",
+            "a\u{206a}b",
+            "a\u{200f}",
+        ] {
+            let dossier = projet();
+            let resultat = ecrire_fichiers(dossier.path(), &[FichierAEcrire::new(chemin, "x")]);
+            assert!(
+                matches!(resultat, Err(ErreurEcriture::CheminInvalide(_))),
+                "{chemin:?} : {resultat:?}"
+            );
+        }
+    }
+
+    /// Re-revues révision 3, point 2 : une erreur passagère pendant l'annulation d'une
+    /// reprise garde le journal (nouvelle tentative), sans mise de côté.
+    #[test]
+    fn test_ac_005_4_erreur_passagere_pendant_la_reprise_journal_conserve_puis_reprise() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::FichierRemplace(1));
+
+        let reprise = recuperer_avec(racine, &ErreurA(Etape::FichierRestaure(1)));
+
+        assert!(
+            matches!(reprise, Err(ErreurEcriture::AnnulationIncomplete(_))),
+            "{reprise:?}"
+        );
+        assert!(
+            temporaires(racine)
+                .iter()
+                .any(|chemin| chemin.ends_with("journal.json") && !chemin.contains("de-cote")),
+            "journal conservé : {:?}",
+            temporaires(racine)
+        );
+        recuperer(racine).expect("nouvelle tentative");
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    /// Re-revues révision 3, point 2 : le message de mise de côté est honnête.
+    #[test]
+    fn test_ac_005_4_mise_de_cote_dit_que_le_projet_peut_etre_partiellement_modifie() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::FichierRemplace(1));
+        fs::remove_file(racine.join(".gitignore")).unwrap();
+        fs::create_dir(racine.join(".gitignore")).unwrap();
+
+        match recuperer(racine) {
+            Err(ErreurEcriture::RecuperationImpossible(detail)) => {
+                assert!(detail.contains("partiellement modifiés"), "{detail}");
+                assert!(detail.contains("copies d'origine"), "{detail}");
+            }
+            autre => panic!("{autre:?}"),
+        }
+    }
+
+    /// Re-revues révision 3, point 4 : journal de plus de 1 Mio mis de côté.
+    #[test]
+    fn test_ac_005_4_journal_de_plus_d_un_mio_mis_de_cote() {
+        let (dossier, _) = projet_existant();
+        let racine = dossier.path();
+        let mut journal = String::from(r#"{"etat":"en_cours","entrees":[]}"#);
+        journal.push_str(&" ".repeat(1024 * 1024));
+        ecrire(racine, ".cadre/tmp/txn-geant/journal.json", &journal);
+
+        assert!(
+            matches!(
+                recuperer(racine),
+                Err(ErreurEcriture::RecuperationImpossible(_))
+            ),
+            "journal trop gros"
+        );
+        assert!(racine.join(".cadre/tmp/de-cote-txn-geant").is_dir());
+    }
+
+    /// Re-revues révision 3, point 4 : index de plus de 1 Mio reconstruit.
+    #[test]
+    fn test_ac_005_5_index_de_plus_d_un_mio_reconstruit() {
+        let dossier = projet();
+        let racine = dossier.path();
+        let mut index = String::from(
+            r#"{"files":[{"path":"fantome","written_sha256":"0","date":"2026-01-01T00:00:00Z"}]}"#,
+        );
+        index.push_str(&" ".repeat(1024 * 1024));
+        ecrire(racine, ".cadre/backups/index.yaml", &index);
+
+        ecrire_fichiers(racine, &[FichierAEcrire::new("CLAUDE.md", "x")]).unwrap();
+
+        let relu = lire(racine, ".cadre/backups/index.yaml").unwrap();
+        assert!(!relu.contains("fantome"), "index reconstruit");
+        assert!(relu.contains("CLAUDE.md"));
     }
 
     /// Re-revue n°1, point E : la récupération ne supprime jamais le fichier de verrou.

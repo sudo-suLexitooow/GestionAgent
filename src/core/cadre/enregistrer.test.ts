@@ -218,7 +218,7 @@ describe("enregistrer le modèle .cadre/ (US-005)", () => {
       erreur: {
         code: "RECUPERATION_IMPOSSIBLE",
         message:
-          "Enregistrement impossible : une écriture interrompue n'a pas pu être reprise. Elle a été mise de côté sans rien supprimer (voir le détail) ; réessayez pour enregistrer.",
+          "Enregistrement impossible : une écriture interrompue n'a pas pu être reprise. Des fichiers du projet peuvent être partiellement modifiés ; les copies d'origine sont dans le dossier indiqué dans le détail, rien n'a été supprimé. Réessayez pour enregistrer.",
         detail: "dossier à examiner : /p/.cadre/tmp/de-cote-txn-1",
       },
     });
