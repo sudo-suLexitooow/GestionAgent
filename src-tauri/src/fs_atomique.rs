@@ -1,5 +1,6 @@
 //! Écriture atomique de fichiers du projet (NF-12, NF-13, ADR-001 D6).
 
+use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -70,25 +71,116 @@ pub fn ecrire_fichiers(racine: &Path, fichiers: &[FichierAEcrire]) -> Result<(),
 pub fn ecrire_fichiers_avec(
     racine: &Path,
     fichiers: &[FichierAEcrire],
-    _points: &dyn PointsDeControle,
+    points: &dyn PointsDeControle,
 ) -> Result<(), ErreurEcriture> {
     let transaction = nouveau_dossier_transaction(racine).map_err(classer)?;
-    let resultat = (|| -> io::Result<()> {
-        for (i, fichier) in fichiers.iter().enumerate() {
-            let temporaire = transaction.join(format!("{i}.nouveau"));
-            ecrire_et_synchroniser(&temporaire, &fichier.contenu)?;
-            let cible = racine.join(&fichier.chemin);
-            if let Some(parent) = cible.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            fs::rename(&temporaire, &cible)?;
-            synchroniser_dossier(cible.parent().unwrap_or(racine))?;
+    let entrees = match preparer(racine, &transaction, fichiers) {
+        Ok(entrees) => entrees,
+        Err(erreur) => {
+            let _ = fs::remove_dir_all(&transaction);
+            return Err(classer(erreur));
         }
-        Ok(())
-    })();
-    let nettoyage = fs::remove_dir_all(&transaction);
-    resultat.map_err(classer)?;
-    nettoyage.map_err(classer)
+    };
+    if let Err(erreur) = remplacer(racine, &transaction, &entrees, points) {
+        annuler(racine, &transaction, &entrees).map_err(classer)?;
+        let _ = fs::remove_dir_all(&transaction);
+        return Err(classer(erreur));
+    }
+    fs::remove_dir_all(&transaction).map_err(classer)
+}
+
+/// Ce que la transaction fait d'un fichier : de quoi l'annuler sans écraser un tiers.
+#[derive(Debug, Clone)]
+struct Entree {
+    chemin: String,
+    existait: bool,
+    empreinte_nouvelle: String,
+}
+
+fn temporaire_nouveau(transaction: &Path, i: usize) -> PathBuf {
+    transaction.join(format!("{i}.nouveau"))
+}
+
+fn copie_ancienne(transaction: &Path, i: usize) -> PathBuf {
+    transaction.join(format!("{i}.ancien"))
+}
+
+/// Écrit les nouveaux contenus et une copie des fichiers existants dans la transaction.
+fn preparer(
+    racine: &Path,
+    transaction: &Path,
+    fichiers: &[FichierAEcrire],
+) -> io::Result<Vec<Entree>> {
+    let mut entrees = Vec::with_capacity(fichiers.len());
+    for (i, fichier) in fichiers.iter().enumerate() {
+        ecrire_et_synchroniser(&temporaire_nouveau(transaction, i), &fichier.contenu)?;
+        let existait = match fs::read(racine.join(&fichier.chemin)) {
+            Ok(ancien) => {
+                ecrire_et_synchroniser(&copie_ancienne(transaction, i), &ancien)?;
+                true
+            }
+            Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => false,
+            Err(erreur) => return Err(erreur),
+        };
+        entrees.push(Entree {
+            chemin: fichier.chemin.clone(),
+            existait,
+            empreinte_nouvelle: empreinte(&fichier.contenu),
+        });
+    }
+    synchroniser_dossier(transaction)?;
+    Ok(entrees)
+}
+
+fn remplacer(
+    racine: &Path,
+    transaction: &Path,
+    entrees: &[Entree],
+    points: &dyn PointsDeControle,
+) -> io::Result<()> {
+    for (i, entree) in entrees.iter().enumerate() {
+        let cible = racine.join(&entree.chemin);
+        if let Some(parent) = cible.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::rename(temporaire_nouveau(transaction, i), &cible)?;
+        synchroniser_dossier(cible.parent().unwrap_or(racine))?;
+        points.atteint(Etape::FichierRemplace(i))?;
+    }
+    Ok(())
+}
+
+/// Remet chaque fichier remplacé par la transaction dans son état d'origine. Un fichier
+/// dont le contenu n'est plus celui écrit par la transaction n'est jamais touché.
+fn annuler(racine: &Path, transaction: &Path, entrees: &[Entree]) -> io::Result<()> {
+    for (i, entree) in entrees.iter().enumerate().rev() {
+        let cible = racine.join(&entree.chemin);
+        let actuel = match fs::read(&cible) {
+            Ok(contenu) => contenu,
+            Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => continue,
+            Err(erreur) => return Err(erreur),
+        };
+        if empreinte(&actuel) != entree.empreinte_nouvelle {
+            continue;
+        }
+        let ancien = copie_ancienne(transaction, i);
+        if entree.existait {
+            if ancien.exists() {
+                fs::rename(&ancien, &cible)?;
+            }
+        } else {
+            fs::remove_file(&cible)?;
+        }
+        synchroniser_dossier(cible.parent().unwrap_or(racine))?;
+    }
+    Ok(())
+}
+
+fn empreinte(contenu: &[u8]) -> String {
+    Sha256::digest(contenu)
+        .iter()
+        .map(|octet| format!("{octet:02x}"))
+        .collect()
 }
 
 /// Termine ou annule une transaction interrompue, puis vide `.cadre/tmp/` (AC-005-4).
