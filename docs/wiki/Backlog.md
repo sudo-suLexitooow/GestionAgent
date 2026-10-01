@@ -54,7 +54,7 @@ Ordre = valeur + réduction du risque, en fermant d'abord la boucle centrale : *
 
 | Ordre | ID | Titre | Étape | Points | Statut | Exigences | Zone sensible |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | SP-01 | Spike : format `.cadre/` (schéma YAML, versionnage) | MVP 0 | 2 | En cours (Sprint 1) | §7.4, PRJ-02, NF-12 | non |
+| 1 | SP-01 | Spike : format `.cadre/` (schéma YAML, versionnage) | MVP 0 | 2 | Done (Sprint 1, 2026-10-01) | §7.4, PRJ-02, NF-12 | non |
 | 2 | US-001 | Ouvrir un dossier de projet | MVP 0 | 2 | Sprint 1 | PRJ-01, ACC-01 | non |
 | 3 | US-002 | Lister les skills du projet (**référence**) | MVP 0 | 2 | Sprint 1 | SKL-01, PRJ-02 | non |
 | 4 | US-003 | Importer CLAUDE.md et AGENTS.md comme contextes | MVP 0 | 2 | Sprint 1 | PRJ-02, ADP-02 | non |
@@ -91,7 +91,7 @@ Ordre = valeur + réduction du risque, en fermant d'abord la boucle centrale : *
 | 35 | US-018 | Guider l'utilisateur quand Claude Code est absent | MVP 1 | 2 | À faire | CLI-02, ACC-03 | non |
 | 36 | US-039 | Afficher le niveau de support de chaque réglage | MVP 1 | 2 | À faire | ADP-05, NF-11 | **oui** (permissions affichées) |
 | 37 | US-040 | Aperçu du cadrage final de l'agent | MVP 1 | 3 | À faire | AGT-08 | non |
-| 38 | SP-04 | Spike : spécification Agent Skills pour le validateur | MVP 1 | 2 | À faire | SKL-05 | non |
+| 38 | SP-04 | Spike : spécification Agent Skills pour le validateur | MVP 1 | 2 | À faire (doit confirmer les règles de skills d'ADR-001) | SKL-05 | non |
 | 39 | US-031 | Créer, renommer, dupliquer et supprimer une skill | MVP 1 | 3 | À faire | SKL-02 | non |
 | 40 | US-032 | Éditer une skill (formulaire + Markdown) | MVP 1 | 3 | À faire | SKL-03 | non |
 | 41 | US-033 | Valider une skill selon la spécification Agent Skills | MVP 1 | 3 | À faire | SKL-05 | non |
@@ -158,6 +158,7 @@ Un spike a une durée limitée (au plus la moitié d'un sprint) et produit **une
 - Question : quel schéma exact pour `cadre.yaml`, `agents/*.yaml`, `skills/`, `contexte/` ; comment `schema_version` et `generator_version` sont écrits, comparés et migrés ; quels identifiants stables (nom vs identifiant interne) pour permettre le renommage ; comment marquer un fichier exporté comme « généré par Cadre ».
 - Livrable : ADR « Format .cadre/ v1 » + schémas JSON (YAML → JSON) cités dans l'ADR + exemples de projet valides et invalides servant de jeu de tests.
 - Débloque : US-004, US-005, US-006, US-007, US-008. Exigences : §7.4, PRJ-02, NF-12. Estimation : 2.
+- **Statut : Done (2026-10-01)** — livrable : [ADR-001 — Format .cadre/ v1](ADR-001-format-cadre-v1). Conséquence : AC-005-2 étendu. Spécification Agent Skills non joignable pendant le spike : règles des skills à confirmer par SP-04.
 
 ### SP-02 — Relevé de ce que Claude Code applique réellement (point en suspens 13.2)
 - Question : pour chaque réglage de Cadre (portée écriture / lecture seule / interdit par dossier, outils terminal / navigateur / paquets / réseau, paramètres prédéfinis), quel mécanisme natif de Claude Code existe (`settings.json` permissions allow/deny, sous-agents `.claude/agents/` et leur champ outils, sandbox, mode de permission), et le support est-il **exact, approximatif ou absent** ? Comment la CLI est-elle lancée de façon non ambiguë avec ce cadrage (options de ligne de commande, répertoire de travail) ? Quelles versions sont testées ?
@@ -252,7 +253,7 @@ En tant que développeur solo, je veux que mon cadrage soit enregistré dans `.c
 
 Critères d'acceptation :
 - AC-005-1 [§7.4] : Étant donné un projet sans `.cadre/`, quand l'utilisateur enregistre, alors `.cadre/cadre.yaml` est créé avec `schema_version`, `generator_version` et les outils actifs, conforme au schéma de SP-01.
-- AC-005-2 [§7.4] : Étant donné un projet Git, quand `.cadre/` est créé, alors `.cadre/runs/` est ajouté au `.gitignore` (créé s'il n'existe pas, sans dupliquer une ligne déjà présente, sans modifier les autres lignes).
+- AC-005-2 [§7.4] : Étant donné un projet Git, quand `.cadre/` est créé, alors `.cadre/runs/`, `.cadre/backups/` et `.cadre/tmp/` sont ajoutés au `.gitignore` (créé s'il n'existe pas, sans dupliquer une ligne déjà présente, sans modifier les autres lignes). (modifié le 2026-10-01, ADR-001 : [ADR-001](ADR-001-format-cadre-v1))
 - AC-005-3 [NF-12] : Étant donné un enregistrement de plusieurs fichiers, quand l'écriture est interrompue au milieu (erreur simulée après le premier fichier), alors aucun fichier de `.cadre/` n'est modifié : soit tous les nouveaux contenus sont présents, soit aucun.
 - AC-005-4 [NF-12] : Étant donné une écriture de fichier, quand elle est interrompue avant le remplacement, alors le fichier d'origine est intact et aucun fichier temporaire ne reste après le prochain démarrage.
 - AC-005-5 [NF-13] : Étant donné un fichier de cadrage existant, quand il est réécrit, alors sa version précédente est conservée et récupérable.

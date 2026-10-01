@@ -4,8 +4,8 @@ Début : 2026-10-01 · Statut : en cours
 ## Planning (porte 2 déléguée à l'orchestrateur par le PO, 2026-10-01)
 | Story | Titre | Points | Statut | PR |
 | --- | --- | --- | --- | --- |
-| SP-01 | Spike : format `.cadre/` (schéma YAML, versionnage) | 2 | En cours | — |
-| US-001 | Ouvrir un dossier de projet | 2 | À faire | — |
+| SP-01 | Spike : format `.cadre/` (schéma YAML, versionnage) | 2 | Done | — (livrable [ADR-001](ADR-001-format-cadre-v1)) |
+| US-001 | Ouvrir un dossier de projet | 2 | En cours | — |
 | US-002 | Lister les skills du projet | 2 | À faire | — |
 | US-003 | Importer CLAUDE.md et AGENTS.md comme contextes | 2 | À faire | — |
 | US-005 | Enregistrer le modèle `.cadre/` de façon atomique (zone sensible : porte 3) | 3 | À faire | — |
@@ -19,6 +19,11 @@ Objectif à moyen terme fixé par l'orchestrateur : livrer le MVP 0 complet (Spr
 - Obstacles : aucun bloquant. US-005 est en zone sensible : deux revues `relecteur` et résumé au PO requis.
 - Sprint Goal atteignable : oui — toutes les dépendances sont levées une fois SP-01 terminé, et aucune question PO ne bloque plus.
 
+- Fait (suite) : SP-01 terminé, livrable [ADR-001 — Format .cadre/ v1](ADR-001-format-cadre-v1) (2 points Done). Décision de l'orchestrateur (PO délégant) suite à l'ADR : AC-005-2 étendu à `.cadre/backups/` et `.cadre/tmp/`. PR #2 (https://github.com/sudo-suLexitooow/GestionAgent/pull/2) ouverte pour la publication du wiki.
+- En cours : US-001 (`developpeur-tdd`).
+- Obstacles : aucun bloquant. Note : la spécification Agent Skills (agentskills.io) n'était pas joignable pendant le spike ; les règles de skills d'ADR-001 sont à confirmer par SP-04.
+- Sprint Goal atteignable : oui — SP-01 a levé la dépendance de US-005.
+
 ## Sprint Review
 À venir.
 
@@ -26,4 +31,4 @@ Objectif à moyen terme fixé par l'orchestrateur : livrer le MVP 0 complet (Spr
 À venir.
 
 ## Vélocité
-Planifié : 11 pts · Done : 0 pts (en cours)
+Planifié : 11 pts · Done : 2 pts (en cours : SP-01 Done)

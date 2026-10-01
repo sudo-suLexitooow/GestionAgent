@@ -287,7 +287,7 @@ Toutes les exigences Must du MVP 0 et du MVP 1 sont couvertes par au moins une s
 | NF-19 | US-008 | AC-008-6 |  |  | À faire |
 | NF-19 | US-055 | AC-055-3 |  |  | À faire |
 | §7.4 | US-005 | AC-005-1 |  |  | À faire |
-| §7.4 | US-005 | AC-005-2 |  |  | À faire |
+| §7.4 | US-005 | AC-005-2 (modifié le 2026-10-01, ADR-001) |  |  | À faire |
 | §7.4 | US-006 | AC-006-1 |  |  | À faire |
 | §7.4 | US-006 | AC-006-2 |  |  | À faire |
 | §7.4 | US-006 | AC-006-3 |  |  | À faire |
@@ -297,10 +297,10 @@ Toutes les exigences Must du MVP 0 et du MVP 1 sont couvertes par au moins une s
 
 | Exigence | Spike | Livrable | Statut |
 | --- | --- | --- | --- |
-| §7.4, PRJ-02, NF-12 | SP-01 | ADR format `.cadre/` v1 + schémas | À faire |
+| §7.4, PRJ-02, NF-12 | SP-01 | [ADR-001 — Format .cadre/ v1](ADR-001-format-cadre-v1) + schémas | Done (2026-10-01) |
 | AGT-06, AGT-07, ADP-05, NF-06, NF-11, §13.2 | SP-02 | ADR capacités de l'adaptateur Claude Code | À faire |
 | NF-04, NF-01, NF-02, NF-03 | SP-03 | ADR référence de performance | À faire |
-| SKL-05 | SP-04 | ADR règles de validation des skills | À faire |
+| SKL-05 | SP-04 | ADR règles de validation des skills (confirme aussi les règles de skills d'ADR-001) | À faire |
 | RUN-01, RUN-02, RUN-06, RUN-07 | SP-05 | ADR exécution et arrêt des processus | À faire |
 | RUN-03, RUN-04, RUN-05 | SP-06 | ADR cycle de vie d'une exécution dans un worktree | À faire |
 | PRJ-07, PRJ-08 | SP-07 | ADR surveillance du dossier | À faire |
