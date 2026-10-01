@@ -883,6 +883,75 @@ mod journal_forge {
     }
 }
 
+/// Bloquant de revue n° 3 : une transaction validée dont les sauvegardes ne peuvent pas se
+/// terminer ne bloque jamais les écritures suivantes.
+mod transaction_validee_jamais_bloquante {
+    use super::*;
+
+    fn transaction_validee_restante(racine: &Path) -> std::path::PathBuf {
+        fs::read_dir(racine.join(".cadre/tmp"))
+            .unwrap()
+            .map(|entree| entree.unwrap().path())
+            .find(|chemin| chemin.join("journal.json").exists())
+            .expect("transaction validée restante")
+    }
+
+    #[test]
+    fn test_ac_005_4_copie_ancienne_disparue_apres_validation_ecriture_suivante_possible() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::TransactionValidee);
+        // Arrêt pendant le nettoyage final : une partie des fichiers a déjà disparu.
+        fs::remove_file(transaction_validee_restante(racine).join("0.ancien")).unwrap();
+
+        recuperer(racine).expect("récupération");
+        ecrire_fichiers(racine, &[FichierAEcrire::new("CLAUDE.md", "# P\n")]).expect("écriture");
+
+        assert_eq!(
+            lire(racine, ".cadre/cadre.yaml").as_deref(),
+            Some("schema_version: 1\n")
+        );
+        assert_eq!(lire(racine, "CLAUDE.md").as_deref(), Some("# P\n"));
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_4_arret_apres_suppression_du_journal_nettoye_au_demarrage() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::JournalSupprime);
+
+        recuperer(racine).expect("récupération");
+
+        assert_eq!(
+            lire(racine, ".cadre/cadre.yaml").as_deref(),
+            Some("schema_version: 1\n")
+        );
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_5_sauvegarde_impossible_n_empeche_pas_les_ecritures_suivantes() {
+        let dossier = projet();
+        let racine = dossier.path();
+        for version in ["x1", "x2"] {
+            ecrire_fichiers(racine, &[FichierAEcrire::new("x", version)]).expect("écriture");
+        }
+        // `.cadre/backups/x` est un fichier ; `x` devient un dossier.
+        fs::remove_file(racine.join("x")).unwrap();
+        for version in ["y1", "y2"] {
+            ecrire_fichiers(racine, &[FichierAEcrire::new("x/y", version)])
+                .expect("l'enregistrement validé réussit même sans sauvegarde");
+        }
+
+        ecrire_fichiers(racine, &[FichierAEcrire::new("x/y", "y3")])
+            .expect("écriture suivante possible");
+
+        assert_eq!(lire(racine, "x/y").as_deref(), Some("y3"));
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+}
+
 mod transaction_reussie {
     use super::*;
 

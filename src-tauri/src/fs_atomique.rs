@@ -58,6 +58,8 @@ pub enum Etape {
     FichierRemplace(usize),
     /// Journal « validé » écrit, sauvegardes pas encore mises à jour.
     TransactionValidee,
+    /// Journal supprimé, dossier de transaction pas encore effacé.
+    JournalSupprime,
 }
 
 /// Point d'injection de pannes. En production : [`SansPanne`].
