@@ -1,27 +1,26 @@
 # Sprint courant
 
-Sprint actif : [Sprint 02](Sprint-02) — début 2026-10-01 · en cours.
+Sprint actif : [Sprint 03](Sprint-03) — début 2026-10-01 · en cours.
 
-Sprint Goal : « J'enregistre mon cadrage dans .cadre/ depuis l'application, je le retrouve en rouvrant le projet, et je crée mon premier agent. »
+Sprint Goal : « Un projet Claude Code existant fait l'aller-retour Cadre → Claude Code sans perte » (porte MVP 0).
 
 | Story | Titre | Points | Statut | PR |
 | --- | --- | --- | --- | --- |
-| US-077 | Enregistrer le cadrage depuis l'interface (zone sensible) | 3 | En développement | — |
-| US-006 | Rouvrir un projet depuis `.cadre/` | 3 | Done (2026-10-01) | [#10](https://github.com/sudo-suLexitooow/GestionAgent/pull/10) |
-| US-007 | Créer un agent (rôle, description, outil cible) | 2 | À faire | — |
-| US-076 | Aligner les commandes de lecture sur la racine du projet ouvert (zone sensible) | 2 | Done (2026-10-01) | [#9](https://github.com/sudo-suLexitooow/GestionAgent/pull/9) |
-| SP-02 | Spike : relevé de ce que Claude Code applique réellement | 3 | Done (2026-10-01) → [ADR-003](ADR-003-capacites-claude-code) | — |
+| US-004 | Importer les skills existantes sans perte | 3 | À faire | — |
+| US-008 | Exporter un agent vers Claude Code (zone sensible) | 3 | À faire | — |
+| US-009 | Exporter skills et contextes vers Claude Code, aller-retour sans perte (zone sensible) | 3 | À faire | — |
+| US-010 | Importer les sous-agents Claude Code existants | 3 | À faire | — |
+| US-011 | Dupliquer, renommer et supprimer un agent (zone sensible) | 2 | À faire | — |
+| US-079 | Message dédié quand un dossier de cadrage est un lien | 1 | À faire | — |
 
-Total : 13 points · Done : 8 (SP-02, US-076, US-006).
+Total : 15 points · Done : 0.
 
-En cours : US-077 (développement). Ensuite : US-007.
+Reporté au Sprint 4 : SP-03 (dépend de Q-11, runners GitHub).
 
-Question ouverte pour le PO : [Q-23](Questions-PO) — clé d'API Anthropic en secret de CI pour les tests d'intégration réels (US-017/US-020).
+À appliquer pendant ce sprint : actions (a) à (c) de la rétrospective du Sprint 2, voir [Sprint-02](Sprint-02).
 
-Sprint précédent : [Sprint 01](Sprint-01) terminé le 2026-10-01, 11/11 points (SP-01, US-001, US-002, US-003, US-005).
+Question ouverte pour le PO : [Q-23](Questions-PO) — clé d'API Anthropic en secret de CI pour les tests d'intégration réels (US-017/US-020). Obstacle relevé au Sprint 2 : publication du wiki GitHub en attente de la première page créée par le PO (état non revérifié le 2026-10-01).
 
-À appliquer pendant ce sprint : actions (a) à (d) de la rétrospective du Sprint 1, voir [Sprint-01](Sprint-01).
-
-Obstacle : publication du wiki en échec, le dépôt wiki n'existe pas encore côté GitHub ; le PO doit enregistrer la première page depuis l'interface web (action (d) : relance).
+Sprint précédent : [Sprint 02](Sprint-02) terminé le 2026-10-01, 13/13 points (SP-02, US-076, US-006, US-077, US-007).
 
 Mis à jour le 2026-10-01.

@@ -1,6 +1,6 @@
 # Product Backlog — Cadre
 
-Version : 2026-10-01 · Auteur : analyste-backlog · Mis à jour le 2026-10-01 par scribe-wiki (porte 1 ; puis merges US-001/002/003/005, ajout US-076, US-077 et section Dette ; Sprint Review 1 : AC-006-6 et AC-077-4 ; Sprint 2 planifié ; 2026-10-01 : SP-02, US-076, US-006 Done, US-079 et AC-077-5 ajoutés, AC-006-5/6 reformulés, dette complétée).
+Version : 2026-10-01 · Auteur : analyste-backlog · Mis à jour le 2026-10-01 par scribe-wiki (porte 1 ; puis merges US-001/002/003/005, ajout US-076, US-077 et section Dette ; Sprint Review 1 : AC-006-6 et AC-077-4 ; Sprint 2 planifié ; 2026-10-01 : SP-02, US-076, US-006 Done, US-079 et AC-077-5 ajoutés, AC-006-5/6 reformulés, dette complétée ; US-077 et US-007 Done, AC-006-5 élargi, Sprint 2 terminé, Sprint 3 planifié).
 
 **Statut : validé par le PO le 2026-10-01 (porte 1), tel quel.** Options par défaut Q-01 à Q-22 acceptées par délégation : les stories auparavant « Bloquée (Q-xx) » sont « À faire ». SP-03 suit l'option Q-11 (runners GitHub).
 
@@ -60,18 +60,18 @@ Ordre = valeur + réduction du risque, en fermant d'abord la boucle centrale : *
 | 3 | US-002 | Lister les skills du projet (**référence**) | MVP 0 | 2 | Done (Sprint 1, PR #5, 2026-10-01) | SKL-01, PRJ-02 | non |
 | 4 | US-003 | Importer CLAUDE.md et AGENTS.md comme contextes | MVP 0 | 2 | Done (Sprint 1, PR #6, 2026-10-01) | PRJ-02, ADP-02 | non |
 | 5 | US-005 | Enregistrer le modèle `.cadre/` de façon atomique | MVP 0 | 3 | Done (Sprint 1, PR #4, 2026-10-01) | §7.4, NF-12, NF-13 | **oui** (écritures atomiques) |
-| 6 | US-004 | Importer les skills existantes sans perte | MVP 0 | 3 | À faire | PRJ-02, ADP-01, ADP-02 | non |
+| 6 | US-004 | Importer les skills existantes sans perte | MVP 0 | 3 | Sprint 3 (À faire) | PRJ-02, ADP-01, ADP-02 | non |
 | 7 | SP-02 | Spike : relevé de ce que Claude Code applique réellement | MVP 0 | 3 | Done (Sprint 2, 2026-10-01, [ADR-003](ADR-003-capacites-claude-code)) | AGT-06, AGT-07, ADP-05, NF-11, §13.2 | non |
 | 8 | US-006 | Rouvrir un projet depuis `.cadre/` | MVP 0 | 3 | Done (Sprint 2, PR #10, 2026-10-01) | §7.4, PRJ-02 | non |
-| 9 | US-007 | Créer un agent (rôle, description, outil cible) | MVP 0 | 2 | Sprint 2 (À faire) | AGT-01, AGT-02 | non |
-| 10 | US-008 | Exporter un agent vers Claude Code | MVP 0 | 3 | À faire | ADP-01, ADP-02, NF-12, NF-19 | **oui** (écritures atomiques) |
-| 11 | US-009 | Exporter skills et contextes vers Claude Code, aller-retour sans perte | MVP 0 | 3 | À faire | ADP-02, PRJ-02, NF-12 | **oui** (écritures atomiques, fichiers de l'utilisateur) |
-| 12 | US-010 | Importer les sous-agents Claude Code existants | MVP 0 | 3 | À faire | PRJ-02, ADP-02 | non |
-| 13 | US-011 | Dupliquer, renommer et supprimer un agent | MVP 0 | 2 | À faire | AGT-01 | **oui** (suppression de fichiers générés) |
+| 9 | US-007 | Créer un agent (rôle, description, outil cible) | MVP 0 | 2 | Done (Sprint 2, PR #13, 2026-10-01) | AGT-01, AGT-02 | non |
+| 10 | US-008 | Exporter un agent vers Claude Code | MVP 0 | 3 | Sprint 3 (À faire) | ADP-01, ADP-02, NF-12, NF-19 | **oui** (écritures atomiques) |
+| 11 | US-009 | Exporter skills et contextes vers Claude Code, aller-retour sans perte | MVP 0 | 3 | Sprint 3 (À faire) | ADP-02, PRJ-02, NF-12 | **oui** (écritures atomiques, fichiers de l'utilisateur) |
+| 12 | US-010 | Importer les sous-agents Claude Code existants | MVP 0 | 3 | Sprint 3 (À faire) | PRJ-02, ADP-02 | non |
+| 13 | US-011 | Dupliquer, renommer et supprimer un agent | MVP 0 | 2 | Sprint 3 (À faire) | AGT-01 | **oui** (suppression de fichiers générés) |
 | 14 | US-076 | Aligner les commandes de lecture sur la racine du projet ouvert | MVP 0 | 2 | Done (Sprint 2, PR #9, 2026-10-01) | SKL-01, PRJ-02 (proposées) | **oui** (portée) |
-| 15 | US-077 | Enregistrer le cadrage depuis l'interface | MVP 0 | 3 | Sprint 2 (en développement) | §7.4, NF-12, PRJ-02 (proposées) | **oui** (écritures atomiques) |
-| 15b | US-079 | Message dédié quand `.claude`, `.claude/skills` ou `.cadre` est un lien | MVP 0 | 1 | À faire | SKL-01, PRJ-02 (proposées) | non |
-| 16 | SP-03 | Spike : machine et projet de référence | MVP 0 | 2 | À faire | NF-04, NF-01 à NF-03 | non |
+| 15 | US-077 | Enregistrer le cadrage depuis l'interface | MVP 0 | 3 | Done (Sprint 2, PR #12, 2026-10-01) | §7.4, NF-12, PRJ-02 (proposées) | **oui** (écritures atomiques) |
+| 15b | US-079 | Message dédié quand `.claude`, `.claude/skills` ou `.cadre` est un lien | MVP 0 | 1 | Sprint 3 (À faire) | SKL-01, PRJ-02 (proposées) | non |
+| 16 | SP-03 | Spike : machine et projet de référence | MVP 0 | 2 | Reporté au Sprint 4 (dépend de Q-11, runners GitHub) | NF-04, NF-01 à NF-03 | non |
 | 17 | US-012 | Attacher et détacher des skills à un agent | MVP 1 | 2 | À faire | AGT-05 | non |
 | 18 | US-013 | Déclarer la portée d'un agent par dossier | MVP 1 | 3 | À faire | AGT-07 | **oui** (portée des agents) |
 | 19 | US-014 | Exporter la portée vers Claude Code avec son niveau de garantie | MVP 1 | 3 | À faire | AGT-07, ADP-02, ADP-05, NF-11 | **oui** (permissions, portée) |
@@ -289,13 +289,16 @@ Critères d'acceptation :
 - AC-006-2 [§7.4] : Étant donné un `cadre.yaml` dont la `schema_version` est plus récente que celle supportée, quand le projet est ouvert, alors Cadre refuse de le modifier, l'ouvre en lecture seule et invite à mettre à jour l'app.
 - AC-006-3 [§7.4] : Étant donné un fichier `.cadre/agents/x.yaml` invalide (YAML cassé ou non conforme au schéma), quand le projet est ouvert, alors le projet s'ouvre, l'agent est marqué en erreur avec le fichier et la ligne, et rien n'est réécrit automatiquement.
 - AC-006-4 [PRJ-02] : Étant donné un projet qui a un `.cadre/` et aussi un `CLAUDE.md`, quand il est ouvert, alors aucun import n'est reproposé et `.cadre/` fait foi.
-- AC-006-5 [§7.4] (reformulés le 2026-10-01, décision orchestrateur) : Étant donné un dossier `.cadre/` sans `cadre.yaml` qui contient autre chose que `tmp/`, `runs/` et `backups/` (état `incomplet`), quand le projet est ouvert, alors Cadre signale un modèle incomplet et propose de le réparer, sans rien écrire sans accord, et l'import n'est pas proposé.
+- AC-006-5 [§7.4] (reformulés le 2026-10-01, décision orchestrateur ; élargi le 2026-10-01) : Étant donné un dossier `.cadre/` sans `cadre.yaml` qui contient autre chose que `tmp/`, `runs/` et `backups/`, ou un `cadre.yaml` invalide (YAML cassé, non conforme au schéma, encodage, lien, alias en masse) (état `incomplet`), quand le projet est ouvert, alors Cadre signale un modèle incomplet et propose de le réparer, sans rien écrire sans accord, et l'import n'est pas proposé.
 - AC-006-6 [§7.4, PRJ-02] (ajouté le 2026-10-01, Sprint Review 1 ; reformulés le 2026-10-01, décision orchestrateur) : Étant donné un projet sans `.cadre/`, ou dont le dossier `.cadre/` ne contient que `tmp/`, `runs/` et/ou `backups/` sans `cadre.yaml` (p. ex. seulement `tmp/verrou`), quand le projet est ouvert, alors ce n'est pas un modèle (état `aucun`) : l'import est proposé. Un modèle = présence de `.cadre/cadre.yaml` ([ADR-001](ADR-001-format-cadre-v1)).
 
 ### US-007 — Créer un agent
 En tant que développeur solo, je veux créer un agent en lui donnant un nom, un rôle, une description et un outil cible afin de commencer à le cadrer.
 - Étape : MVP 0 · Estimation : 2 points · Dépendances : US-005 · Zone sensible : non
 - Exigences : AGT-01, AGT-02
+- Done le 2026-10-01 (PR #13, merge `1f770a8`). Revue `relecteur` : changements demandés (impasse sur `AGENT_EXISTANT`), corrigés (bouton « Retirer » pour les agents non enregistrés, relecture du modèle, nouveau message ; doublons de casse refusés dans le cœur), relecture du correctif : ACCEPTÉ.
+- Décisions : `agents/<nom>.md` non écrit (pas de champ instructions ; fichier facultatif selon [ADR-001](ADR-001-format-cadre-v1)) ; fonction `enregistrerCadrage` ; refus `MODELE_NON_MODIFIABLE` et `AGENT_EXISTANT` ; `ToolAdapter.name`.
+- Dette : voir section 10.
 
 Critères d'acceptation :
 - AC-007-1 [AGT-01] : Étant donné un projet ouvert, quand l'utilisateur crée un agent avec un nom, un rôle et une description, alors l'agent apparaît dans l'arborescence et `.cadre/agents/<nom>.yaml` est écrit à l'enregistrement.
@@ -377,6 +380,9 @@ En tant que développeur solo, je veux un bouton « Enregistrer » qui écrit mo
 - Étape : MVP 0 · Estimation proposée : 3 points · Dépendances : US-003, US-005 · **Zone sensible : oui (écritures atomiques) → porte 3**
 - Exigences (proposées, héritées d'US-003 et US-005) : §7.4, NF-12, PRJ-02
 - Origine : US-003 livrée sans écriture (modèle en mémoire, « Non enregistré ») car US-005 n'était pas mergée. Ajoutée au backlog le 2026-10-01, statut « À faire » ; estimation et exigences à confirmer au prochain Sprint Planning.
+- Done le 2026-10-01 (PR #12, merge `4ed19c7`). Zone sensible : deux revues `relecteur` indépendantes ACCEPTÉ, puis retouches confirmées (test nommé AC-077-5 ; bouton jamais bloqué après une exception, test RED puis `try/finally`).
+- Décisions : `ContenuDto` texte ou octets dans `ecrire_fichiers_projet` (fichiers non UTF-8 écrits à l'octet près) ; `generated.yaml` = `files: [{path, adapter, source: contexts, sha256}]`, SHA-256 calculé après conversion CRLF→LF ; refus `SOURCE_MODIFIEE` et `MODELE_EXISTANT` ; libellés d'erreur déplacés du cœur vers `src/ui/i18n` (8 tests d'US-005 modifiés : assertion `message` remplacée par `detail`, textes vérifiés mot pour mot côté i18n ; décision orchestrateur, présentée au PO) ; `generator_version` lu dans `package.json` via `define` Vite.
+- Risque résiduel : course de quelques ms sur `MODELE_EXISTANT` hors verrou (un `cadre.yaml` écrit au même instant par une autre fenêtre peut être écrasé ; sauvegarde non garantie) ; course sur `SOURCE_MODIFIEE` ; contenu en octets transmis en JSON (lent sur gros fichiers) ; pas de test de bout en bout interface → disque réel.
 
 Critères d'acceptation :
 - AC-077-1 : Étant donné un projet ouvert avec des contextes importés (US-003), quand l'utilisateur clique « Enregistrer », alors `.cadre/` est écrit via US-005 : `cadre.yaml`, les contextes importés, et leur adoption dans `generated.yaml` selon [ADR-001](ADR-001-format-cadre-v1) D5.
@@ -978,14 +984,15 @@ Les NF ne deviennent pas des stories (sauf NF-13 « annulation », voir US-051, 
 
 ## 9. Proposition de découpage en sprints
 
-**Proposition indicative ; Sprint 1 retenu tel quel le 2026-10-01 (porte 2 déléguée) ; Sprint 2 replanifié le 2026-10-01 (voir ci-dessous) ; sprints suivants à replanifier selon la vélocité (Sprint 1 : 11 points).** La vélocité est inconnue : le Sprint 1 est volontairement modeste (11 points) pour l'étalonner. Les sprints suivants seront redimensionnés selon la vélocité mesurée.
+**Proposition indicative ; Sprint 1 retenu tel quel le 2026-10-01 (porte 2 déléguée) ; Sprint 2 replanifié le 2026-10-01 (voir ci-dessous) ; Sprint 3 retenu le 2026-10-01 (voir ci-dessous) ; sprints suivants à replanifier selon la vélocité (Sprint 1 : 11 points).** La vélocité est inconnue : le Sprint 1 est volontairement modeste (11 points) pour l'étalonner. Les sprints suivants seront redimensionnés selon la vélocité mesurée.
 
 | Sprint | Sprint Goal proposé | Contenu | Points |
 | --- | --- | --- | --- |
 | **1** | **« J'ouvre un projet Claude Code existant, je vois ses skills et son CLAUDE.md, et Cadre enregistre un premier modèle `.cadre/` qui ne peut pas être corrompu. »** | SP-01 (2), US-001 (2), US-002 (2), US-003 (2), US-005 (3, zone sensible) | 11 |
 | **2 (retenu le 2026-10-01)** | **« J'enregistre mon cadrage dans .cadre/ depuis l'application, je le retrouve en rouvrant le projet, et je crée mon premier agent. »** | US-077 (3, sensible), US-006 (3), US-007 (2), US-076 (2, sensible), SP-02 (3) | 13 |
 | 2 (proposition initiale, remplacée) | « Je crée un agent et Cadre génère son fichier Claude Code. » | US-004 (3), US-006 (3), US-007 (2), US-008 (3, sensible), SP-02 (3) | 14 |
-| 3 | « Un projet existant fait l'aller-retour Cadre → Claude Code sans perte » (**porte MVP 0**) | US-009 (3, sensible), US-010 (3), US-011 (2, sensible), SP-03 (2) | 10 |
+| **3 (retenu le 2026-10-01)** | **« Un projet Claude Code existant fait l'aller-retour Cadre → Claude Code sans perte » (porte MVP 0)** | US-004 (3), US-008 (3, sensible), US-009 (3, sensible), US-010 (3), US-011 (2, sensible), US-079 (1) ; SP-03 reporté au Sprint 4 (dépend de Q-11) | 15 |
+| 3 (proposition initiale, remplacée) | « Un projet existant fait l'aller-retour Cadre → Claude Code sans perte » (**porte MVP 0**) | US-009 (3, sensible), US-010 (3), US-011 (2, sensible), SP-03 (2) | 10 |
 | 4 | « Je cadre un agent (skills, portée, outils) et je sais ce qui est garanti. » | US-012 (2), US-013 (3), US-014 (3), US-015 (2), US-016 (3), US-017 (3) | 16 |
 | 5 | « Je lance un agent dans un worktree isolé et je suis sa sortie. » | SP-05 (3), SP-06 (3), US-019 (3), US-020 (3), US-021 (3), US-022 (2) | 17 |
 | 6 | « Je vois ce que l'agent a changé, les violations sont signalées et je peux tout rejeter. » | US-023 (3), US-024 (2), US-025 (3), US-026 (3), US-018 (2) | 13 |
@@ -1024,6 +1031,12 @@ Points relevés le 2026-10-01, non transformés en stories (le message dédié p
 | `tools.terminal: {}` dans `agent.json` accepte n'importe quelle valeur — US-006 | avant US-015 |
 | Bouton de réparation d'un modèle incomplet — US-006 | à planifier |
 | Contrôles d'unicité de D11 ([ADR-001](ADR-001-format-cadre-v1)) — US-006 | à planifier |
+| Transaction « créer si absent » sous verrou pour `cadre.yaml` (course `MODELE_EXISTANT`) — US-077 | à planifier |
+| Course sur `SOURCE_MODIFIEE` — US-077 | à planifier |
+| Contenu en octets transmis en JSON, lent sur gros fichiers — US-077 | à planifier (cf. IPC binaire) |
+| Test de bout en bout interface → disque réel — US-077 | à planifier (tests e2e au MVP 1) |
+| Commentaires de `cadre.yaml` perdus quand `tools` est complété (passer par `parseDocument`) — US-007 | à planifier |
+| Harmoniser le message `AGENT_EXISTANT` avec la phrase de réassurance — US-007 | à planifier |
 
 ---
 

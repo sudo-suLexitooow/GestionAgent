@@ -11,6 +11,7 @@
 **Sprints**
 
 - [Sprint courant](Sprint-courant)
+- [Sprint 03](Sprint-03)
 - [Sprint 02](Sprint-02)
 - [Sprint 01](Sprint-01)
 - [Sprint 00](Sprint-00)
