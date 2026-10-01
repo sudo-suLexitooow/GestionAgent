@@ -12,31 +12,59 @@
 use super::segment_portable;
 use std::fmt;
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
+
+/// Raison d'un refus de la résolution sûre.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Motif {
+    /// Un segment enfreint la règle R1 (`..`, chemin absolu, préfixe Windows, nom réservé…).
+    Segment,
+    /// Le chemin passe par un lien symbolique ou une jonction (cible ou dossier parent).
+    Lien,
+    /// L'entrée n'a pas la nature attendue (parent qui n'est pas un dossier, fichier spécial…).
+    Nature,
+    /// Le fichier dépasse la taille maximale demandée.
+    Taille,
+}
 
 /// Chemin refusé par la résolution sûre.
 #[derive(Debug)]
-pub struct CheminRefuse(pub String);
+pub struct CheminRefuse {
+    pub motif: Motif,
+    pub message: String,
+}
 
 impl fmt::Display for CheminRefuse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(&self.message)
     }
 }
 
 impl std::error::Error for CheminRefuse {}
 
 pub fn refus(message: String) -> io::Error {
-    io::Error::new(io::ErrorKind::InvalidInput, CheminRefuse(message))
+    refus_pour(Motif::Nature, message)
+}
+
+fn refus_pour(motif: Motif, message: String) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidInput, CheminRefuse { motif, message })
+}
+
+fn refus_de(erreur: &io::Error) -> Option<&CheminRefuse> {
+    erreur
+        .get_ref()
+        .and_then(|interne| interne.downcast_ref::<CheminRefuse>())
 }
 
 /// Message du refus si `erreur` vient de la résolution sûre.
 pub fn motif_de_refus(erreur: &io::Error) -> Option<String> {
-    erreur
-        .get_ref()
-        .and_then(|interne| interne.downcast_ref::<CheminRefuse>())
-        .map(|refus| refus.0.clone())
+    refus_de(erreur).map(|refus| refus.message.clone())
+}
+
+/// Raison du refus si `erreur` vient de la résolution sûre.
+pub fn genre_de_refus(erreur: &io::Error) -> Option<Motif> {
+    refus_de(erreur).map(|refus| refus.motif)
 }
 
 /// Nature d'une entrée, lue sans suivre les liens.
@@ -44,14 +72,19 @@ pub fn motif_de_refus(erreur: &io::Error) -> Option<String> {
 pub enum Genre {
     Fichier,
     Dossier,
-    /// Lien symbolique, jonction, FIFO, périphérique…
+    /// Lien symbolique ou jonction (jamais suivi).
+    Lien,
+    /// FIFO, périphérique, socket…
     Autre,
 }
 
 fn genre_de(meta: &fs::Metadata) -> Genre {
-    let type_ = meta.file_type();
+    genre_du_type(meta.file_type())
+}
+
+fn genre_du_type(type_: fs::FileType) -> Genre {
     if type_.is_symlink() {
-        Genre::Autre
+        Genre::Lien
     } else if type_.is_dir() {
         Genre::Dossier
     } else if type_.is_file() {
@@ -92,7 +125,10 @@ impl Projet {
         }
         let segments: Vec<&str> = relatif.split('/').collect();
         if let Some(segment) = segments.iter().find(|segment| !segment_portable(segment)) {
-            return Err(refus(format!("{relatif} : segment refusé ({segment:?})")));
+            return Err(refus_pour(
+                Motif::Segment,
+                format!("{relatif} : segment refusé ({segment:?})"),
+            ));
         }
         let mut existe = true;
         for (i, segment) in segments.iter().enumerate() {
@@ -104,10 +140,11 @@ impl Projet {
                 Ok(meta) => {
                     let genre = genre_de(&meta);
                     let dernier = i + 1 == segments.len();
-                    if meta.file_type().is_symlink() {
-                        return Err(refus(format!(
-                            "{relatif} : passe par un lien symbolique ou une jonction"
-                        )));
+                    if genre == Genre::Lien {
+                        return Err(refus_pour(
+                            Motif::Lien,
+                            format!("{relatif} : passe par un lien symbolique ou une jonction"),
+                        ));
                     }
                     if !dernier && genre != Genre::Dossier {
                         return Err(refus(format!(
@@ -144,16 +181,32 @@ impl Projet {
         }
     }
 
-    /// Comme [`Projet::lire`], mais refuse un fichier de plus de `taille_max` octets.
+    /// Comme [`Projet::lire`], mais refuse un fichier de plus de `taille_max` octets, y compris
+    /// s'il grossit entre la vérification et la lecture (lecture bornée).
     pub fn lire_au_plus(&self, relatif: &str, taille_max: u64) -> io::Result<Option<Vec<u8>>> {
-        if let Some(Genre::Fichier) = self.genre(relatif)? {
-            if fs::symlink_metadata(self.reel(relatif)?)?.len() > taille_max {
-                return Err(refus(format!(
-                    "{relatif} dépasse la taille maximale ({taille_max} octets)"
-                )));
-            }
+        let trop_gros = || {
+            refus_pour(
+                Motif::Taille,
+                format!("{relatif} dépasse la taille maximale ({taille_max} octets)"),
+            )
+        };
+        match self.genre(relatif)? {
+            None => return Ok(None),
+            Some(Genre::Fichier) => {}
+            Some(_) => return Err(refus(format!("{relatif} n'est pas un fichier ordinaire"))),
         }
-        self.lire(relatif)
+        let chemin = self.reel(relatif)?;
+        if fs::symlink_metadata(&chemin)?.len() > taille_max {
+            return Err(trop_gros());
+        }
+        let mut octets = Vec::new();
+        File::open(chemin)?
+            .take(taille_max.saturating_add(1))
+            .read_to_end(&mut octets)?;
+        if octets.len() as u64 > taille_max {
+            return Err(trop_gros());
+        }
+        Ok(Some(octets))
     }
 
     /// Crée un fichier qui ne doit pas exister, écrit son contenu et le synchronise (fsync).
@@ -235,13 +288,7 @@ impl Projet {
             let Ok(nom) = entree.file_name().into_string() else {
                 continue;
             };
-            let genre = match entree.file_type()? {
-                t if t.is_symlink() => Genre::Autre,
-                t if t.is_dir() => Genre::Dossier,
-                t if t.is_file() => Genre::Fichier,
-                _ => Genre::Autre,
-            };
-            entrees.push((nom, genre));
+            entrees.push((nom, genre_du_type(entree.file_type()?)));
         }
         Ok(entrees)
     }
