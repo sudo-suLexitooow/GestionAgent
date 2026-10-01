@@ -192,11 +192,30 @@ describe("échecs d'enregistrement (AC-077-2, zone sensible)", () => {
 });
 
 describe("enregistrement impossible ou déjà en cours", () => {
-  test("test_ac_077_2_modele_en_lecture_seule_bouton_desactive_avec_explication", async () => {
+  /** Projet dont le modèle a un format plus récent : ouvert en lecture seule (AC-006-2). */
+  async function ouvrirModeleLectureSeule() {
     const disque = new DisqueMemoire(ROOT, {
       ".cadre/cadre.yaml": "schema_version: 2\ngenerator_version: 9.0.0\ntools: [claude-code]\n",
     });
     await ouvrir(disque);
+    return disque;
+  }
+
+  test("test_ac_077_5_modele_en_lecture_seule_enregistrement_refuse_avec_explication", async () => {
+    const disque = await ouvrirModeleLectureSeule();
+    await waitFor(() => {
+      expect(boutonEnregistrer()).toHaveAccessibleDescription(t("save.readOnly"));
+    });
+
+    fireEvent.click(boutonEnregistrer());
+
+    expect(boutonEnregistrer()).toBeDisabled();
+    expect(screen.getByText(t("save.readOnly"))).toBeInTheDocument();
+    expect(disque.transactions).toEqual([]);
+  });
+
+  test("test_ac_077_2_modele_en_lecture_seule_bouton_desactive_avec_explication", async () => {
+    await ouvrirModeleLectureSeule();
 
     await waitFor(() => {
       expect(boutonEnregistrer()).toHaveAccessibleDescription(t("save.readOnly"));
