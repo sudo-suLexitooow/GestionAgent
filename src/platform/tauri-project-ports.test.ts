@@ -1,5 +1,6 @@
-import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
-import { tauriFolderAccess } from "./tauri-project-ports";
+import { emit } from "@tauri-apps/api/event";
+import { clearMocks, mockIPC, mockWindows } from "@tauri-apps/api/mocks";
+import { tauriDropSource, tauriFolderAccess } from "./tauri-project-ports";
 
 // Le pont IPC de Tauri est simulé par `mockIPC` (outil officiel) : le code testé reste l'adaptateur réel.
 interface Call {
@@ -47,5 +48,38 @@ describe("vérification d'un dossier par la commande système", () => {
 
     expect(status).toBe("unreadable");
     expect(calls).toEqual([{ cmd: "inspect_folder", args: { path: "/home/lea/secret" } }]);
+  });
+});
+
+describe("glisser-déposer natif de la webview", () => {
+  beforeEach(() => {
+    mockWindows("main");
+    mockIPC(() => null, { shouldMockEvents: true });
+    // Indicateur posé par Tauri dans une vraie fenêtre ; `mockIPC` ne le pose pas.
+    Object.assign(globalThis, { isTauri: true });
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(globalThis, "isTauri");
+  });
+
+  test("test_ac_001_2_relaie_les_chemins_deposes_et_ignore_le_survol", async () => {
+    const received: string[][] = [];
+    await tauriDropSource.onDrop((paths) => received.push(paths));
+
+    await emit("tauri://drag-over", { position: { x: 1, y: 1 } });
+    await emit("tauri://drag-drop", { paths: ["/home/lea/a", "/home/lea/b"], position: { x: 1, y: 1 } });
+
+    expect(received).toEqual([["/home/lea/a", "/home/lea/b"]]);
+  });
+
+  test("test_ac_001_2_le_desabonnement_arrete_la_reception", async () => {
+    const received: string[][] = [];
+    const unsubscribe = await tauriDropSource.onDrop((paths) => received.push(paths));
+
+    unsubscribe();
+    await emit("tauri://drag-drop", { paths: ["/home/lea/a"], position: { x: 1, y: 1 } });
+
+    expect(received).toEqual([]);
   });
 });
