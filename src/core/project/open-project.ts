@@ -1,3 +1,4 @@
+import { decideDrop } from "./drop";
 import type { FolderAccess } from "./ports";
 
 export interface Project {
@@ -17,6 +18,7 @@ export type OpenOutcome =
   | { kind: "cancelled" }
   | { kind: "error"; error: OpenError };
 
+/** Ouvre le dossier choisi dans le sélecteur (AC-001-1, AC-001-4, AC-001-5). */
 export async function openFromPicker(folders: FolderAccess): Promise<OpenOutcome> {
   try {
     const path = await folders.pickFolder();
@@ -27,11 +29,22 @@ export async function openFromPicker(folders: FolderAccess): Promise<OpenOutcome
   }
 }
 
+/** Ouvre le dossier déposé dans la fenêtre ; un fichier ou plusieurs éléments sont refusés (AC-001-2, AC-001-3). */
 export async function openFromDrop(
   folders: FolderAccess,
   paths: readonly string[],
 ): Promise<OpenOutcome> {
-  return openPath(folders, paths[0] ?? "");
+  const decision = decideDrop(paths);
+  if (decision.kind === "rejected") return { kind: "error", error: "drop-single-folder" };
+  try {
+    const outcome = await openPath(folders, decision.path);
+    if (outcome.kind === "error" && outcome.error === "not-a-directory") {
+      return { kind: "error", error: "drop-single-folder" };
+    }
+    return outcome;
+  } catch {
+    return { kind: "error", error: "unexpected" };
+  }
 }
 
 async function openPath(folders: FolderAccess, path: string): Promise<OpenOutcome> {
