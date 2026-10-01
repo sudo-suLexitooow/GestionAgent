@@ -2,6 +2,7 @@
 // `contexts`, le contenu brut de chaque contexte, et l'adoption des fichiers importés dans
 // `generated.yaml` (ADR-001, D2 et D5). Une seule transaction, via le chemin d'écriture d'US-005.
 import type { ToolAdapter } from "../adapters/adapter";
+import { fichiersAgent, type AgentNouveau } from "../agents/agent";
 import type { ImportedContext } from "../contexts/context";
 import { GENERIC_ADAPTER_ID } from "../contexts/generic-format";
 import type { FichierAEcrire, SystemeFichiersProjet } from "../fichiers/systeme-fichiers";
@@ -35,6 +36,8 @@ export async function enregistrerContextesImportes(
   racine: string,
   contextes: readonly ImportedContext[],
   options: OptionsEnregistrement,
+  /** Agents créés depuis l'ouverture (US-007), écrits dans la même transaction. */
+  agents: readonly AgentNouveau[] = [],
 ): Promise<ResultatEnregistrement> {
   // Ne rejette jamais : toute exception de la préparation (lecture, empreinte, sérialisation)
   // devient une erreur `ECHEC`, sans rien écrire.
@@ -44,28 +47,36 @@ export async function enregistrerContextesImportes(
       (await modeleApparu(disque.fichiers, racine)) ??
       (await sourceModifiee(disque.fichiers, racine, contextes));
     if (refus) return { ok: false, erreur: refus };
-    fichiers = await preparer(contextes, options);
+    fichiers = await preparer(contextes, agents, options);
   } catch (erreur) {
     return { ok: false, erreur: versErreurEnregistrement(erreur) };
   }
   return enregistrerFichiers(disque.systeme, racine, fichiers);
 }
 
-/** `cadre.yaml`, contenu brut des contextes et manifeste d'adoption, dans l'ordre d'écriture. */
+/**
+ * `cadre.yaml`, contenu brut des contextes, agents et manifeste d'adoption, dans l'ordre
+ * d'écriture. `tools` : l'outil actif et les outils cibles des agents.
+ */
 async function preparer(
   contextes: readonly ImportedContext[],
+  agents: readonly AgentNouveau[],
   options: OptionsEnregistrement,
 ): Promise<FichierAEcrire[]> {
   const adoptions: FichierGenere[] = await Promise.all(
     contextes.map((contexte) => adoption(contexte, options.adapter)),
   );
   const cadre = {
-    ...nouveauCadre({ generatorVersion: options.generatorVersion, outils: [options.adapter.id] }),
+    ...nouveauCadre({
+      generatorVersion: options.generatorVersion,
+      outils: [...new Set([options.adapter.id, ...agents.map((agent) => agent.target)])],
+    }),
     contexts: contextes.map(({ entry }) => entry),
   };
   return [
     { chemin: ".cadre/cadre.yaml", contenu: serialiserCadre(cadre) },
     ...contextes.map(({ path, content }) => ({ chemin: path, contenu: content })),
+    ...agents.flatMap(fichiersAgent),
     { chemin: ".cadre/generated.yaml", contenu: serialiserManifeste(adoptions) },
   ];
 }

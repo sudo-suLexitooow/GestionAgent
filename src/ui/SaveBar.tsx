@@ -44,6 +44,13 @@ function SaveError({ erreur }: { erreur: ErreurEnregistrement }) {
       </p>
     );
   }
+  if (erreur.code === "AGENT_EXISTANT") {
+    return (
+      <p role="alert" aria-label={t("save.title")}>
+        {t("save.error.AGENT_EXISTANT").replace("{nom}", erreur.detail)}
+      </p>
+    );
+  }
   return (
     <div role="alert" aria-label={t("save.title")}>
       <p>{t(`save.error.${erreur.code}`)}</p>

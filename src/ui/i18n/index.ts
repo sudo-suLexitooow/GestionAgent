@@ -68,6 +68,10 @@ const fr = {
   "save.error.SOURCE_MODIFIEE":
     "a changé depuis l'import (modifié, supprimé ou devenu illisible) : réimportez-le. Rien n'a été enregistré.",
   "save.error.MODELE_EXISTANT": `Enregistrement annulé : un modèle .cadre/ a été créé dans ce projet depuis l'import (par exemple par une autre fenêtre de Cadre). Il est affiché à la place ; vos contextes importés n'ont pas été enregistrés. ${RASSURANCE}`,
+  "save.error.MODELE_NON_MODIFIABLE": `Enregistrement annulé : le modèle .cadre/ de ce projet est incomplet ou a été enregistré par une version plus récente de Cadre ; Cadre ne le modifie pas. ${RASSURANCE}`,
+  /** `{nom}` : nom de l'agent non enregistré en conflit. */
+  "save.error.AGENT_EXISTANT":
+    'Un agent "{nom}" existe déjà sur le disque : retirez l\'agent non enregistré ou recréez-le sous un autre nom.',
   "save.error.LECTURE_SEULE": `Enregistrement impossible : le dossier du projet est en lecture seule ou son accès est refusé. ${RASSURANCE}`,
   "save.error.DISQUE_PLEIN": `Enregistrement impossible : le disque est plein. Libérez de l'espace puis réessayez. ${RASSURANCE}`,
   "save.error.CHEMIN_INVALIDE": `Enregistrement impossible : un chemin de fichier est invalide ou passe par un lien symbolique (par exemple un .gitignore lié à un autre fichier). ${RASSURANCE}`,
@@ -78,6 +82,29 @@ const fr = {
   "save.error.RECUPERATION_IMPOSSIBLE":
     "Enregistrement impossible : une écriture interrompue n'a pas pu être reprise. Des fichiers du projet peuvent être partiellement modifiés ; les copies d'origine sont dans le dossier indiqué dans le détail, rien n'a été supprimé. Réessayez pour enregistrer.",
   "save.error.ECHEC": `Enregistrement impossible à cause d'une erreur inattendue. ${RASSURANCE}`,
+  "agents.title": "Agents",
+  "agents.new": "Nouvel agent",
+  "agents.name": "Nom",
+  "agents.role": "Rôle",
+  "agents.description": "Description",
+  "agents.target": "Outil cible",
+  "agents.create": "Créer l'agent",
+  "agents.unsaved": "Non enregistré",
+  "agents.unsavedGroup": "Agents non enregistrés",
+  "agents.remove": "Retirer",
+  "agents.warning.DESCRIPTION_MANQUANTE":
+    "Agent créé, mais description manquante : renseignez son rôle et sa description, sans quoi l'outil cible pourrait ne pas le charger.",
+  "agents.refus.NOM_VIDE": "Création refusée : le nom est obligatoire.",
+  "agents.refus.NOM_CARACTERES_INTERDITS":
+    'Création refusée : le nom contient un caractère interdit dans un nom de fichier sous Windows ou macOS (< > : " / \\ | ? * ou caractère de contrôle).',
+  "agents.refus.NOM_RESERVE":
+    "Création refusée : ce nom est réservé par Windows (CON, PRN, AUX, NUL, COM0 à COM9, LPT0 à LPT9), quelle que soit la casse.",
+  "agents.refus.NOM_FORMAT":
+    "Création refusée : le nom doit compter 1 à 64 caractères parmi les lettres sans accent, les chiffres, - et _, sans commencer ni finir par - ou _.",
+  "agents.refus.NOM_EXISTANT":
+    "Création refusée : un agent porte déjà ce nom (majuscules et minuscules ne sont pas distinguées).",
+  "agents.refus.CIBLE_INDISPONIBLE":
+    "Création refusée : aucun adaptateur n'est disponible pour cet outil.",
   "skills.title": "Skills",
   "skills.none": "Aucune skill détectée.",
   "skills.failed": "Les skills n'ont pas pu être lues.",

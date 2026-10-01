@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChargementModele } from "../core/cadre/charger-modele";
+import { nomsDesAgents, type ChargementModele } from "../core/cadre/charger-modele";
 import {
   versErreurEnregistrement,
   type ErreurEnregistrement,
   type ResultatEnregistrement,
 } from "../core/cadre/enregistrer";
-import { enregistrerContextesImportes } from "../core/cadre/enregistrer-import";
+import { enregistrerCadrage } from "../core/cadre/enregistrer-cadrage";
+import type { AgentNouveau } from "../core/agents/agent";
 import type { ImportedContext } from "../core/contexts/context";
 import type { ContextImport } from "../core/contexts/import-contexts";
 import type { SystemeFichiersProjet } from "../core/fichiers/systeme-fichiers";
@@ -27,6 +28,7 @@ import {
   tauriProjectFiles,
 } from "../platform/tauri-project-ports";
 import { t } from "./i18n";
+import { AgentsSection } from "./AgentsSection";
 import { ContextsSection } from "./ContextsSection";
 import { ModelSection } from "./ModelSection";
 import { SkillsSection } from "./SkillsSection";
@@ -44,6 +46,14 @@ const systemeTauri = new SystemeFichiersTauri();
 
 /** Refus d'enregistrement qui rendent l'import caduc : le projet doit être relu. */
 const REFUS_A_RELIRE: ReadonlySet<string> = new Set(["SOURCE_MODIFIEE", "MODELE_EXISTANT"]);
+
+/** Outils dont un adaptateur est disponible : cibles possibles d'un agent (AC-007-2). */
+const ADAPTATEURS = [claudeCodeAdapter];
+
+/** Agents du modèle chargé, même en erreur ; aucun sans modèle. */
+function nomsAgentsEnregistres(chargement: ChargementModele | null): string[] {
+  return chargement?.etat === "charge" ? nomsDesAgents(chargement.modele) : [];
+}
 
 export function App({
   folders = tauriFolderAccess,
@@ -114,28 +124,36 @@ function ProjectScreen({
 }) {
   /** Incrémenté pour relire le projet (modèle, proposition d'import) après un enregistrement. */
   const [lecture, setLecture] = useState(0);
+  /** Incrémenté pour relire seulement le modèle (agent apparu sur le disque, AC-007-3). */
+  const [lectureModele, setLectureModele] = useState(0);
   const [importe, setImporte] = useState<ContextImport | null>(null);
-  const [lectureSeule, setLectureSeule] = useState(false);
+  /** `null` tant que le modèle n'est pas (re)lu : aucune création d'agent possible. */
+  const [chargement, setChargement] = useState<ChargementModele | null>(null);
+  const [nouveaux, setNouveaux] = useState<AgentNouveau[]>([]);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<ErreurEnregistrement | null>(null);
   // Garde synchrone : deux clics avant le rendu suivant ne lancent qu'un enregistrement.
   const enregistrementEnCours = useRef(false);
 
-  const surChargement = useCallback((chargement: ChargementModele) => {
-    setLectureSeule(chargement.etat === "charge" && chargement.lectureSeule);
+  const surChargement = useCallback((resultat: ChargementModele) => {
+    setChargement(resultat);
   }, []);
+  const lectureSeule = chargement?.etat === "charge" && chargement.lectureSeule;
+  const modifiable =
+    chargement?.etat === "aucun" || (chargement?.etat === "charge" && !chargement.lectureSeule);
 
-  async function enregistrer(contextes: ImportedContext[]) {
+  async function enregistrer(contextes: readonly ImportedContext[]) {
     if (enregistrementEnCours.current) return;
     enregistrementEnCours.current = true;
     setEnCours(true);
     setErreur(null);
+    const agents = nouveaux;
     let resultat: ResultatEnregistrement;
     try {
-      resultat = await enregistrerContextesImportes(
+      resultat = await enregistrerCadrage(
         { fichiers: files, systeme },
         project.path,
-        contextes,
+        { contextes, agents },
         { adapter: claudeCodeAdapter, generatorVersion: VERSION_CADRE },
       );
     } catch (exception) {
@@ -147,13 +165,20 @@ function ProjectScreen({
     }
     if (!resultat.ok) setErreur(resultat.erreur);
     // Succès, ou refus qui rend l'import caduc : le projet est relu (modèle ou nouvel import).
+    if (resultat.ok) setNouveaux((actuels) => actuels.filter((agent) => !agents.includes(agent)));
     if (resultat.ok || REFUS_A_RELIRE.has(resultat.erreur.code)) {
       setImporte(null);
+      setChargement(null);
       setLecture((n) => n + 1);
+    } else if (resultat.erreur.code === "AGENT_EXISTANT") {
+      // Seul le modèle est relu, pour afficher l'agent apparu ; le reste du cadrage est gardé.
+      setChargement(null);
+      setLectureModele((n) => n + 1);
     }
   }
 
-  const aEnregistrer = importe && importe.contexts.length > 0 ? importe.contexts : null;
+  const contextes = importe?.contexts ?? [];
+  const modifie = contextes.length > 0 || nouveaux.length > 0;
   return (
     <main>
       <h1>{project.name}</h1>
@@ -172,19 +197,31 @@ function ProjectScreen({
         {t("project.path")} : <code>{project.path}</code>
       </p>
       <SaveBar
-        modifie={aEnregistrer !== null}
+        modifie={modifie}
         lectureSeule={lectureSeule}
         enCours={enCours}
         erreur={erreur}
         onSave={() => {
-          if (aEnregistrer) void enregistrer(aEnregistrer);
+          if (modifie) void enregistrer(contextes);
         }}
       />
       <ModelSection
-        key={`m${String(lecture)}`}
+        key={`m${String(lecture)}-${String(lectureModele)}`}
         root={project.path}
         files={files}
         onLoaded={surChargement}
+      />
+      <AgentsSection
+        enregistres={nomsAgentsEnregistres(chargement)}
+        nouveaux={nouveaux}
+        adaptateurs={ADAPTATEURS}
+        desactive={!modifiable}
+        onCreate={(agent) => {
+          setNouveaux((actuels) => [...actuels, agent]);
+        }}
+        onRemove={(retire) => {
+          setNouveaux((actuels) => actuels.filter((agent) => agent !== retire));
+        }}
       />
       <ContextsSection
         key={`c${String(lecture)}`}

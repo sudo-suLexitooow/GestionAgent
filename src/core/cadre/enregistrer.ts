@@ -11,9 +11,16 @@ import { completerGitignore } from "./gitignore";
 /**
  * Codes d'erreur d'enregistrement : ceux du système de fichiers (AC-005-6), plus les refus décidés
  * avant toute écriture (US-077) : `SOURCE_MODIFIEE` (un fichier importé a changé depuis l'import,
- * détail = son chemin) et `MODELE_EXISTANT` (un modèle `.cadre/` est apparu entre-temps).
+ * détail = son chemin) et `MODELE_EXISTANT` (un modèle `.cadre/` est apparu entre-temps) ; et
+ * (US-007) `MODELE_NON_MODIFIABLE` (modèle incomplet ou d'un format plus récent, détail = son
+ * chemin) et `AGENT_EXISTANT` (un agent du même nom, casse comprise, est apparu, détail = le nom).
  */
-export type CodeErreurEnregistrement = CodeErreurFichiers | "SOURCE_MODIFIEE" | "MODELE_EXISTANT";
+export type CodeErreurEnregistrement =
+  | CodeErreurFichiers
+  | "SOURCE_MODIFIEE"
+  | "MODELE_EXISTANT"
+  | "MODELE_NON_MODIFIABLE"
+  | "AGENT_EXISTANT";
 
 /** Erreur d'enregistrement : code stable (libellé dans `src/ui/i18n/`, AC-005-6) et détail. */
 export interface ErreurEnregistrement {
