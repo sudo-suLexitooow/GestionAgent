@@ -31,9 +31,15 @@ export function ContextsSection({ root, files, adapter }: ContextsSectionProps) 
 
   useEffect(() => {
     let current = true;
-    void detectContextFiles(files, root, adapter).then((specs) => {
-      if (current) setState(specs.length > 0 ? { kind: "proposed", specs } : { kind: "none" });
-    });
+    // Racine illisible : rien à proposer, sans planter.
+    void detectContextFiles(files, root, adapter).then(
+      (specs) => {
+        if (current) setState(specs.length > 0 ? { kind: "proposed", specs } : { kind: "none" });
+      },
+      () => {
+        if (current) setState({ kind: "none" });
+      },
+    );
     return () => {
       current = false;
     };
