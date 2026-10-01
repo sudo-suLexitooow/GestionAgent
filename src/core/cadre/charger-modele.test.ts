@@ -264,6 +264,19 @@ describe("modèle incomplet (AC-006-5) ou absent (AC-006-6)", () => {
     },
   );
 
+  test("test_ac_006_5_autre_contenu_a_cote_des_dossiers_non_versionnes_modele_incomplet", async () => {
+    expect(
+      await charger({
+        ".cadre/tmp/verrou": "",
+        ".cadre/backups/index.yaml": "{}",
+        ".cadre/contexte/CLAUDE.md": "# P\n",
+      }),
+    ).toEqual({
+      etat: "incomplet",
+      erreur: { fichier: ".cadre/cadre.yaml", code: "CADRE_MISSING" },
+    });
+  });
+
   test("test_ac_006_5_cadre_yaml_avec_alias_en_masse_modele_incomplet", async () => {
     expect(await charger({ ".cadre/cadre.yaml": BOMBE_ALIAS })).toEqual({
       etat: "incomplet",
@@ -284,6 +297,16 @@ describe("modèle incomplet (AC-006-5) ou absent (AC-006-6)", () => {
     ["sans_dossier_cadre", { "CLAUDE.md": "# P\n" }],
     ["dossier_cadre_avec_seulement_le_verrou", { ".cadre/tmp/verrou": "" }],
     ["dossier_cadre_vide", { ".cadre/": "" }],
+    ["dossier_cadre_avec_seulement_runs", { ".cadre/runs/": "" }],
+    ["dossier_cadre_avec_seulement_backups", { ".cadre/backups/CLAUDE.md": "# P\n" }],
+    [
+      "dossier_cadre_avec_tmp_runs_et_backups_non_vides",
+      {
+        ".cadre/tmp/verrou": "",
+        ".cadre/runs/r1/journal.txt": "x",
+        ".cadre/backups/index.yaml": "{}",
+      },
+    ],
   ])("test_ac_006_6_pas_de_modele_%s", async (_cas, contenu) => {
     expect(await charger(contenu)).toEqual({ etat: "aucun" });
   });

@@ -41,6 +41,16 @@ describe("détection des fichiers de contexte à importer", () => {
     expect(detected.map((spec) => spec.file)).toEqual(["CLAUDE.md"]);
   });
 
+  test("test_ac_006_6_un_dossier_cadre_avec_seulement_runs_et_backups_l_import_est_propose", async () => {
+    const detected = await detect({
+      "CLAUDE.md": "# Projet\n",
+      ".cadre/runs/": "",
+      ".cadre/backups/CLAUDE.md": "# Ancien\n",
+    });
+
+    expect(detected.map((spec) => spec.file)).toEqual(["CLAUDE.md"]);
+  });
+
   // US-076 : un CLAUDE.md lien est proposé, puis signalé à l'import au lieu d'être ignoré.
   test("test_ac_076_3_un_claude_md_lien_est_detecte", async () => {
     const files = new InMemoryProjectFiles(ROOT, {}).addLink("CLAUDE.md");
