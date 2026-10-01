@@ -15,6 +15,7 @@ export class InMemoryProjectFiles implements ProjectFiles {
   private readonly files = new Map<string, Uint8Array>();
   private readonly directories = new Set<string>([""]);
   private readonly failures = new Map<string, ReadError>();
+  private readonly links = new Set<string>();
 
   constructor(
     private readonly root: string,
@@ -40,8 +41,18 @@ export class InMemoryProjectFiles implements ProjectFiles {
     return this;
   }
 
+  /**
+   * Place un lien symbolique (ou une jonction) à `path`, comme les commandes système d'US-076 :
+   * listé avec la nature `link`, jamais suivi (toute lecture à travers lui rejette `link`).
+   */
+  addLink(path: string): this {
+    this.addDirectoryAndParents(path.split("/").slice(0, -1));
+    this.links.add(path);
+    return this;
+  }
+
   listDir(root: string, path: string): Promise<DirEntry[] | null> {
-    const failure = this.failures.get(path);
+    const failure = this.failures.get(path) ?? this.linkOnTheWay(path);
     if (failure) return reject(failure);
     if (root !== this.root || !this.directories.has(path)) return Promise.resolve(null);
     const prefix = path === "" ? "" : `${path}/`;
@@ -54,15 +65,28 @@ export class InMemoryProjectFiles implements ProjectFiles {
       const name = childName(file, prefix);
       if (name !== null) entries.set(name, { name, kind: "file" });
     }
+    for (const link of this.links) {
+      const name = childName(link, prefix);
+      if (name !== null) entries.set(name, { name, kind: "link" });
+    }
     return Promise.resolve([...entries.values()]);
   }
 
   readFile(root: string, path: string): Promise<Uint8Array | null> {
-    const failure = this.failures.get(path);
+    const failure = this.failures.get(path) ?? this.linkOnTheWay(path);
     if (failure) return reject(failure);
     if (this.directories.has(path)) return reject("unreadable");
     if (root !== this.root) return Promise.resolve(null);
     return Promise.resolve(this.files.get(path) ?? null);
+  }
+
+  /** `link` si `path` ou l'un de ses dossiers parents est un lien, sinon `undefined`. */
+  private linkOnTheWay(path: string): ReadError | undefined {
+    const segments = path.split("/");
+    for (let i = 1; i <= segments.length; i++) {
+      if (this.links.has(segments.slice(0, i).join("/"))) return "link";
+    }
+    return undefined;
   }
 
   /** Déclare le dossier formé par `segments` et tous ses dossiers parents. */

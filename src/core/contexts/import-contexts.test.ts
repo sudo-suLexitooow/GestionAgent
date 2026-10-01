@@ -41,6 +41,15 @@ describe("détection des fichiers de contexte à importer", () => {
     expect(detected.map((spec) => spec.file)).toEqual(["CLAUDE.md"]);
   });
 
+  // US-076 : un CLAUDE.md lien est proposé, puis signalé à l'import au lieu d'être ignoré.
+  test("test_ac_076_3_un_claude_md_lien_est_detecte", async () => {
+    const files = new InMemoryProjectFiles(ROOT, {}).addLink("CLAUDE.md");
+
+    const detected = await detectContextFiles(files, ROOT, claudeCodeAdapter);
+
+    expect(detected.map((spec) => spec.file)).toEqual(["CLAUDE.md"]);
+  });
+
   test("test_ac_003_1_un_dossier_claude_md_ou_un_fichier_hors_racine_n_est_pas_detecte", async () => {
     const detected = await detect({ "CLAUDE.md/notes.md": "x", "docs/AGENTS.md": "# Agents\n" });
 
@@ -173,5 +182,16 @@ describe("import des contextes détectés depuis le projet", () => {
         { source: "AGENTS.md", code: "unreadable" },
       ],
     });
+  });
+
+  test("test_ac_076_3_un_claude_md_lien_donne_un_avertissement_lien_sans_etre_lu", async () => {
+    const files = new InMemoryProjectFiles(ROOT, { "AGENTS.md": "# Agents\n" }).addLink(
+      "CLAUDE.md",
+    );
+
+    const result = await importContexts(files, ROOT, [CLAUDE_SPEC, AGENTS_SPEC]);
+
+    expect(result.warnings).toEqual([{ source: "CLAUDE.md", code: "link" }]);
+    expect(result.contexts.map((context) => context.entry.source)).toEqual(["AGENTS.md"]);
   });
 });

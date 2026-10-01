@@ -8,6 +8,7 @@ import { parseSkillHeader } from "./skill-header";
  * et aux dossiers natifs des outils. Lecture seule ; skills triées par nom de dossier.
  * Dossier absent : aucune skill. Sous-dossier sans `SKILL.md` ou fichier isolé : pas une skill.
  * Une skill illisible ou invalide est listée en erreur, sans empêcher la lecture des autres.
+ * Une skill liée (lien symbolique, jonction) n'est jamais suivie (US-076) : elle est en erreur.
  */
 export async function readSkillsFolder(
   files: ProjectFiles,
@@ -15,12 +16,15 @@ export async function readSkillsFolder(
   dir: string,
 ): Promise<ListedSkill[]> {
   const entries = (await files.listDir(root, dir)) ?? [];
-  const folders = entries
-    .filter((entry) => entry.kind === "directory")
-    .map((entry) => entry.name)
-    .sort();
+  const candidates = entries
+    .filter((entry) => entry.kind === "directory" || entry.kind === "link")
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   const skills = await Promise.all(
-    folders.map((folder) => readSkill(files, root, `${dir}/${folder}/SKILL.md`, folder)),
+    candidates.map(({ name: folder, kind }) =>
+      kind === "link"
+        ? Promise.resolve<ListedSkill>({ folder, status: "error", issue: { code: "link" } })
+        : readSkill(files, root, `${dir}/${folder}/SKILL.md`, folder),
+    ),
   );
   return skills.filter((skill) => skill !== null);
 }

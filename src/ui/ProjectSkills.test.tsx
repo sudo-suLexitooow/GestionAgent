@@ -86,6 +86,21 @@ describe("section Skills de l'écran principal", () => {
     ]);
   });
 
+  test("test_ac_076_3_une_skill_partagee_par_lien_est_en_erreur_lien_non_pris_en_charge", async () => {
+    await openProject(
+      new InMemoryProjectFiles(ROOT, {
+        ".claude/skills/a/SKILL.md": skillMd("a", "Fait A."),
+      }).addLink(".claude/skills/partagee"),
+    );
+
+    const items = await within(await skillsSection()).findAllByRole("listitem");
+
+    expect(items.map((item) => item.textContent)).toEqual([
+      "a — Fait A.",
+      "partagee — en erreur : lien non pris en charge",
+    ]);
+  });
+
   test("test_ac_002_3_un_echec_de_lecture_des_skills_affiche_un_message_sans_planter", async () => {
     await openProject(new InMemoryProjectFiles(ROOT).makeUnreadable(".cadre"));
 

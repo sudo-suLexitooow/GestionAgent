@@ -82,7 +82,7 @@ fn verrouiller_etat(etat: &ProjetOuvert) -> std::sync::MutexGuard<'_, Option<Pat
 }
 
 /// Racine du projet ouvert si `racine` la désigne ; sinon `CheminInvalide`.
-fn racine_autorisee(etat: &ProjetOuvert, racine: &str) -> Result<PathBuf, ErreurEcriture> {
+pub fn racine_autorisee(etat: &ProjetOuvert, racine: &str) -> Result<PathBuf, ErreurEcriture> {
     let ouverte = verrouiller_etat(etat)
         .clone()
         .ok_or_else(|| ErreurEcriture::CheminInvalide("aucun projet ouvert".to_owned()))?;

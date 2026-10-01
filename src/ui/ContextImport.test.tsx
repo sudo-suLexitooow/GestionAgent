@@ -95,6 +95,19 @@ describe("avertissements d'import des contextes", () => {
         .map((item) => item.textContent),
     ).toEqual(["CLAUDE.md — Projet"]);
   });
+
+  test("test_ac_076_3_un_claude_md_lien_affiche_lien_non_pris_en_charge_sans_l_importer", async () => {
+    await openProject(new InMemoryProjectFiles(ROOT).addLink("CLAUDE.md"));
+    const section = await contextsSection();
+
+    fireEvent.click(within(section).getByRole("button", { name: "Importer" }));
+
+    const warning = await within(section).findByRole("alert");
+    expect(warning).toHaveTextContent(
+      "CLAUDE.md : lien non pris en charge ; il n'est pas importé.",
+    );
+    expect(within(section).queryAllByRole("listitem")).toEqual([]);
+  });
 });
 
 describe("import accepté : fichiers d'origine", () => {

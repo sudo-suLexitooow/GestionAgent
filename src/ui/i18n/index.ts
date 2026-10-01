@@ -34,6 +34,7 @@ const fr = {
   "contexts.warning.unreadable": "le fichier ne peut pas être lu ; il n'est pas importé.",
   "contexts.warning.too-large":
     "le fichier dépasse la taille maximale de 8 Mio ; il n'est pas importé.",
+  "contexts.warning.link": "lien non pris en charge ; il n'est pas importé.",
   "contexts.unsaved":
     "Non enregistré : les contextes importés ne sont pas encore écrits dans le dossier .cadre/.",
   "model.title": "Modèle",
@@ -66,6 +67,7 @@ const fr = {
   "skills.issue.encoding": "le fichier SKILL.md n'est pas encodé en UTF-8",
   "skills.issue.unreadable": "le fichier SKILL.md ne peut pas être lu",
   "skills.issue.too-large": "le fichier SKILL.md dépasse la taille maximale de 8 Mio",
+  "skills.issue.link": "lien non pris en charge",
 } as const;
 
 export type LabelKey = keyof typeof fr;

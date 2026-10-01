@@ -66,6 +66,22 @@ describe("découverte des skills de Claude Code (.claude/skills/)", () => {
     ]);
   });
 
+  // US-076 : un lien (skill partagée par lien) n'est jamais suivi ; la skill est en erreur.
+  test("test_ac_076_3_une_skill_liee_est_en_erreur_lien_et_les_autres_sont_listees", async () => {
+    const files = new InMemoryProjectFiles(ROOT, {
+      ".claude/skills/b/SKILL.md": skillMd("b", "Fait B."),
+      ".claude/skills/c/SKILL.md": skillMd("c", "Fait C."),
+    })
+      .addLink(".claude/skills/a")
+      .failWith(".claude/skills/c/SKILL.md", "link");
+
+    expect(await claudeCodeAdapter.detectSkills(files, ROOT)).toEqual([
+      { folder: "a", status: "error", issue: { code: "link" } },
+      { folder: "b", status: "ok", name: "b", description: "Fait B." },
+      { folder: "c", status: "error", issue: { code: "link" } },
+    ]);
+  });
+
   test("test_ac_002_3_un_skill_md_trop_gros_est_en_erreur_avec_cette_raison", async () => {
     const files = new InMemoryProjectFiles(ROOT, {
       ".claude/skills/a/SKILL.md": skillMd("a", "Fait A."),
