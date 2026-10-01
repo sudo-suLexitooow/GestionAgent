@@ -1,6 +1,6 @@
 import { claudeCodeAdapter } from "../adapters/claude-code/claude-code-adapter";
 import { InMemoryProjectFiles } from "../testing/in-memory-project-files";
-import { detectContextFiles } from "./import-contexts";
+import { buildContextImport, detectContextFiles } from "./import-contexts";
 
 const ROOT = "/home/lea/projet";
 
@@ -38,5 +38,32 @@ describe("détection des fichiers de contexte à importer", () => {
     const detected = await detect({ "CLAUDE.md/notes.md": "x", "docs/AGENTS.md": "# Agents\n" });
 
     expect(detected).toEqual([]);
+  });
+});
+
+const CLAUDE_SPEC = { file: "CLAUDE.md", name: "CLAUDE", type: "projet" } as const;
+const AGENTS_SPEC = { file: "AGENTS.md", name: "AGENTS", type: "autre", readonly: true } as const;
+
+/** Octets d'un texte, précédés si besoin d'un BOM UTF-8. */
+function bytesOf(text: string, { bom = false } = {}): Uint8Array {
+  const encoded = new TextEncoder().encode(text);
+  return bom ? Uint8Array.of(0xef, 0xbb, 0xbf, ...encoded) : encoded;
+}
+
+describe("construction des contextes importés (en mémoire)", () => {
+  test("test_ac_003_2_un_contexte_par_fichier_au_contenu_identique_octet_pour_octet", () => {
+    // BOM, fins de ligne CRLF, espaces et lignes vides finales, sans fin de ligne finale.
+    const claude = bytesOf("# Projet\r\n\r\nRègles  \r\n\r\n\r\n  ", { bom: true });
+    // LF, caractères hors ASCII, lignes vides finales.
+    const agents = bytesOf("# Agents\n\n- é, ✓, 漢字\n\n\n");
+
+    const result = buildContextImport([
+      { spec: CLAUDE_SPEC, bytes: claude },
+      { spec: AGENTS_SPEC, bytes: agents },
+    ]);
+
+    expect(result.contexts).toHaveLength(2);
+    expect(result.contexts[0]?.content).toEqual(claude);
+    expect(result.contexts[1]?.content).toEqual(agents);
   });
 });
