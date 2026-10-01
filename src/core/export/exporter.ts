@@ -111,16 +111,8 @@ async function preparer(
   const entrees = lireManifeste(manifesteLu.octets);
   if (entrees === null) return refus("MANIFESTE_INVALIDE", MANIFESTE);
 
-  const aConfirmer: string[] = [];
-  for (const { chemin } of exportes) {
-    const actuel = await lire(fichiers, racine, chemin);
-    if ("erreur" in actuel) return actuel;
-    if (actuel.octets === null || confirmes.includes(chemin)) continue;
-    if (!(await estGenereIntact(entrees, chemin, actuel.octets))) aConfirmer.push(chemin);
-  }
-  if (aConfirmer.length > 0) {
-    return { ...refus("ECRASEMENT_A_CONFIRMER", aConfirmer.join(", ")), aConfirmer };
-  }
+  const ecrasements = await verifierEcrasements(fichiers, racine, exportes, entrees, confirmes);
+  if (ecrasements) return ecrasements;
 
   const nouvelles = await Promise.all(exportes.map((f) => entreeManifeste(f, adaptateur.id)));
   return {
@@ -130,6 +122,28 @@ async function preparer(
     ],
     fichiers: exportes.map((fichier) => fichier.chemin),
   };
+}
+
+/**
+ * Refus si un fichier à écrire existe sans être un fichier généré intact ni confirmé (AC-008-4),
+ * ou ne peut pas être lu sans suivre de lien ; `null` si tous peuvent être écrits.
+ */
+async function verifierEcrasements(
+  fichiers: ProjectFiles,
+  racine: string,
+  exportes: readonly FichierExporte[],
+  entrees: readonly EntreeManifeste[],
+  confirmes: readonly string[],
+): Promise<Refus | null> {
+  const aConfirmer: string[] = [];
+  for (const { chemin } of exportes) {
+    const actuel = await lire(fichiers, racine, chemin);
+    if ("erreur" in actuel) return actuel;
+    if (actuel.octets === null || confirmes.includes(chemin)) continue;
+    if (!(await estGenereIntact(entrees, chemin, actuel.octets))) aConfirmer.push(chemin);
+  }
+  if (aConfirmer.length === 0) return null;
+  return { ...refus("ECRASEMENT_A_CONFIRMER", aConfirmer.join(", ")), aConfirmer };
 }
 
 function refus(code: CodeErreurExport, detail: string): Refus {
