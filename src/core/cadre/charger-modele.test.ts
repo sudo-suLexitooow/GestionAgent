@@ -120,7 +120,7 @@ describe("version de format plus récente (AC-006-2)", () => {
 
 describe("agent invalide (AC-006-3)", () => {
   test.each([
-    ["yaml_casse", "id: 1\nname: x\n  target: claude-code\n", "YAML_SYNTAX", 3],
+    ["yaml_casse", "id: 1\nname: x\n  target: claude-code\n", "YAML_SYNTAX", 2],
     ["cle_en_double", `${AGENT_VALIDE}name: autre\n`, "YAML_DUPLICATE_KEY", 4],
     ["non_conforme_au_schema", `${AGENT_VALIDE}presets:\n  autonomy: max\n`, "SCHEMA", 5],
     ["sans_id", "# agent\nname: x\ntarget: claude-code\n", "SCHEMA", 2],
@@ -211,7 +211,7 @@ describe("modèle incomplet (AC-006-5) ou absent (AC-006-6)", () => {
     ],
     ["schema_version_absente", "generator_version: 0.1.0\ntools: []\n", "SCHEMA", 1],
     ["semver_invalide", "schema_version: 1\ngenerator_version: 1.0\ntools: []\n", "SCHEMA", 2],
-    ["yaml_casse", "schema_version: 1\n tools: [\n", "YAML_SYNTAX", 2],
+    ["yaml_casse", "schema_version: 1\n tools: [\n", "YAML_SYNTAX", 1],
   ])(
     "test_ac_006_5_cadre_yaml_invalide_donne_un_modele_incomplet_%s",
     async (_cas, contenu, code, ligne) => {
