@@ -15,6 +15,20 @@ describe("ouverture depuis le sélecteur", () => {
     });
   });
 
+  test.each([
+    ["C:\\Users\\lea\\mon-projet", "mon-projet"],
+    ["/home/lea/mon-projet/", "mon-projet"],
+    ["C:\\Users\\lea\\mon-projet\\", "mon-projet"],
+    ["C:\\", "C:\\"],
+    ["/", "/"],
+  ])("test_ac_001_1_nom_du_projet_pour_%s_est_%s", async (path, name) => {
+    const folders = new InMemoryFolderAccess({ [path]: "ok" }).answerPickerWith(path);
+
+    const outcome = await openFromPicker(folders);
+
+    expect(outcome).toEqual({ kind: "opened", project: { name, path } });
+  });
+
   test("test_ac_001_5_annulation_du_selecteur_ne_produit_ni_projet_ni_erreur", async () => {
     const folders = new InMemoryFolderAccess().answerPickerWith(null);
 
