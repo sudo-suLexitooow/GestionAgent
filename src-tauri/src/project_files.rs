@@ -3,7 +3,7 @@
 
 use serde::Serialize;
 use std::io::ErrorKind;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 /// Nature d'une entrée de dossier, sérialisée comme le type TypeScript `EntryKind`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -29,9 +29,23 @@ pub enum ReadError {
     Unreadable,
 }
 
+/// Chemin absolu de `relative` sous `root`. Refuse un chemin absolu, une racine ou un préfixe de
+/// lecteur (Windows) et tout segment `..` : rien ne peut être lu hors du projet par ce chemin.
+fn resolve(root: &Path, relative: &str) -> Result<PathBuf, ReadError> {
+    let relative = Path::new(relative);
+    let stays_inside = relative
+        .components()
+        .all(|component| matches!(component, Component::Normal(_) | Component::CurDir));
+    if stays_inside {
+        Ok(root.join(relative))
+    } else {
+        Err(ReadError::OutsideProject)
+    }
+}
+
 /// Liste le dossier `relative` du projet `root` ; `None` s'il n'existe pas.
 pub fn list_dir(root: &Path, relative: &str) -> Result<Option<Vec<DirEntry>>, ReadError> {
-    let reader = match std::fs::read_dir(root.join(relative)) {
+    let reader = match std::fs::read_dir(resolve(root, relative)?) {
         Ok(reader) => reader,
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
         Err(_) => return Err(ReadError::Unreadable),
@@ -58,7 +72,7 @@ fn kind_of(path: &Path) -> EntryKind {
 
 /// Lit le fichier `relative` du projet `root` en octets bruts ; `None` s'il n'existe pas.
 pub fn read_file(root: &Path, relative: &str) -> Result<Option<Vec<u8>>, ReadError> {
-    match std::fs::read(root.join(relative)) {
+    match std::fs::read(resolve(root, relative)?) {
         Ok(bytes) => Ok(Some(bytes)),
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
         Err(_) => Err(ReadError::Unreadable),
