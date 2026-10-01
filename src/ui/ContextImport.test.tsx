@@ -79,6 +79,24 @@ describe("import de CLAUDE.md et AGENTS.md depuis l'écran principal", () => {
   });
 });
 
+describe("avertissements d'import des contextes", () => {
+  test("test_ac_003_4_un_claude_md_non_utf8_affiche_encodage_non_supporte_sans_planter", async () => {
+    const latin1 = Uint8Array.of(0x52, 0xe8, 0x67, 0x6c, 0x65, 0x73, 0x0a);
+    await openProject(new InMemoryProjectFiles(ROOT, { "CLAUDE.md": latin1 }));
+    const section = await contextsSection();
+
+    fireEvent.click(within(section).getByRole("button", { name: "Importer" }));
+
+    const warning = await within(section).findByRole("alert");
+    expect(warning).toHaveTextContent("CLAUDE.md : encodage non supporté");
+    expect(
+      within(section)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["CLAUDE.md — Projet"]);
+  });
+});
+
 describe("échec de lecture pendant la détection des contextes", () => {
   test("test_ac_003_1_une_racine_illisible_ne_propose_rien_et_ne_plante_pas", async () => {
     const unhandled: unknown[] = [];
