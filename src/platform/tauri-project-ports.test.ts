@@ -1,0 +1,34 @@
+import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
+import { tauriFolderAccess } from "./tauri-project-ports";
+
+// Le pont IPC de Tauri est simulé par `mockIPC` (outil officiel) : le code testé reste l'adaptateur réel.
+interface Call {
+  cmd: string;
+  args: unknown;
+}
+
+function recordIpc(answer: (cmd: string) => unknown): Call[] {
+  const calls: Call[] = [];
+  mockIPC((cmd, args) => {
+    calls.push({ cmd, args });
+    return answer(cmd);
+  });
+  return calls;
+}
+
+afterEach(() => {
+  clearMocks();
+});
+
+describe("sélecteur de dossier Tauri", () => {
+  test("test_ac_001_1_ouvre_le_selecteur_en_mode_dossier_unique", async () => {
+    const calls = recordIpc(() => "/home/lea/mon-projet");
+
+    const path = await tauriFolderAccess.pickFolder();
+
+    expect(path).toBe("/home/lea/mon-projet");
+    expect(calls).toEqual([
+      { cmd: "plugin:dialog|open", args: { options: { directory: true, multiple: false } } },
+    ]);
+  });
+});
