@@ -57,3 +57,82 @@ describe("importer les skills de Claude Code (AC-004-1)", () => {
     );
   });
 });
+
+describe("skill impossible à copier entièrement : non importée, signalée, les autres continuent", () => {
+  const AUTRE = { ".claude/skills/autre/SKILL.md": "---\nname: autre\ndescription: B.\n---\n" };
+
+  async function importerAvec(prepare: (files: InMemoryProjectFiles) => void) {
+    const files = new InMemoryProjectFiles(ROOT, {
+      ...AUTRE,
+      ".claude/skills/revue/SKILL.md": REVUE_MD,
+      ".claude/skills/revue/references/guide.md": "# Guide\n",
+    });
+    prepare(files);
+    const resultat = await importer(files);
+    return { ...resultat, dossiers: resultat.skills.map(({ skill }) => skill.folder) };
+  }
+
+  test("test_ac_004_1_un_annexe_en_lien_rend_la_skill_en_erreur_sans_import_partiel", async () => {
+    const { dossiers, failures } = await importerAvec((files) => {
+      files.addLink(".claude/skills/revue/references/externe.md");
+    });
+
+    expect(dossiers).toEqual(["autre"]);
+    expect(failures).toEqual([
+      { folder: "revue", path: ".claude/skills/revue/references/externe.md", code: "link" },
+    ]);
+  });
+
+  test("test_ac_004_1_un_sous_dossier_en_lien_rend_la_skill_en_erreur", async () => {
+    const { dossiers, failures } = await importerAvec((files) => {
+      files.addLink(".claude/skills/revue/partage");
+    });
+
+    expect(dossiers).toEqual(["autre"]);
+    expect(failures).toEqual([
+      { folder: "revue", path: ".claude/skills/revue/partage", code: "link" },
+    ]);
+  });
+
+  test("test_ac_004_1_un_dossier_de_skill_en_lien_n_est_pas_suivi", async () => {
+    const { dossiers, failures } = await importerAvec((files) => {
+      files.addLink(".claude/skills/liee");
+    });
+
+    expect(dossiers).toEqual(["autre", "revue"]);
+    expect(failures).toEqual([{ folder: "liee", path: ".claude/skills/liee", code: "link" }]);
+  });
+
+  test("test_ac_004_1_un_annexe_de_plus_de_8_mio_rend_la_skill_en_erreur", async () => {
+    const { dossiers, failures } = await importerAvec((files) => {
+      files.failWith(".claude/skills/revue/references/guide.md", "too-large");
+    });
+
+    expect(dossiers).toEqual(["autre"]);
+    expect(failures).toEqual([
+      { folder: "revue", path: ".claude/skills/revue/references/guide.md", code: "too-large" },
+    ]);
+  });
+
+  test("test_ac_004_1_un_sous_dossier_illisible_rend_la_skill_en_erreur", async () => {
+    const { dossiers, failures } = await importerAvec((files) => {
+      files.makeUnreadable(".claude/skills/revue/references");
+    });
+
+    expect(dossiers).toEqual(["autre"]);
+    expect(failures).toEqual([
+      { folder: "revue", path: ".claude/skills/revue/references", code: "unreadable" },
+    ]);
+  });
+
+  test("test_ac_004_1_un_skill_md_illisible_rend_la_skill_en_erreur", async () => {
+    const { dossiers, failures } = await importerAvec((files) => {
+      files.makeUnreadable(".claude/skills/revue/SKILL.md");
+    });
+
+    expect(dossiers).toEqual(["autre"]);
+    expect(failures).toEqual([
+      { folder: "revue", path: ".claude/skills/revue/SKILL.md", code: "unreadable" },
+    ]);
+  });
+});
