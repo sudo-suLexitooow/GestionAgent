@@ -23,8 +23,16 @@ export async function openFromPicker(folders: FolderAccess): Promise<OpenOutcome
     if (path === null) return { kind: "cancelled" };
     const status = await folders.inspectFolder(path);
     if (status !== "ok") return { kind: "error", error: status };
-    return { kind: "opened", project: { name: path.split("/").pop() ?? path, path } };
+    return { kind: "opened", project: { name: projectName(path), path } };
   } catch {
     return { kind: "error", error: "unexpected" };
   }
+}
+
+/** Nom affiché d'un projet : dernier segment du chemin, séparateurs `/` ou `\`. Une racine garde son chemin. */
+function projectName(path: string): string {
+  const segments = path.split(/[\\/]+/).filter((segment) => segment.length > 0);
+  const last = segments.at(-1);
+  if (last === undefined || (segments.length === 1 && last.endsWith(":"))) return path;
+  return last;
 }
