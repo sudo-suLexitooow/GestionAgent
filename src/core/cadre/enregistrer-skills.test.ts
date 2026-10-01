@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto";
 import { parse } from "yaml";
 import { claudeCodeAdapter } from "../adapters/claude-code/claude-code-adapter";
+import { creerAgent } from "../agents/agent";
 import { importContexts } from "../contexts/import-contexts";
 import type { SkillImport } from "../skills/import-skills";
 import { listProjectSkills } from "../skills/list-project-skills";
@@ -257,5 +258,77 @@ describe("skills modifiées hors de Cadre entre l'import et l'enregistrement", (
 
     expect(await enregistrer()).toEqual({ ok: true });
     expect(disque.octets(".cadre/skills/revue/SKILL.md")).toEqual(REVUE_MD);
+  });
+});
+
+describe("créer le modèle sans avoir cliqué sur l'import (régression US-007)", () => {
+  function frontend() {
+    const creation = creerAgent(
+      { nom: "frontend", role: "Front", description: "Écrans.", cible: "claude-code" },
+      { nomsExistants: [], cibles: ["claude-code"] },
+    );
+    if (!creation.ok) throw new Error(creation.refus);
+    return creation.agent;
+  }
+
+  function enregistrerAgentSeul(disque: DisqueMemoire) {
+    return enregistrerCadrage(
+      { fichiers: disque, systeme: disque },
+      RACINE,
+      { contextes: [], agents: [frontend()] },
+      OPTIONS,
+    );
+  }
+
+  test("test_ac_004_1_creer_le_modele_par_un_agent_importe_aussi_les_skills", async () => {
+    const disque = new DisqueMemoire(RACINE, SKILLS);
+    const avant = await listProjectSkills(disque, RACINE, claudeCodeAdapter);
+
+    expect(await enregistrerAgentSeul(disque)).toEqual({ ok: true });
+
+    expect(disque.transactions).toHaveLength(1);
+    const chemins = disque.transactions[0]?.map((fichier) => fichier.chemin) ?? [];
+    expect(chemins).toContain(".cadre/agents/frontend.yaml");
+    expect(disque.octets(".cadre/skills/revue/SKILL.md")).toEqual(REVUE_MD);
+    expect(disque.octets(".cadre/skills/revue/assets/img/logo.png")).toEqual(LOGO);
+    expect(disque.octets(".cadre/skills/revue/references/guide.md")).toEqual(texte("# Guide\n"));
+    expect(await listProjectSkills(disque, RACINE, claudeCodeAdapter)).toEqual(avant);
+    const manifeste: unknown = parse(
+      new TextDecoder().decode(disque.octets(".cadre/generated.yaml")),
+    );
+    expect(manifeste).toMatchObject({
+      files: [
+        { path: ".claude/skills/revue/SKILL.md", source: "skill:revue" },
+        { path: ".claude/skills/revue/assets/img/logo.png", source: "skill:revue" },
+        { path: ".claude/skills/revue/references/guide.md", source: "skill:revue" },
+      ],
+    });
+  });
+
+  test("test_ac_004_3_creer_le_modele_par_un_agent_signale_les_skills_non_importees", async () => {
+    const disque = new DisqueMemoire(RACINE, {
+      ...SKILLS,
+      ".claude/skills/liee/SKILL.md": "---\nname: liee\ndescription: L.\n---\n",
+    }).addLink(".claude/skills/liee/externe.md");
+
+    expect(await enregistrerAgentSeul(disque)).toEqual({
+      ok: true,
+      skillsNonImportees: [
+        { folder: "liee", path: ".claude/skills/liee/externe.md", code: "link" },
+      ],
+    });
+    expect(disque.octets(".cadre/skills/liee/SKILL.md")).toBeUndefined();
+    expect(disque.octets(".cadre/skills/revue/SKILL.md")).toEqual(REVUE_MD);
+  });
+
+  test("test_ac_004_1_avec_un_modele_un_agent_n_importe_aucune_skill", async () => {
+    const disque = new DisqueMemoire(RACINE, {
+      ".cadre/cadre.yaml": "schema_version: 1\ngenerator_version: 0.1.0\ntools: [claude-code]\n",
+      ...SKILLS,
+    });
+
+    expect(await enregistrerAgentSeul(disque)).toEqual({ ok: true });
+
+    expect(disque.chemins().filter((c) => c.startsWith(".cadre/skills/"))).toEqual([]);
   });
 });
