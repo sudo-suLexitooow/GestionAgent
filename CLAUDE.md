@@ -129,6 +129,13 @@ Seul `scribe-wiki` y écrit. Structure et modèles : voir `.claude/agents/scribe
 - Stack : Tauri 2, TypeScript (logique métier + UI React), Rust (opérations système).
 - Tests : Vitest (TypeScript), `cargo test` (Rust), tests end-to-end à définir au MVP 1.
 - Commandes de test, lint, typage et couverture : c'est à toi de les choisir et de les mettre en place au Sprint 0, puis de les inscrire ici et dans la page wiki `Methode`. La CI GitHub Actions lance exactement les mêmes commandes.
+- Commandes (fixées au Sprint 0, identiques en CI dans `.github/workflows/ci.yml`) :
+  - installation : `npm ci` ;
+  - tests TypeScript : `npm test` ; couverture du cœur `src/core/` (seuil 70 %) : `npm run test:coverage` ;
+  - lint + format : `npm run lint` ; typage : `npm run typecheck` ;
+  - Rust (dans `src-tauri/`) : `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` ;
+  - CI Rust sur Linux, Windows et macOS.
+- Emplacement du code : cœur métier dans `src/core/` (modèle, adaptateurs, validation, diff), interface dans `src/ui/`, opérations système dans `src-tauri/src/`.
 - Cahier des charges : page wiki `Cahier-des-charges`.
 - Le PO ne touche pas au code ni au dépôt : tout ce qui se fait dans le dépôt, le wiki, la CI et les PR est ton travail. Le PO intervient uniquement aux portes, dans la conversation.
 
