@@ -1,6 +1,6 @@
 import type { ToolAdapter } from "../adapters/adapter";
 import type { ProjectFiles } from "../project/ports";
-import type { ContextFileSpec, ImportedContext } from "./context";
+import type { ContextEntry, ContextFileSpec, ImportedContext } from "./context";
 import { GENERIC_CONTEXT_FILES } from "./generic-format";
 
 /** Fichier de contexte détecté et ses octets lus sur le disque. */
@@ -15,8 +15,20 @@ export interface ContextImport {
 }
 
 /** Construit les contextes à partir des octets lus (fonction pure). */
-export function buildContextImport(_read: readonly ReadContextFile[]): ContextImport {
-  return { contexts: [] };
+export function buildContextImport(read: readonly ReadContextFile[]): ContextImport {
+  return { contexts: read.map(({ spec, bytes }) => importedContext(spec, bytes)) };
+}
+
+/** Contexte importé depuis `spec` : métadonnées pour `cadre.yaml`, contenu brut (ADR-001, D2). */
+function importedContext(spec: ContextFileSpec, bytes: Uint8Array): ImportedContext {
+  const entry: ContextEntry = {
+    name: spec.name,
+    title: spec.file,
+    type: spec.type,
+    source: spec.file,
+  };
+  if (spec.readonly) entry.readonly = true;
+  return { entry, path: `.cadre/contexte/${spec.name}.md`, content: bytes };
 }
 
 /**
