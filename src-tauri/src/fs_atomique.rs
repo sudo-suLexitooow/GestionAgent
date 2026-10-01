@@ -150,14 +150,23 @@ pub fn valider_chemin(chemin: &str) -> Result<(), ErreurEcriture> {
 ///
 /// À appeler à l'ouverture du projet ; chaque écriture l'appelle aussi avant de commencer.
 pub fn recuperer(racine: &Path) -> Result<(), ErreurEcriture> {
+    if !dossiers_internes_reels(racine)? {
+        return Ok(());
+    }
     let contenu = match fs::read_dir(racine.join(DOSSIER_TMP)) {
         Ok(contenu) => contenu,
         Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => return Ok(()),
         Err(erreur) => return Err(classer(erreur)),
     };
     for element in contenu {
-        let chemin = element.map_err(classer)?.path();
-        if chemin.is_dir() {
+        let element = element.map_err(classer)?;
+        // `file_type` ne suit pas les liens : un lien n'est ni suivi ni supprimé.
+        let genre = element.file_type().map_err(classer)?;
+        let chemin = element.path();
+        let nom = element.file_name();
+        if genre.is_file() {
+            fs::remove_file(&chemin).map_err(classer)?;
+        } else if genre.is_dir() && nom.to_string_lossy().starts_with("txn-") {
             match lire_journal(&chemin)? {
                 Some(Journal {
                     etat: EtatTransaction::EnCours,
@@ -172,11 +181,35 @@ pub fn recuperer(racine: &Path) -> Result<(), ErreurEcriture> {
                 None => {}
             }
             fs::remove_dir_all(&chemin).map_err(classer)?;
-        } else {
-            fs::remove_file(&chemin).map_err(classer)?;
         }
     }
     Ok(())
+}
+
+/// Dossiers internes de l'écrivain, du plus haut au plus profond.
+const DOSSIERS_INTERNES: [&str; 3] = [".cadre", ".cadre/tmp", ".cadre/backups"];
+
+/// Vérifie que les dossiers internes existants sont de vrais dossiers : ni lien symbolique,
+/// ni jonction Windows (un dépôt malveillant pourrait les faire pointer hors du projet).
+/// Renvoie `true` si `.cadre/tmp` existe.
+fn dossiers_internes_reels(racine: &Path) -> Result<bool, ErreurEcriture> {
+    let mut tmp_existe = false;
+    for dossier in DOSSIERS_INTERNES {
+        match fs::symlink_metadata(racine.join(dossier)) {
+            Ok(meta) if meta.is_dir() && !meta.file_type().is_symlink() => {
+                tmp_existe |= dossier == DOSSIER_TMP;
+            }
+            Ok(_) => {
+                return Err(ErreurEcriture::CheminInvalide(format!(
+                    "{dossier} n'est pas un vrai dossier (lien symbolique, jonction ou fichier) : \
+                     Cadre refuse d'y écrire"
+                )))
+            }
+            Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => {}
+            Err(erreur) => return Err(classer(erreur)),
+        }
+    }
+    Ok(tmp_existe)
 }
 
 const JOURNAL: &str = "journal.json";

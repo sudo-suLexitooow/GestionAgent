@@ -665,7 +665,10 @@ fn dossier_victime() -> TempDir {
 
 fn assert_victime_intacte(victime: &Path) {
     assert_eq!(lire(victime, "temoin.txt").as_deref(), Some("précieux"));
-    assert_eq!(lire(victime, "txn-faux/journal.json").as_deref(), Some("{}"));
+    assert_eq!(
+        lire(victime, "txn-faux/journal.json").as_deref(),
+        Some("{}")
+    );
 }
 
 /// Bloquant de revue n° 1 : un dépôt malveillant ne doit pas pouvoir faire effacer un dossier
