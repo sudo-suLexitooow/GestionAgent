@@ -66,4 +66,28 @@ describe("construction des contextes importés (en mémoire)", () => {
     expect(result.contexts[0]?.content).toEqual(claude);
     expect(result.contexts[1]?.content).toEqual(agents);
   });
+
+  test("test_ac_003_2_metadonnees_et_chemins_des_contextes_suivent_adr_001", () => {
+    const result = buildContextImport([
+      { spec: CLAUDE_SPEC, bytes: bytesOf("# Projet\n") },
+      { spec: AGENTS_SPEC, bytes: bytesOf("# Agents\n") },
+    ]);
+
+    expect(result.contexts.map(({ entry, path }) => ({ entry, path }))).toEqual([
+      {
+        entry: { name: "CLAUDE", title: "CLAUDE.md", type: "projet", source: "CLAUDE.md" },
+        path: ".cadre/contexte/CLAUDE.md",
+      },
+      {
+        entry: {
+          name: "AGENTS",
+          title: "AGENTS.md",
+          type: "autre",
+          source: "AGENTS.md",
+          readonly: true,
+        },
+        path: ".cadre/contexte/AGENTS.md",
+      },
+    ]);
+  });
 });
