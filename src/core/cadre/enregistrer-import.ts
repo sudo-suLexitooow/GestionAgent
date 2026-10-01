@@ -48,7 +48,8 @@ export async function enregistrerContextesImportes(
   try {
     const refus =
       (await modeleApparu(disque.fichiers, racine)) ??
-      (await sourceModifiee(disque.fichiers, racine, contextes));
+      (await sourceModifiee(disque.fichiers, racine, contextes)) ??
+      (await skillModifiee(disque.fichiers, racine, skills, options.adapter));
     if (refus) return { ok: false, erreur: refus };
     fichiers = await preparer(contextes, agents, skills, options);
   } catch (erreur) {
@@ -108,6 +109,49 @@ async function sourceModifiee(
     }
   }
   return null;
+}
+
+/**
+ * Les skills importées ne sont plus celles du disque : l'adaptateur les réimporte et chaque skill
+ * doit avoir les mêmes fichiers, de même empreinte ; une skill apparue entre-temps compte aussi
+ * (elle ne serait plus visible une fois le modèle créé). Aucune skill importée : rien à vérifier.
+ */
+async function skillModifiee(
+  fichiers: ProjectFiles,
+  racine: string,
+  skills: readonly ImportedSkill[],
+  adapter: ToolAdapter,
+): Promise<ErreurEnregistrement | null> {
+  if (skills.length === 0 || !adapter.importer) return null;
+  const actuelles = new Map(
+    (await adapter.importer(fichiers, racine)).skills.map((skill) => [skill.source, skill]),
+  );
+  for (const importee of skills) {
+    const actuelle = actuelles.get(importee.source);
+    actuelles.delete(importee.source);
+    const detail = await premierEcart(importee, actuelle);
+    if (detail) return { code: "SOURCE_MODIFIEE", detail };
+  }
+  const [apparue] = actuelles.keys();
+  return apparue === undefined ? null : { code: "SOURCE_MODIFIEE", detail: apparue };
+}
+
+/** Premier fichier qui diffère entre la skill importée et la skill actuelle, sinon `null`. */
+async function premierEcart(
+  importee: ImportedSkill,
+  actuelle: ImportedSkill | undefined,
+): Promise<string | null> {
+  if (!actuelle) return importee.source;
+  const contenus = new Map(actuelle.files.map(({ path, content }) => [path, content]));
+  for (const { path, content } of importee.files) {
+    const actuel = contenus.get(path);
+    contenus.delete(path);
+    if (!actuel || (await empreinte(actuel)) !== (await empreinte(content))) {
+      return `${importee.source}/${path}`;
+    }
+  }
+  const [ajoute] = contenus.keys();
+  return ajoute === undefined ? null : `${importee.source}/${ajoute}`;
 }
 
 /** Adoption du fichier importé : l'empreinte est celle du contenu importé (ADR-001, D5). */
