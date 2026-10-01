@@ -65,7 +65,14 @@ export function ContextsSection({ root, files, adapter }: ContextsSectionProps) 
           >
             {t("contexts.import")}
           </button>
-          <button type="button">{t("contexts.decline")}</button>
+          <button
+            type="button"
+            onClick={() => {
+              setState({ kind: "none" });
+            }}
+          >
+            {t("contexts.decline")}
+          </button>
         </>
       )}
       {state.kind === "imported" && (
