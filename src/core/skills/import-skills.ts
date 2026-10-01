@@ -1,5 +1,13 @@
 // Import des skills au format Agent Skills (PRJ-02, US-004) : chaque skill est copiée telle quelle,
 // `SKILL.md` et fichiers annexes, à l'octet près (ADR-001, D2). Lecture seule : rien n'est écrit ici.
+//
+// Limites (documentées, US-004) :
+// - une skill est copiée entière ou pas du tout : un lien ou une jonction (fichier, sous-dossier ou
+//   dossier de la skill, jamais suivi, US-076), un fichier spécial, illisible ou de plus de 8 Mio
+//   (borne du port `ProjectFiles`) la rend « non importée », avec le chemin fautif ;
+// - aucune borne sur le total : tout l'import est tenu en mémoire puis écrit en une transaction
+//   (octets transmis en liste JSON à la commande d'écriture) ; un import de plusieurs centaines de
+//   Mio est lent et gourmand en mémoire, sans risque de perte (tout ou rien).
 import { readFailureReason, type DirEntry, type ProjectFiles } from "../project/ports";
 import type { ListedSkill } from "./skill";
 import { describeSkill } from "./skills-folder";
