@@ -44,6 +44,8 @@ const fr = {
   "import.skills.failure.link": "lien non pris en charge",
   "import.skills.failure.too-large": "le fichier dépasse la taille maximale de 8 Mio",
   "import.skills.failure.unreadable": "ne peut pas être lu",
+  "import.skills.failure.non-portable":
+    "nom non portable (caractère interdit, point ou espace final, nom réservé Windows ou plus de 255 octets)",
   "import.skills.notImported": "la skill {nom} n'est pas importée.",
   "model.title": "Modèle",
   "model.readOnly":

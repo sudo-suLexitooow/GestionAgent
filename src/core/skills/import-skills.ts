@@ -4,10 +4,12 @@
 // Limites (documentées, US-004) :
 // - une skill est copiée entière ou pas du tout : un lien ou une jonction (fichier, sous-dossier ou
 //   dossier de la skill, jamais suivi, US-076), un fichier spécial, illisible ou de plus de 8 Mio
-//   (borne du port `ProjectFiles`) la rend « non importée », avec le chemin fautif ;
+//   (borne du port `ProjectFiles`), ou un nom non portable (R1, ADR-001) la rend « non importée »,
+//   avec le chemin fautif ;
 // - aucune borne sur le total : tout l'import est tenu en mémoire puis écrit en une transaction
 //   (octets transmis en liste JSON à la commande d'écriture) ; un import de plusieurs centaines de
 //   Mio est lent et gourmand en mémoire, sans risque de perte (tout ou rien).
+import { segmentPortable } from "../fichiers/nom-portable";
 import { readFailureReason, type DirEntry, type ProjectFiles } from "../project/ports";
 import type { ListedSkill } from "./skill";
 import { describeSkill } from "./skills-folder";
@@ -32,7 +34,8 @@ export interface ImportedSkill {
 export interface SkillImportFailure {
   folder: string;
   path: string;
-  code: "link" | "too-large" | "unreadable";
+  /** `non-portable` : nom de dossier ou de fichier hors règle R1 (ADR-001), non écrit par Cadre. */
+  code: "link" | "too-large" | "unreadable" | "non-portable";
 }
 
 /** Résultat de l'opération « importer » d'un adaptateur (ADP-01). */
@@ -64,6 +67,7 @@ export async function importSkillsFolder(
       // Dossier sans `SKILL.md` : pas une skill.
       const skillMd = top.find((entry) => entry.name === SKILL_MD);
       if (!skillMd) continue;
+      if (!segmentPortable(folder)) throw new Unavailable(source, "non-portable");
       if (skillMd.kind === "directory")
         throw new Unavailable(`${source}/${SKILL_MD}`, "unreadable");
       const skillFiles = skillMdFirst(await readTree(files, root, source, "", top));
@@ -103,6 +107,7 @@ async function readTree(
   for (const { name, kind } of [...entries].sort((a, b) => byName(a.name, b.name))) {
     const path = prefix === "" ? name : `${prefix}/${name}`;
     const full = `${base}/${path}`;
+    if (!segmentPortable(name)) throw new Unavailable(full, "non-portable");
     if (kind === "directory") {
       result.push(...(await readTree(files, root, base, path, await list(files, root, full))));
     } else if (kind === "file") {
