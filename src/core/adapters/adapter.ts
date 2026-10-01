@@ -7,6 +7,8 @@ import type { ListedSkill } from "../skills/skill";
 export interface ToolAdapter {
   /** Identifiant de l'outil, tel qu'inscrit dans `cadre.yaml` (`tools`). */
   readonly id: string;
+  /** Nom de l'outil affiché à l'utilisateur (choix de l'outil cible d'un agent, AC-007-2) ; à défaut, `id`. */
+  readonly name?: string;
   /** Fichiers de contexte propres à l'outil, à la racine du projet (ex. `CLAUDE.md`) ; aucun si absent. */
   readonly contextFiles?: readonly ContextFileSpec[];
   /** Skills présentes dans les dossiers natifs de l'outil, triées par dossier (lecture seule). */
