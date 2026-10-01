@@ -15,11 +15,11 @@ export class InMemoryProjectFiles implements ProjectFiles {
     content: Record<string, string | Uint8Array> = {},
   ) {
     for (const [path, data] of Object.entries(content)) {
-      if (path.endsWith("/")) this.addParents(`${path}x`);
-      else {
-        this.files.set(path, typeof data === "string" ? new TextEncoder().encode(data) : data);
-        this.addParents(path);
-      }
+      const segments = path.split("/");
+      const name = segments.pop() ?? "";
+      this.addDirectoryAndParents(segments);
+      if (name === "") continue; // clé `dossier/` : dossier vide
+      this.files.set(path, typeof data === "string" ? new TextEncoder().encode(data) : data);
     }
   }
 
@@ -51,9 +51,11 @@ export class InMemoryProjectFiles implements ProjectFiles {
     return Promise.resolve(this.files.get(path) ?? null);
   }
 
-  private addParents(path: string): void {
-    const segments = path.split("/");
-    for (let i = 1; i < segments.length; i++) this.directories.add(segments.slice(0, i).join("/"));
+  /** Déclare le dossier formé par `segments` et tous ses dossiers parents. */
+  private addDirectoryAndParents(segments: string[]): void {
+    for (let i = 1; i <= segments.length; i++) {
+      this.directories.add(segments.slice(0, i).join("/"));
+    }
   }
 }
 
