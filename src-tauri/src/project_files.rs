@@ -1,5 +1,8 @@
 //! Lecture seule du contenu d'un projet (SKL-01, PRJ-02) : lister un dossier, lire un fichier en
-//! octets bruts. Les chemins sont relatifs à la racine du projet et ne peuvent pas en sortir.
+//! octets bruts. Le chemin relatif ne peut pas sortir de la racine fournie (pas de `..`, pas de
+//! chemin absolu). Limites connues : la racine elle-même, fournie par l'interface, n'est pas
+//! contrôlée ici (elle sera tenue côté Rust par une story de suivi), et les liens symboliques sont
+//! suivis (skills partagées par lien), y compris hors de la racine. Lecture seule.
 
 use serde::Serialize;
 use std::io::{ErrorKind, Read};
@@ -33,8 +36,9 @@ pub enum ReadError {
 /// Taille maximale d'un fichier lu (8 Mio) : au-delà, la lecture est refusée (`TooLarge`).
 pub const MAX_FILE_SIZE: u64 = 8 * 1024 * 1024;
 
-/// Chemin absolu de `relative` sous `root`. Refuse un chemin absolu, une racine ou un préfixe de
-/// lecteur (Windows) et tout segment `..` : rien ne peut être lu hors du projet par ce chemin.
+/// Chemin de `relative` sous `root`. Refuse un chemin absolu, une racine ou un préfixe de lecteur
+/// (Windows) et tout segment `..` : le chemin relatif ne sort pas de la racine fournie. Ni `root`
+/// ni les liens symboliques rencontrés ne sont contrôlés.
 fn resolve(root: &Path, relative: &str) -> Result<PathBuf, ReadError> {
     let relative = Path::new(relative);
     let stays_inside = relative

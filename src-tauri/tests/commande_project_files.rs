@@ -58,6 +58,20 @@ fn test_ac_002_4_commande_read_project_file_renvoie_null_pour_un_fichier_absent(
 }
 
 #[test]
+fn test_ac_002_3_commande_read_project_file_signale_un_fichier_trop_gros() {
+    let project = tempfile::tempdir().unwrap();
+    let too_large = cadre_lib::project_files::MAX_FILE_SIZE as usize + 1;
+    fs::write(project.path().join("SKILL.md"), vec![b'a'; too_large]).unwrap();
+
+    let response = invoke(
+        "read_project_file",
+        json!({ "root": project.path(), "path": "SKILL.md" }),
+    );
+
+    assert_eq!(response, Err(json!("too-large")));
+}
+
+#[test]
 fn test_ac_002_1_commandes_de_lecture_refusent_un_chemin_hors_du_projet() {
     let parent = tempfile::tempdir().unwrap();
     fs::create_dir(parent.path().join("projet")).unwrap();
