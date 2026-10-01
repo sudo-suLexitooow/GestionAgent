@@ -331,7 +331,10 @@ mod version_precedente {
             lire(racine, ".cadre/backups/.gitignore").as_deref(),
             Some("node_modules\r\n# perso\r\n")
         );
-        assert_eq!(lire(racine, ".cadre/backups/.cadre/agents/frontend.yaml"), None);
+        assert_eq!(
+            lire(racine, ".cadre/backups/.cadre/agents/frontend.yaml"),
+            None
+        );
         assert_eq!(temporaires(racine), Vec::<String>::new());
     }
 

@@ -77,7 +77,7 @@ pub fn ecrire_fichiers_avec(
     recuperer(racine)?;
     let transaction = nouveau_dossier_transaction(racine).map_err(classer)?;
     let preparation = preparer(racine, &transaction, fichiers, points).and_then(|entrees| {
-        ecrire_journal(&transaction, &entrees)?;
+        ecrire_journal(&transaction, EtatTransaction::EnCours, &entrees)?;
         points.atteint(Etape::AvantRemplacement)?;
         Ok(entrees)
     });
@@ -88,13 +88,23 @@ pub fn ecrire_fichiers_avec(
             return Err(classer(erreur));
         }
     };
-    if let Err(erreur) = remplacer(racine, &transaction, &entrees, points) {
+    let remplacement = remplacer(racine, &transaction, &entrees, points)
+        .and_then(|()| ecrire_journal(&transaction, EtatTransaction::Validee, &entrees));
+    if let Err(erreur) = remplacement {
         // Si l'annulation échoue, le journal reste : la prochaine récupération la reprend.
         annuler(racine, &transaction, &entrees).map_err(classer)?;
         let _ = fs::remove_dir_all(&transaction);
         return Err(classer(erreur));
     }
-    fs::remove_dir_all(&transaction).map_err(classer)
+    // Validée : l'enregistrement a réussi. Si la mise à jour des sauvegardes échoue, le
+    // journal reste et la prochaine récupération la termine.
+    let sauvegarde = points
+        .atteint(Etape::TransactionValidee)
+        .and_then(|()| sauvegarder_versions_precedentes(racine, &transaction, &entrees));
+    if sauvegarde.is_ok() {
+        let _ = fs::remove_dir_all(&transaction);
+    }
+    Ok(())
 }
 
 /// Termine ou annule une transaction interrompue, puis vide `.cadre/tmp/` (AC-005-4).
@@ -109,8 +119,18 @@ pub fn recuperer(racine: &Path) -> Result<(), ErreurEcriture> {
     for element in contenu {
         let chemin = element.map_err(classer)?.path();
         if chemin.is_dir() {
-            if let Some(entrees) = lire_journal(&chemin)? {
-                annuler(racine, &chemin, &entrees).map_err(classer)?;
+            match lire_journal(&chemin)? {
+                Some(Journal {
+                    etat: EtatTransaction::EnCours,
+                    entrees,
+                }) => annuler(racine, &chemin, &entrees).map_err(classer)?,
+                Some(Journal {
+                    etat: EtatTransaction::Validee,
+                    entrees,
+                }) => {
+                    sauvegarder_versions_precedentes(racine, &chemin, &entrees).map_err(classer)?
+                }
+                None => {}
             }
             fs::remove_dir_all(&chemin).map_err(classer)?;
         } else {
@@ -122,18 +142,37 @@ pub fn recuperer(racine: &Path) -> Result<(), ErreurEcriture> {
 
 const JOURNAL: &str = "journal.json";
 
+/// `EnCours` : des fichiers du projet sont peut-être remplacés, la récupération les remet
+/// d'origine. `Validee` : tout est écrit, la récupération termine les sauvegardes.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum EtatTransaction {
+    EnCours,
+    Validee,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Journal {
+    etat: EtatTransaction,
+    entrees: Vec<Entree>,
+}
+
 /// Écrit le journal de la transaction de façon atomique. Tant qu'il est absent, aucun
-/// fichier du projet n'a été touché ; présent, il permet d'annuler après un arrêt brutal.
-fn ecrire_journal(transaction: &Path, entrees: &[Entree]) -> io::Result<()> {
+/// fichier du projet n'a été touché ; présent, il dit comment terminer ou annuler.
+fn ecrire_journal(transaction: &Path, etat: EtatTransaction, entrees: &[Entree]) -> io::Result<()> {
+    let journal = Journal {
+        etat,
+        entrees: entrees.to_vec(),
+    };
     let provisoire = transaction.join(format!("{JOURNAL}.provisoire"));
-    ecrire_et_synchroniser(&provisoire, &serde_json::to_vec_pretty(entrees)?)?;
+    ecrire_et_synchroniser(&provisoire, &serde_json::to_vec_pretty(&journal)?)?;
     fs::rename(&provisoire, transaction.join(JOURNAL))?;
     synchroniser_dossier(transaction)
 }
 
 /// Journal d'une transaction interrompue. Un journal illisible est une erreur : supprimer
 /// la transaction ferait perdre les copies des fichiers d'origine.
-fn lire_journal(transaction: &Path) -> Result<Option<Vec<Entree>>, ErreurEcriture> {
+fn lire_journal(transaction: &Path) -> Result<Option<Journal>, ErreurEcriture> {
     let octets = match fs::read(transaction.join(JOURNAL)) {
         Ok(octets) => octets,
         Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => return Ok(None),
@@ -151,7 +190,8 @@ fn lire_journal(transaction: &Path) -> Result<Option<Vec<Entree>>, ErreurEcritur
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Entree {
     chemin: String,
-    existait: bool,
+    /// Absente si le fichier n'existait pas avant la transaction.
+    empreinte_precedente: Option<String>,
     empreinte_nouvelle: String,
 }
 
@@ -174,17 +214,17 @@ fn preparer(
     for (i, fichier) in fichiers.iter().enumerate() {
         ecrire_et_synchroniser(&temporaire_nouveau(transaction, i), &fichier.contenu)?;
         points.atteint(Etape::TemporaireEcrit(i))?;
-        let existait = match fs::read(racine.join(&fichier.chemin)) {
+        let empreinte_precedente = match fs::read(racine.join(&fichier.chemin)) {
             Ok(ancien) => {
                 ecrire_et_synchroniser(&copie_ancienne(transaction, i), &ancien)?;
-                true
+                Some(empreinte(&ancien))
             }
-            Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => false,
+            Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => None,
             Err(erreur) => return Err(erreur),
         };
         entrees.push(Entree {
             chemin: fichier.chemin.clone(),
-            existait,
+            empreinte_precedente,
             empreinte_nouvelle: empreinte(&fichier.contenu),
         });
     }
@@ -224,7 +264,7 @@ fn annuler(racine: &Path, transaction: &Path, entrees: &[Entree]) -> io::Result<
             continue;
         }
         let ancien = copie_ancienne(transaction, i);
-        if entree.existait {
+        if entree.empreinte_precedente.is_some() {
             if ancien.exists() {
                 fs::rename(&ancien, &cible)?;
             }
@@ -234,6 +274,79 @@ fn annuler(racine: &Path, transaction: &Path, entrees: &[Entree]) -> io::Result<
         synchroniser_dossier(cible.parent().unwrap_or(racine))?;
     }
     Ok(())
+}
+
+const DOSSIER_SAUVEGARDES: &str = ".cadre/backups";
+const INDEX_SAUVEGARDES: &str = ".cadre/backups/index.yaml";
+
+/// Une ligne de `.cadre/backups/index.yaml` (ADR-001, D6).
+#[derive(Debug, Serialize, Deserialize)]
+struct EntreeIndex {
+    path: String,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    previous_sha256: Option<String>,
+    written_sha256: String,
+    date: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct IndexSauvegardes {
+    files: Vec<EntreeIndex>,
+}
+
+/// Copie la version précédente de chaque fichier remplacé dans `.cadre/backups/<chemin>`
+/// (une seule version par fichier, Q-15) et met à jour l'index. Rejouable sans risque.
+fn sauvegarder_versions_precedentes(
+    racine: &Path,
+    transaction: &Path,
+    entrees: &[Entree],
+) -> io::Result<()> {
+    for (i, entree) in entrees.iter().enumerate() {
+        if entree.empreinte_precedente.is_some() {
+            let sauvegarde = racine.join(DOSSIER_SAUVEGARDES).join(&entree.chemin);
+            let contenu = fs::read(copie_ancienne(transaction, i))?;
+            remplacer_par(
+                &transaction.join(format!("{i}.sauvegarde")),
+                &sauvegarde,
+                &contenu,
+            )?;
+        }
+    }
+
+    let chemin_index = racine.join(INDEX_SAUVEGARDES);
+    // L'index n'est qu'une aide (dossier ignoré par Git) : illisible, il est reconstruit.
+    let mut index: IndexSauvegardes = fs::read(&chemin_index)
+        .ok()
+        .and_then(|octets| serde_json::from_slice(&octets).ok())
+        .unwrap_or_default();
+    let date = humantime::format_rfc3339_seconds(SystemTime::now()).to_string();
+    for entree in entrees {
+        index.files.retain(|ligne| ligne.path != entree.chemin);
+        index.files.push(EntreeIndex {
+            path: entree.chemin.clone(),
+            previous_sha256: entree.empreinte_precedente.clone(),
+            written_sha256: entree.empreinte_nouvelle.clone(),
+            date: date.clone(),
+        });
+    }
+    index.files.sort_by(|a, b| a.path.cmp(&b.path));
+    let mut octets = serde_json::to_vec_pretty(&index)?;
+    octets.push(b'\n');
+    remplacer_par(
+        &transaction.join("index.provisoire"),
+        &chemin_index,
+        &octets,
+    )
+}
+
+/// Écriture atomique d'un fichier : `provisoire` (même volume), fsync, renommage.
+fn remplacer_par(provisoire: &Path, cible: &Path, contenu: &[u8]) -> io::Result<()> {
+    let _ = fs::remove_file(provisoire);
+    ecrire_et_synchroniser(provisoire, contenu)?;
+    let parent = cible.parent().unwrap_or(Path::new("."));
+    fs::create_dir_all(parent)?;
+    fs::rename(provisoire, cible)?;
+    synchroniser_dossier(parent)
 }
 
 fn empreinte(contenu: &[u8]) -> String {
