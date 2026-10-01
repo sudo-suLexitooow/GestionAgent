@@ -128,8 +128,18 @@ pub fn existe(etat: &ProjetOuvert, racine: &str, chemin: &str) -> Result<bool, E
 /// Vrai si `.git` (dossier, ou fichier d'un worktree) est à la racine du projet ouvert ou
 /// dans l'un de ses dossiers parents.
 pub fn dans_un_depot_git(etat: &ProjetOuvert, racine: &str) -> Result<bool, ErreurEcriture> {
-    racine_autorisee(etat, racine)?;
-    Ok(false)
+    let racine = racine_autorisee(etat, racine)?;
+    Ok(racine
+        .ancestors()
+        .any(|dossier| fs::symlink_metadata(dossier.join(".git")).is_ok()))
+}
+
+#[tauri::command]
+pub fn projet_dans_un_depot_git(
+    etat: State<'_, ProjetOuvert>,
+    racine: String,
+) -> Result<bool, ErreurDto> {
+    Ok(dans_un_depot_git(&etat, &racine)?)
 }
 
 #[tauri::command]

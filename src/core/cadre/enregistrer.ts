@@ -41,7 +41,7 @@ export async function enregistrerCadre(
     const fichiers: FichierAEcrire[] = [
       { chemin: ".cadre/cadre.yaml", contenu: serialiserCadre(cadre) },
     ];
-    if (await fs.existe(racine, ".git")) {
+    if (await fs.estDansUnDepotGit(racine)) {
       const gitignore = completerGitignore(await fs.lireTexte(racine, ".gitignore"));
       if (gitignore !== null) fichiers.push({ chemin: ".gitignore", contenu: gitignore });
     }

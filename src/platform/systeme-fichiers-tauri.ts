@@ -35,8 +35,8 @@ export class SystemeFichiersTauri implements SystemeFichiersProjet {
     return appeler("lire_fichier_projet", { racine, chemin });
   }
 
-  estDansUnDepotGit(_racine: string): Promise<boolean> {
-    return Promise.resolve(false);
+  estDansUnDepotGit(racine: string): Promise<boolean> {
+    return appeler("projet_dans_un_depot_git", { racine });
   }
 
   existe(racine: string, chemin: string): Promise<boolean> {
