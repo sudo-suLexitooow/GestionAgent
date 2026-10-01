@@ -13,6 +13,7 @@ export async function detectContextFiles(
   adapter: ToolAdapter,
 ): Promise<ContextFileSpec[]> {
   const entries = (await files.listDir(root, "")) ?? [];
+  if (entries.some((entry) => entry.name === ".cadre" && entry.kind === "directory")) return [];
   const present = new Set(
     entries.filter((entry) => entry.kind === "file").map((entry) => entry.name),
   );
