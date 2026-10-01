@@ -1,6 +1,6 @@
 //! Intégration : lecture du contenu d'un projet sur de vrais fichiers temporaires (US-002).
 
-use cadre_lib::project_files::{list_dir, DirEntry, EntryKind};
+use cadre_lib::project_files::{list_dir, read_file, DirEntry, EntryKind};
 use std::fs;
 
 fn sorted(mut entries: Vec<DirEntry>) -> Vec<DirEntry> {
@@ -37,4 +37,30 @@ fn test_ac_002_2_dossier_absent_donne_none_sans_erreur() {
     let project = tempfile::tempdir().unwrap();
 
     assert_eq!(list_dir(project.path(), ".claude/skills"), Ok(None));
+}
+
+#[test]
+fn test_ac_002_1_lit_un_fichier_du_projet_a_l_octet_pres() {
+    let project = tempfile::tempdir().unwrap();
+    let skill = project.path().join(".claude/skills/a");
+    fs::create_dir_all(&skill).unwrap();
+    // BOM, fins de ligne CRLF et octet non UTF-8 : rien n'est converti.
+    let bytes = b"\xEF\xBB\xBF---\r\nname: a\r\n---\r\n\xFF".to_vec();
+    fs::write(skill.join("SKILL.md"), &bytes).unwrap();
+
+    assert_eq!(
+        read_file(project.path(), ".claude/skills/a/SKILL.md"),
+        Ok(Some(bytes))
+    );
+}
+
+#[test]
+fn test_ac_002_4_fichier_absent_donne_none_sans_erreur() {
+    let project = tempfile::tempdir().unwrap();
+    fs::create_dir_all(project.path().join(".claude/skills/a")).unwrap();
+
+    assert_eq!(
+        read_file(project.path(), ".claude/skills/a/SKILL.md"),
+        Ok(None)
+    );
 }

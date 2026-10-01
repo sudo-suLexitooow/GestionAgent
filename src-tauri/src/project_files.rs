@@ -55,3 +55,8 @@ fn kind_of(path: &Path) -> EntryKind {
         _ => EntryKind::Other,
     }
 }
+
+/// Lit le fichier `relative` du projet `root` en octets bruts ; `None` s'il n'existe pas.
+pub fn read_file(_root: &Path, _relative: &str) -> Result<Option<Vec<u8>>, ReadError> {
+    Err(ReadError::Unreadable)
+}
