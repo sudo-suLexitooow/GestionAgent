@@ -65,6 +65,41 @@ describe("glisser-déposer sur l'accueil", () => {
   });
 });
 
+describe("ouverture hors ligne, sans compte", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test("test_ac_001_6_ouvrir_un_dossier_ne_fait_aucun_appel_reseau_ni_ne_demande_de_compte", async () => {
+    // Réseau coupé : toute tentative d'accès est enregistrée puis échoue.
+    const network = vi.fn(() => {
+      throw new Error("réseau indisponible");
+    });
+    vi.stubGlobal("fetch", network);
+    vi.stubGlobal("XMLHttpRequest", network);
+    vi.stubGlobal("WebSocket", network);
+    vi.stubGlobal("EventSource", network);
+    const { folders, drops } = renderApp({ "/home/lea/a": "ok", "/home/lea/b": "ok" });
+    expectNoAccountPrompt();
+
+    folders.answerPickerWith(null);
+    await clickOpen();
+    await drop(drops, ["/home/lea/a"]);
+
+    expect(await screen.findByRole("heading", { name: "a" })).toBeInTheDocument();
+    expectNoAccountPrompt();
+    expect(network).not.toHaveBeenCalled();
+    expect(folders.inspected).toEqual(["/home/lea/a"]);
+  });
+});
+
+function expectNoAccountPrompt() {
+  expect(document.body).not.toHaveTextContent(
+    /compte|connexion|se connecter|identifiant|mot de passe|s'inscrire/i,
+  );
+  expect(document.querySelector("input[type=password], input[type=email]")).toBeNull();
+}
+
 describe("écran d'accueil → écran principal", () => {
   test("test_ac_001_1_le_dossier_choisi_ouvre_l_ecran_principal_avec_nom_et_chemin", async () => {
     const { folders } = renderApp({ "/home/lea/mon-projet": "ok" });
