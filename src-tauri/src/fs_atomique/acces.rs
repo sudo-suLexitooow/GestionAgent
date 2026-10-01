@@ -144,6 +144,18 @@ impl Projet {
         }
     }
 
+    /// Comme [`Projet::lire`], mais refuse un fichier de plus de `taille_max` octets.
+    pub fn lire_au_plus(&self, relatif: &str, taille_max: u64) -> io::Result<Option<Vec<u8>>> {
+        if let Some(Genre::Fichier) = self.genre(relatif)? {
+            if fs::symlink_metadata(self.reel(relatif)?)?.len() > taille_max {
+                return Err(refus(format!(
+                    "{relatif} dépasse la taille maximale ({taille_max} octets)"
+                )));
+            }
+        }
+        self.lire(relatif)
+    }
+
     /// Crée un fichier qui ne doit pas exister, écrit son contenu et le synchronise (fsync).
     pub fn creer_nouveau(&self, relatif: &str, contenu: &[u8]) -> io::Result<()> {
         let mut fichier = OpenOptions::new()
@@ -263,13 +275,6 @@ impl Projet {
             Err(fs::TryLockError::WouldBlock) => Ok(None),
             Err(fs::TryLockError::Error(erreur)) => Err(erreur),
         }
-    }
-
-    /// Supprime le fichier du verrou PUIS le relâche : aucune autre instance ne peut
-    /// prendre entre-temps un verrou sur un fichier voué à disparaître.
-    pub fn supprimer_puis_liberer(&self, verrou: Verrou, relatif: &str) {
-        let _ = self.supprimer_fichier(relatif);
-        drop(verrou);
     }
 }
 

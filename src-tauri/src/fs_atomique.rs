@@ -29,13 +29,20 @@
 //! peut pas être reprise (journal illisible, chemin refusé, annulation impossible, copie
 //! d'origine manquante) est mise de côté (`de-cote-txn-…`) sans rien supprimer.
 //!
-//! Le fichier `.cadre/tmp/verrou` est permanent : il n'est supprimé que lorsqu'une écriture
-//! qui a échoué retire le `.cadre/` qu'elle venait de créer, et alors AVANT d'être relâché.
+//! Le fichier `.cadre/tmp/verrou` est permanent et n'est JAMAIS supprimé (le supprimer
+//! ouvrirait une course entre instances) : après un échec dans un projet sans `.cadre/`,
+//! `.cadre/tmp/verrou`, vide, est le seul résidu.
+//!
+//! Lectures internes bornées : journal et index de 1 Mio au plus (au-delà, le journal est
+//! mis de côté et l'index reconstruit).
 
 pub mod acces;
 pub mod commandes;
 
 use acces::{motif_de_refus, refus, Genre, Projet, Verrou};
+
+/// Taille maximale lue pour un journal ou l'index des sauvegardes.
+const TAILLE_MAX_INTERNE: u64 = 1024 * 1024;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io;
@@ -136,23 +143,12 @@ pub fn ecrire_fichiers_avec(
     }
     sans_doublon(fichiers)?;
     dossiers_internes_reels(&projet)?;
-    let cadre_cree = !projet.existe(CADRE).map_err(classer)?;
     projet.creer_dossiers(DOSSIER_TMP).map_err(classer)?;
-    let verrou = verrouiller_projet(&projet)?;
-    // Échec : un `.cadre/` créé par cette écriture est retiré (projet strictement identique).
-    let echec = |erreur: ErreurEcriture, verrou: Verrou| {
-        if cadre_cree {
-            retirer_cadre_cree(&projet, verrou);
-        }
-        Err(erreur)
-    };
-    if let Err(erreur) = recuperer_sous_verrou(&projet, points) {
-        return echec(erreur, verrou);
-    }
-    let transaction = match nouvelle_transaction(&projet) {
-        Ok(transaction) => transaction,
-        Err(erreur) => return echec(classer(erreur), verrou),
-    };
+    // Le fichier de verrou n'est jamais supprimé (pas de course entre instances) : après un
+    // échec dans un projet sans `.cadre/`, `.cadre/tmp/verrou` (vide) est le seul résidu.
+    let _verrou = verrouiller_projet(&projet)?;
+    recuperer_sous_verrou(&projet, points)?;
+    let transaction = nouvelle_transaction(&projet).map_err(classer)?;
     let preparation = preparer(&projet, &transaction, fichiers, points).and_then(|plan| {
         ecrire_journal(
             &projet,
@@ -168,7 +164,7 @@ pub fn ecrire_fichiers_avec(
         Ok(plan) => plan,
         Err(erreur) => {
             let _ = projet.supprimer_arbre(&transaction);
-            return echec(classer(erreur), verrou);
+            return Err(classer(erreur));
         }
     };
     let remplacement = remplacer(&projet, &transaction, &plan.entrees, points).and_then(|()| {
@@ -188,7 +184,7 @@ pub fn ecrire_fichiers_avec(
             )));
         }
         let _ = nettoyer_transaction(&projet, &transaction, &SansPanne);
-        return echec(classer(erreur), verrou);
+        return Err(classer(erreur));
     }
     // Validée : l'enregistrement a réussi. Interrompu ici, le journal reste et la
     // récupération termine les sauvegardes ; une sauvegarde impossible est abandonnée
@@ -198,14 +194,6 @@ pub fn ecrire_fichiers_avec(
         let _ = nettoyer_transaction(&projet, &transaction, points);
     }
     Ok(())
-}
-
-/// Retire `.cadre/tmp/verrou` (avant de le relâcher), `.cadre/tmp` et `.cadre` s'ils sont
-/// vides : ils ont été créés par une écriture qui a échoué.
-fn retirer_cadre_cree(projet: &Projet, verrou: Verrou) {
-    projet.supprimer_puis_liberer(verrou, VERROU);
-    let _ = projet.supprimer_dossier_vide(DOSSIER_TMP);
-    let _ = projet.supprimer_dossier_vide(CADRE);
 }
 
 /// Supprime le journal d'abord : un arrêt pendant l'effacement du dossier laisse une
@@ -278,8 +266,18 @@ fn segment_portable(segment: &str) -> bool {
             .chars()
             .any(|c| INTERDITS.contains(&c) || c.is_control())
         && !segment.eq_ignore_ascii_case(".git")
+        && !segment.chars().any(ignore_par_hfs)
         && !reserve
         && !nom_court
+}
+
+/// Caractères ignorés par HFS+ dans les noms (comme `is_hfs_dotgit` de Git) : `.g\u{200c}it`
+/// y désigne `.git`.
+fn ignore_par_hfs(c: char) -> bool {
+    matches!(
+        c,
+        '\u{200C}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{206A}'..='\u{206F}' | '\u{FEFF}'
+    )
 }
 
 /// Un même fichier (casse comprise : NTFS et APFS l'ignorent) une seule fois par lot.
@@ -315,7 +313,7 @@ pub fn recuperer_avec(racine: &Path, points: &dyn PointsDeControle) -> Result<()
         .lister(DOSSIER_TMP)
         .map_err(classer)?
         .iter()
-        .any(|(nom, _)| nom != NOM_VERROU);
+        .any(|(nom, _)| nom != NOM_VERROU && !nom.starts_with("de-cote-"));
     if !a_recuperer {
         return Ok(());
     }
@@ -379,8 +377,19 @@ fn reprendre_transaction(
             plan,
         }) => {
             if let Err(erreur) = annuler(projet, transaction, &plan, points) {
-                let raison = format!("annulation impossible : {erreur}");
-                return Err(mettre_de_cote(projet, transaction, &raison));
+                // Cas structurel (copie manquante, cible devenue dossier ou lien) : jamais
+                // réparable, mis de côté. Erreur d'entrée-sortie (fichier verrouillé, accès
+                // refusé, EIO…) : peut-être passagère, le journal reste pour une nouvelle
+                // tentative à la prochaine opération ou ouverture.
+                if motif_de_refus(&erreur).is_some() {
+                    let raison = format!("annulation impossible : {erreur}");
+                    return Err(mettre_de_cote(projet, transaction, &raison));
+                }
+                return Err(ErreurEcriture::AnnulationIncomplete(format!(
+                    "reprise de {} interrompue, nouvelle tentative à la prochaine opération : \
+                     {erreur}",
+                    projet.afficher(transaction)
+                )));
             }
         }
         Some(Journal {
@@ -465,7 +474,7 @@ fn ecrire_journal(
 /// Journal d'une transaction interrompue ; `Err(raison)` s'il ne peut pas être lu (dossier,
 /// lien, contenu invalide…) : la transaction sera mise de côté.
 fn lire_journal(projet: &Projet, transaction: &str) -> Result<Option<Journal>, String> {
-    match projet.lire(&format!("{transaction}/{JOURNAL}")) {
+    match projet.lire_au_plus(&format!("{transaction}/{JOURNAL}"), TAILLE_MAX_INTERNE) {
         Ok(None) => Ok(None),
         Ok(Some(octets)) => serde_json::from_slice(&octets)
             .map(Some)
@@ -502,8 +511,9 @@ fn mettre_de_cote(projet: &Projet, transaction: &str, raison: &str) -> ErreurEcr
         _ => transaction.to_owned(),
     };
     ErreurEcriture::RecuperationImpossible(format!(
-        "une écriture interrompue n'a pas pu être reprise ({raison}) ; rien n'a été supprimé, \
-         dossier à examiner : {}",
+        "une écriture interrompue n'a pas pu être reprise ({raison}) ; des fichiers du projet \
+         peuvent être partiellement modifiés ; rien n'a été supprimé, les copies d'origine \
+         (*.ancien) sont dans : {}",
         projet.afficher(&examiner)
     ))
 }
@@ -665,7 +675,7 @@ fn sauvegarder_versions_precedentes(
 
     // L'index n'est qu'une aide (dossier ignoré par Git) : illisible, il est reconstruit.
     let mut index: IndexSauvegardes = projet
-        .lire(INDEX_SAUVEGARDES)
+        .lire_au_plus(INDEX_SAUVEGARDES, TAILLE_MAX_INTERNE)
         .ok()
         .flatten()
         .and_then(|octets| serde_json::from_slice(&octets).ok())

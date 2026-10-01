@@ -14,7 +14,7 @@ const fr = {
   "openWarning.busy":
     "Une autre fenêtre de Cadre enregistre ce projet : la reprise des écritures interrompues est reportée.",
   "openWarning.setAside":
-    "Une écriture interrompue n'a pas pu être reprise : elle a été mise de côté sans rien supprimer.",
+    "Une écriture interrompue n'a pas pu être reprise : des fichiers du projet peuvent être partiellement modifiés. Les copies d'origine sont dans le dossier indiqué, rien n'a été supprimé.",
   "openWarning.generic":
     "Une écriture interrompue n'a pas pu être reprise à l'ouverture du projet.",
   "openWarning.detail": "Détail",

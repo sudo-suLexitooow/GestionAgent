@@ -30,7 +30,7 @@ export const MESSAGES_ERREUR_ENREGISTREMENT: Record<CodeErreurFichiers, string> 
   ANNULATION_INCOMPLETE:
     "L'enregistrement a échoué et n'a pas pu être entièrement annulé ; Cadre terminera l'annulation à la prochaine opération.",
   RECUPERATION_IMPOSSIBLE:
-    "Enregistrement impossible : une écriture interrompue n'a pas pu être reprise. Elle a été mise de côté sans rien supprimer (voir le détail) ; réessayez pour enregistrer.",
+    "Enregistrement impossible : une écriture interrompue n'a pas pu être reprise. Des fichiers du projet peuvent être partiellement modifiés ; les copies d'origine sont dans le dossier indiqué dans le détail, rien n'a été supprimé. Réessayez pour enregistrer.",
   ECHEC: `Enregistrement impossible à cause d'une erreur inattendue. ${RASSURANCE}`,
 };
 
