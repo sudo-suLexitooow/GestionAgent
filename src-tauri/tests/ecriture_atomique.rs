@@ -1273,6 +1273,80 @@ mod chemins_refuses_revue {
     }
 }
 
+/// Arborescence complète (dossiers et fichiers) sous `racine`, triée.
+fn arborescence(racine: &Path) -> Vec<String> {
+    let mut chemins = Vec::new();
+    let mut a_visiter = vec![racine.to_path_buf()];
+    while let Some(dossier) = a_visiter.pop() {
+        for entree in fs::read_dir(&dossier).unwrap() {
+            let chemin = entree.unwrap().path();
+            chemins.push(
+                chemin
+                    .strip_prefix(racine)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/"),
+            );
+            if chemin.is_dir() {
+                a_visiter.push(chemin);
+            }
+        }
+    }
+    chemins.sort();
+    chemins
+}
+
+/// Revue B, point 10 : un échec ne laisse pas de dossiers vides créés par Cadre.
+mod dossiers_crees_retires {
+    use super::*;
+
+    fn lot() -> Vec<FichierAEcrire> {
+        vec![
+            FichierAEcrire::new(".cadre/cadre.yaml", "schema_version: 1\n"),
+            FichierAEcrire::new(".cadre/agents/frontend.yaml", "name: frontend\n"),
+            FichierAEcrire::new("docs/notes/a.md", "a"),
+        ]
+    }
+
+    #[test]
+    fn test_ac_005_3_echec_dans_un_projet_sans_cadre_arborescence_strictement_identique() {
+        for etape in [
+            Etape::TemporaireEcrit(0),
+            Etape::AvantRemplacement,
+            Etape::FichierRemplace(1),
+            Etape::FichierRemplace(2),
+        ] {
+            let dossier = projet();
+            let racine = dossier.path();
+            ecrire(racine, "README.md", "# Projet\n");
+            ecrire(racine, "docs/existant.md", "x");
+            let avant = arborescence(racine);
+
+            let resultat = ecrire_fichiers_avec(racine, &lot(), &ErreurA(etape));
+
+            assert!(resultat.is_err(), "{etape:?}");
+            assert_eq!(arborescence(racine), avant, "{etape:?}");
+        }
+    }
+
+    #[test]
+    fn test_ac_005_3_arret_brutal_puis_recuperation_retire_les_dossiers_crees() {
+        let dossier = projet();
+        let racine = dossier.path();
+        ecrire(racine, ".cadre/cadre.yaml", "schema_version: 1 # à moi\n");
+        let avant = arborescence(racine);
+        arreter_brutalement(racine, &lot(), Etape::FichierRemplace(2));
+
+        recuperer(racine).expect("récupération");
+
+        let apres: Vec<String> = arborescence(racine)
+            .into_iter()
+            .filter(|chemin| !chemin.starts_with(".cadre/tmp"))
+            .collect();
+        assert_eq!(apres, avant);
+    }
+}
+
 mod transaction_reussie {
     use super::*;
 
