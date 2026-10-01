@@ -3,39 +3,9 @@
 
 use serde_json::{json, Value};
 use std::fs;
-use tauri::test::{get_ipc_response, mock_builder, mock_context, noop_assets, INVOKE_KEY};
-use tauri::webview::InvokeRequest;
 
-/// Origine de l'interface selon la plateforme (voir `commande_inspect_folder.rs`).
-fn app_origin() -> &'static str {
-    if cfg!(any(windows, target_os = "android")) {
-        "http://tauri.localhost"
-    } else {
-        "tauri://localhost"
-    }
-}
-
-fn invoke(cmd: &str, args: Value) -> Result<Value, Value> {
-    let app = cadre_lib::configure(mock_builder())
-        .build(mock_context(noop_assets()))
-        .unwrap();
-    let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
-        .build()
-        .unwrap();
-    get_ipc_response(
-        &webview,
-        InvokeRequest {
-            cmd: cmd.into(),
-            callback: tauri::ipc::CallbackFn(0),
-            error: tauri::ipc::CallbackFn(1),
-            url: app_origin().parse().unwrap(),
-            body: tauri::ipc::InvokeBody::Json(args),
-            headers: Default::default(),
-            invoke_key: INVOKE_KEY.to_string(),
-        },
-    )
-    .map(|body| body.deserialize::<Value>().unwrap())
-}
+mod common;
+use common::invoke;
 
 #[test]
 fn test_ac_002_1_commande_list_project_dir_renvoie_les_entrees() {
