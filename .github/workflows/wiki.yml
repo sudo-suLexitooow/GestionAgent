@@ -1,0 +1,42 @@
+name: Wiki
+
+# Publie docs/wiki/ dans le wiki GitHub (ADR-002). Le wiki n'est jamais édité à la main.
+on:
+  push:
+    branches: [main]
+    paths: ["docs/wiki/**", ".github/workflows/wiki.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  publier:
+    # Le lancement manuel ne publie que depuis main, jamais une branche non mergée.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Recopier docs/wiki dans le wiki
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          AUTH="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          if ! git -c http.extraheader="$AUTH" clone "https://github.com/${GITHUB_REPOSITORY}.wiki.git" wiki; then
+            echo "::error::Wiki introuvable : activez le wiki et créez sa première page depuis l'interface GitHub (ADR-002, amorçage)."
+            exit 1
+          fi
+          rsync -a --delete --exclude .git docs/wiki/ wiki/
+          cd wiki
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "Wiki déjà à jour."; exit 0; fi
+          git commit -m "docs(wiki): publication depuis ${GITHUB_SHA::7}"
+          git -c http.extraheader="$AUTH" push
