@@ -109,10 +109,10 @@ pub fn ecrire_fichiers_avec(
     for fichier in fichiers {
         valider_chemin(&fichier.chemin)?;
     }
-    recuperer(racine)?;
+    recuperer_avec(racine, points)?;
     let transaction = nouveau_dossier_transaction(racine).map_err(classer)?;
     let preparation = preparer(racine, &transaction, fichiers, points).and_then(|entrees| {
-        ecrire_journal(&transaction, EtatTransaction::EnCours, &entrees)?;
+        ecrire_journal(&transaction, EtatTransaction::EnCours, &entrees, points)?;
         points.atteint(Etape::AvantRemplacement)?;
         Ok(entrees)
     });
@@ -124,11 +124,15 @@ pub fn ecrire_fichiers_avec(
         }
     };
     let remplacement = remplacer(racine, &transaction, &entrees, points)
-        .and_then(|()| ecrire_journal(&transaction, EtatTransaction::Validee, &entrees));
+        .and_then(|()| ecrire_journal(&transaction, EtatTransaction::Validee, &entrees, points));
     if let Err(erreur) = remplacement {
         // Si l'annulation échoue, le journal reste : la prochaine récupération la reprend.
-        annuler(racine, &transaction, &entrees).map_err(classer)?;
-        let _ = fs::remove_dir_all(&transaction);
+        if let Err(echec) = annuler(racine, &transaction, &entrees, points) {
+            return Err(ErreurEcriture::AnnulationIncomplete(format!(
+                "{erreur} ; annulation interrompue : {echec}"
+            )));
+        }
+        let _ = nettoyer_transaction(&transaction, &SansPanne);
         return Err(classer(erreur));
     }
     // Validée : l'enregistrement a réussi. Interrompu ici, le journal reste et la
@@ -177,7 +181,7 @@ pub fn recuperer(racine: &Path) -> Result<(), ErreurEcriture> {
 }
 
 /// Comme [`recuperer`], avec des points d'injection de pannes.
-pub fn recuperer_avec(racine: &Path, _points: &dyn PointsDeControle) -> Result<(), ErreurEcriture> {
+pub fn recuperer_avec(racine: &Path, points: &dyn PointsDeControle) -> Result<(), ErreurEcriture> {
     if !dossiers_internes_reels(racine)? {
         return Ok(());
     }
@@ -208,7 +212,12 @@ pub fn recuperer_avec(racine: &Path, _points: &dyn PointsDeControle) -> Result<(
                 Some(Journal {
                     etat: EtatTransaction::EnCours,
                     entrees,
-                }) => annuler(racine, &chemin, &entrees).map_err(classer)?,
+                }) => annuler(racine, &chemin, &entrees, points).map_err(|erreur| {
+                    ErreurEcriture::AnnulationIncomplete(format!(
+                        "reprise de {} : {erreur}",
+                        chemin.display()
+                    ))
+                })?,
                 Some(Journal {
                     etat: EtatTransaction::Validee,
                     entrees,
@@ -270,13 +279,21 @@ struct Journal {
 
 /// Écrit le journal de la transaction de façon atomique. Tant qu'il est absent, aucun
 /// fichier du projet n'a été touché ; présent, il dit comment terminer ou annuler.
-fn ecrire_journal(transaction: &Path, etat: EtatTransaction, entrees: &[Entree]) -> io::Result<()> {
+fn ecrire_journal(
+    transaction: &Path,
+    etat: EtatTransaction,
+    entrees: &[Entree],
+    points: &dyn PointsDeControle,
+) -> io::Result<()> {
     let journal = Journal {
         etat,
         entrees: entrees.to_vec(),
     };
     let provisoire = transaction.join(format!("{JOURNAL}.provisoire"));
     ecrire_et_synchroniser(&provisoire, &serde_json::to_vec_pretty(&journal)?)?;
+    if matches!(etat, EtatTransaction::Validee) {
+        points.atteint(Etape::JournalValideProvisoire)?;
+    }
     fs::rename(&provisoire, transaction.join(JOURNAL))?;
     synchroniser_dossier(transaction)
 }
@@ -409,7 +426,12 @@ fn remplacer(
 
 /// Remet chaque fichier remplacé par la transaction dans son état d'origine. Un fichier
 /// dont le contenu n'est plus celui écrit par la transaction n'est jamais touché.
-fn annuler(racine: &Path, transaction: &Path, entrees: &[Entree]) -> io::Result<()> {
+fn annuler(
+    racine: &Path,
+    transaction: &Path,
+    entrees: &[Entree],
+    points: &dyn PointsDeControle,
+) -> io::Result<()> {
     for (i, entree) in entrees.iter().enumerate().rev() {
         let cible = racine.join(&entree.chemin);
         let actuel = match fs::read(&cible) {
@@ -429,6 +451,7 @@ fn annuler(racine: &Path, transaction: &Path, entrees: &[Entree]) -> io::Result<
             fs::remove_file(&cible)?;
         }
         synchroniser_dossier(cible.parent().unwrap_or(racine))?;
+        points.atteint(Etape::FichierRestaure(i))?;
     }
     Ok(())
 }
