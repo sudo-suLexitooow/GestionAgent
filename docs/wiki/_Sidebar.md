@@ -19,3 +19,4 @@
 
 - [ADR-001 — Format .cadre/ v1](ADR-001-format-cadre-v1)
 - [ADR-002 — Wiki depuis docs/wiki](ADR-002-wiki-depuis-docs)
+- [ADR-003 — Capacités Claude Code](ADR-003-capacites-claude-code)
