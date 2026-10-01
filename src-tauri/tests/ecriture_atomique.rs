@@ -1146,6 +1146,133 @@ mod verrou_du_projet {
     }
 }
 
+/// Revue A point 6, revue B : noms Windows, casse, `.git`, doublons, parents en lien.
+mod chemins_refuses_revue {
+    use super::*;
+    use cadre_lib::fs_atomique::ErreurEcriture;
+
+    fn assert_refuse(lot: &[FichierAEcrire]) {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        let mut tout = fichiers.clone();
+        tout.extend_from_slice(lot);
+
+        let resultat = ecrire_fichiers(racine, &tout);
+
+        assert!(
+            matches!(resultat, Err(ErreurEcriture::CheminInvalide(_))),
+            "{:?} : {resultat:?}",
+            lot.iter().map(|f| &f.chemin).collect::<Vec<_>>()
+        );
+        assert_projet_inchange(racine);
+    }
+
+    #[test]
+    fn test_securite_noms_reserves_windows_casse_et_git_refuses() {
+        for chemin in [
+            ".CADRE/TMP/x",
+            ".cadre/TMP/x",
+            ".Cadre/Backups/x",
+            ".cadre./tmp/x",
+            ".cadre/tmp./x",
+            "a./b",
+            "a /b",
+            "dossier/fichier.",
+            "fichier ",
+            "CON",
+            "con.txt",
+            "a/aux",
+            "nul.txt",
+            "COM1",
+            "lpt9.md",
+            "COM\u{b9}",
+            ".git",
+            ".git/hooks/pre-commit",
+            ".GIT/config",
+            "sous/.git/config",
+            "a<b",
+            "a>b",
+            "a|b",
+            "a?b",
+            "a*b",
+            "a\"b",
+            "a\u{1}b",
+        ] {
+            assert_refuse(&[FichierAEcrire::new(chemin, "intrus")]);
+        }
+    }
+
+    #[test]
+    fn test_securite_chemin_en_double_dans_un_lot_refuse() {
+        assert_refuse(&[
+            FichierAEcrire::new("CLAUDE.md", "1"),
+            FichierAEcrire::new("CLAUDE.md", "2"),
+        ]);
+        assert_refuse(&[
+            FichierAEcrire::new("claude.md", "1"),
+            FichierAEcrire::new("CLAUDE.md", "2"),
+        ]);
+    }
+
+    #[test]
+    fn test_securite_noms_proches_des_noms_reserves_acceptes() {
+        let dossier = projet();
+        let racine = dossier.path();
+        let lot: Vec<FichierAEcrire> = [
+            "CONSOLE.md",
+            "com10",
+            "auxiliaire.txt",
+            ".gitignore",
+            ".github/workflows/ci.yml",
+            ".cadre/cadre.yaml",
+            "a.b/c",
+        ]
+        .iter()
+        .map(|chemin| FichierAEcrire::new(chemin, "ok"))
+        .collect();
+
+        ecrire_fichiers(racine, &lot).expect("noms acceptés");
+
+        assert_eq!(
+            lire(racine, ".github/workflows/ci.yml").as_deref(),
+            Some("ok")
+        );
+    }
+
+    #[test]
+    fn test_securite_ecriture_a_travers_un_dossier_en_lien_refusee() {
+        let victime = dossier_victime();
+        let dossier = projet();
+        let racine = dossier.path();
+        lier_dossier(victime.path(), &racine.join("docs"));
+
+        let resultat = ecrire_fichiers(racine, &[FichierAEcrire::new("docs/temoin.txt", "écrasé")]);
+
+        assert!(
+            matches!(resultat, Err(ErreurEcriture::CheminInvalide(_))),
+            "{resultat:?}"
+        );
+        assert_victime_intacte(victime.path());
+    }
+
+    #[test]
+    fn test_securite_cadre_backups_en_lien_refuse() {
+        let victime = dossier_victime();
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        lier_dossier(victime.path(), &racine.join(".cadre/backups"));
+
+        let resultat = ecrire_fichiers(racine, &fichiers);
+
+        assert!(
+            matches!(resultat, Err(ErreurEcriture::CheminInvalide(_))),
+            "{resultat:?}"
+        );
+        assert_victime_intacte(victime.path());
+        assert_projet_inchange(racine);
+    }
+}
+
 mod transaction_reussie {
     use super::*;
 
