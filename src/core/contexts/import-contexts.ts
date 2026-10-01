@@ -39,12 +39,17 @@ export function buildContextImport(read: readonly ReadContextFile[]): ContextImp
  * Importe en mémoire les fichiers de contexte détectés : lecture seule des octets, puis
  * construction des contextes. L'écriture de `.cadre/` relève de l'enregistrement (US-005).
  */
-export function importContexts(
-  _files: ProjectFiles,
-  _root: string,
-  _specs: readonly ContextFileSpec[],
+export async function importContexts(
+  files: ProjectFiles,
+  root: string,
+  specs: readonly ContextFileSpec[],
 ): Promise<ContextImport> {
-  return Promise.resolve(buildContextImport([]));
+  const read: ReadContextFile[] = [];
+  for (const spec of specs) {
+    const bytes = await files.readFile(root, spec.file);
+    if (bytes !== null) read.push({ spec, bytes });
+  }
+  return buildContextImport(read);
 }
 
 /** Contexte importé depuis `spec` : métadonnées pour `cadre.yaml`, contenu brut (ADR-001, D2). */
