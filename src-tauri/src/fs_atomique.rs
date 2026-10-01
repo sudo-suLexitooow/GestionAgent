@@ -737,8 +737,13 @@ fn synchroniser_dossier(dossier: &Path) -> io::Result<()> {
 
 #[cfg(unix)]
 mod codes_systeme {
-    /// ENOSPC, EDQUOT (Linux 122, macOS 69).
-    pub const DISQUE_PLEIN: &[i32] = &[28, 122, 69];
+    /// ENOSPC et EDQUOT, dont la valeur dépend de l'OS.
+    #[cfg(target_os = "linux")]
+    pub const DISQUE_PLEIN: &[i32] = &[28, 122];
+    #[cfg(target_os = "macos")]
+    pub const DISQUE_PLEIN: &[i32] = &[28, 69];
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    pub const DISQUE_PLEIN: &[i32] = &[28];
     /// EROFS.
     pub const LECTURE_SEULE: &[i32] = &[30];
 }
