@@ -5,7 +5,8 @@ import { detectContextFiles } from "../core/contexts/import-contexts";
 import type { ProjectFiles } from "../core/project/ports";
 import { t } from "./i18n";
 
-type State = { kind: "detecting" } | { kind: "proposed"; specs: ContextFileSpec[] };
+type State =
+  { kind: "detecting" } | { kind: "none" } | { kind: "proposed"; specs: ContextFileSpec[] };
 
 export interface ContextsSectionProps {
   root: string;
@@ -21,14 +22,14 @@ export function ContextsSection({ root, files, adapter }: ContextsSectionProps) 
   useEffect(() => {
     let current = true;
     void detectContextFiles(files, root, adapter).then((specs) => {
-      if (current) setState({ kind: "proposed", specs });
+      if (current) setState(specs.length > 0 ? { kind: "proposed", specs } : { kind: "none" });
     });
     return () => {
       current = false;
     };
   }, [adapter, files, root]);
 
-  if (state.kind === "detecting") return null;
+  if (state.kind !== "proposed") return null;
   return (
     <section aria-labelledby={headingId}>
       <h2 id={headingId}>{t("contexts.title")}</h2>
