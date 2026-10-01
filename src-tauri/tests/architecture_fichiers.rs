@@ -1,14 +1,20 @@
-//! Test d'architecture (re-revue n°1) : dans l'écrivain atomique et ses commandes, aucun
-//! accès au système de fichiers ne contourne la résolution sûre des chemins. Tous les appels
-//! `std::fs` vivent dans `src/fs_atomique/acces.rs`, qui vérifie chaque segment (règle R1,
-//! ni lien ni jonction) avant d'agir.
+//! Test d'architecture (re-revue n°1, US-076) : dans l'écrivain atomique, ses commandes et les
+//! commandes de lecture du projet, aucun accès au système de fichiers ne contourne la
+//! résolution sûre des chemins. Tous les appels `std::fs` vivent dans
+//! `src/fs_atomique/acces.rs`, qui vérifie chaque segment (règle R1, ni lien ni jonction)
+//! avant d'agir.
 
-const MODULES_SANS_ACCES_DIRECT: [(&str, &str); 2] = [
+const MODULES_SANS_ACCES_DIRECT: [(&str, &str); 4] = [
     ("src/fs_atomique.rs", include_str!("../src/fs_atomique.rs")),
     (
         "src/fs_atomique/commandes.rs",
         include_str!("../src/fs_atomique/commandes.rs"),
     ),
+    (
+        "src/project_files.rs",
+        include_str!("../src/project_files.rs"),
+    ),
+    ("src/commands.rs", include_str!("../src/commands.rs")),
 ];
 
 /// `std::fs` et les méthodes de `Path` qui interrogent le disque (elles suivent les liens).

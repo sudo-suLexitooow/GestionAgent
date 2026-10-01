@@ -123,6 +123,19 @@ describe("lecture du projet par les commandes système", () => {
     },
   );
 
+  // US-076 : aucun lien n'est suivi ; le refus `link` de la commande est relayé tel quel.
+  test.each([["readFile"], ["listDir"]] as const)(
+    "test_ac_076_3_%s_relaie_le_refus_d_un_lien",
+    async (method) => {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- forme réelle du rejet Tauri
+      mockIPC(() => Promise.reject("link"));
+
+      const reading = tauriProjectFiles[method]("/home/lea/p", ".claude/skills/a/SKILL.md");
+
+      await expect(reading).rejects.toMatchObject({ name: "ProjectReadError", reason: "link" });
+    },
+  );
+
   test("test_ac_002_3_un_echec_inattendu_de_l_ipc_rejette_comme_illisible", async () => {
     mockIPC(() => Promise.reject(new Error("IPC indisponible")));
 

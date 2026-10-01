@@ -43,6 +43,7 @@ const READ_ERRORS: readonly unknown[] = [
   "outside-project",
   "unreadable",
   "too-large",
+  "link",
 ] satisfies ReadError[];
 
 /** Appelle une commande de lecture ; tout rejet devient un `ProjectReadError` (inconnu : illisible). */

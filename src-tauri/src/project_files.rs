@@ -1,12 +1,18 @@
-//! Lecture seule du contenu d'un projet (SKL-01, PRJ-02) : lister un dossier, lire un fichier en
-//! octets bruts. Le chemin relatif ne peut pas sortir de la racine fournie (pas de `..`, pas de
-//! chemin absolu). Limites connues : la racine elle-même, fournie par l'interface, n'est pas
-//! contrôlée ici (elle sera tenue côté Rust par une story de suivi), et les liens symboliques sont
-//! suivis (skills partagées par lien), y compris hors de la racine. Lecture seule.
+//! Lecture seule du contenu du projet ouvert (SKL-01, PRJ-02, US-076) : lister un dossier, lire
+//! un fichier en octets bruts.
+//!
+//! Portée : la racine est celle du projet ouvert par `ouvrir_projet` (état [`ProjetOuvert`],
+//! chemin canonique) ; une autre racine, ou aucun projet ouvert, est refusée (`OutsideProject`).
+//! Dans le projet, chaque chemin passe par la résolution sûre de [`Projet::reel`] : règle R1 sur
+//! chaque segment (`..`, chemin absolu, préfixes et noms réservés Windows → `OutsideProject`),
+//! aucun lien symbolique ni jonction suivi, ni sur la cible ni sur un dossier parent (`Link`),
+//! même s'il reste dans le projet. Seul un fichier ordinaire de `MAX_FILE_SIZE` au plus est lu.
 
+use crate::fs_atomique::acces::{genre_de_refus, Genre, Motif, Projet};
+use crate::fs_atomique::commandes::{racine_autorisee, ProjetOuvert};
 use serde::Serialize;
-use std::io::{ErrorKind, Read};
-use std::path::{Component, Path, PathBuf};
+use std::io;
+use std::path::Path;
 
 /// Nature d'une entrée de dossier, sérialisée comme le type TypeScript `EntryKind`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -14,6 +20,8 @@ use std::path::{Component, Path, PathBuf};
 pub enum EntryKind {
     File,
     Directory,
+    /// Lien symbolique ou jonction : jamais suivi (US-076).
+    Link,
     Other,
 }
 
@@ -28,86 +36,74 @@ pub struct DirEntry {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ReadError {
+    /// Aucun projet ouvert, autre racine, ou chemin refusé par la règle R1.
     OutsideProject,
     Unreadable,
     TooLarge,
+    /// Le chemin passe par un lien symbolique ou une jonction, non suivi (US-076).
+    Link,
 }
 
 /// Taille maximale d'un fichier lu (8 Mio) : au-delà, la lecture est refusée (`TooLarge`).
 pub const MAX_FILE_SIZE: u64 = 8 * 1024 * 1024;
 
-/// Chemin de `relative` sous `root`. Refuse un chemin absolu, une racine ou un préfixe de lecteur
-/// (Windows) et tout segment `..` : le chemin relatif ne sort pas de la racine fournie. Ni `root`
-/// ni les liens symboliques rencontrés ne sont contrôlés.
-fn resolve(root: &Path, relative: &str) -> Result<PathBuf, ReadError> {
-    let relative = Path::new(relative);
-    let stays_inside = relative
-        .components()
-        .all(|component| matches!(component, Component::Normal(_) | Component::CurDir));
-    if stays_inside {
-        Ok(root.join(relative))
-    } else {
-        Err(ReadError::OutsideProject)
+/// Projet ouvert si `root` le désigne (après canonicalisation) ; sinon `OutsideProject`.
+fn open_project(etat: &ProjetOuvert, root: &Path) -> Result<Projet, ReadError> {
+    let root = root.to_str().ok_or(ReadError::OutsideProject)?;
+    let racine = racine_autorisee(etat, root).map_err(|_| ReadError::OutsideProject)?;
+    Ok(Projet::new(&racine))
+}
+
+fn read_error(erreur: io::Error) -> ReadError {
+    match genre_de_refus(&erreur) {
+        Some(Motif::Segment) => ReadError::OutsideProject,
+        Some(Motif::Lien) => ReadError::Link,
+        Some(Motif::Taille) => ReadError::TooLarge,
+        Some(Motif::Nature) | None => ReadError::Unreadable,
     }
 }
 
-/// Liste le dossier `relative` du projet `root` ; `None` s'il n'existe pas ou si ce n'est pas un
-/// dossier (un fichier `.cadre` n'est pas un modèle, un fichier `.claude/skills` ne contient aucune skill).
-pub fn list_dir(root: &Path, relative: &str) -> Result<Option<Vec<DirEntry>>, ReadError> {
-    let path = resolve(root, relative)?;
-    if kind_of(&path) == EntryKind::File {
-        return Ok(None);
+/// Liste le dossier `relative` du projet ouvert ; `None` s'il n'existe pas ou si c'est un
+/// fichier (un fichier `.cadre` n'est pas un modèle, un fichier `.claude/skills` ne contient
+/// aucune skill). La nature des entrées est lue sans suivre les liens.
+pub fn list_dir(
+    etat: &ProjetOuvert,
+    root: &Path,
+    relative: &str,
+) -> Result<Option<Vec<DirEntry>>, ReadError> {
+    let projet = open_project(etat, root)?;
+    match projet.genre(relative).map_err(read_error)? {
+        None | Some(Genre::Fichier) => return Ok(None),
+        Some(Genre::Dossier) => {}
+        Some(Genre::Lien) => return Err(ReadError::Link),
+        Some(Genre::Autre) => return Err(ReadError::Unreadable),
     }
-    let reader = match std::fs::read_dir(path) {
-        Ok(reader) => reader,
-        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
-        Err(_) => return Err(ReadError::Unreadable),
-    };
-    let mut entries = Vec::new();
-    for entry in reader {
-        let entry = entry.map_err(|_| ReadError::Unreadable)?;
-        entries.push(DirEntry {
-            name: entry.file_name().to_string_lossy().into_owned(),
-            kind: kind_of(&entry.path()),
-        });
-    }
-    Ok(Some(entries))
+    let entries = projet.lister(relative).map_err(read_error)?;
+    Ok(Some(
+        entries
+            .into_iter()
+            .map(|(name, genre)| DirEntry {
+                name,
+                kind: match genre {
+                    Genre::Fichier => EntryKind::File,
+                    Genre::Dossier => EntryKind::Directory,
+                    Genre::Lien => EntryKind::Link,
+                    Genre::Autre => EntryKind::Other,
+                },
+            })
+            .collect(),
+    ))
 }
 
-/// Nature d'une entrée, en suivant les liens symboliques (une skill peut être un lien vers un dossier).
-fn kind_of(path: &Path) -> EntryKind {
-    match std::fs::metadata(path) {
-        Ok(metadata) if metadata.is_dir() => EntryKind::Directory,
-        Ok(metadata) if metadata.is_file() => EntryKind::File,
-        _ => EntryKind::Other,
-    }
-}
-
-/// Lit le fichier `relative` du projet `root` en octets bruts ; `None` s'il n'existe pas.
-/// Seul un fichier ordinaire (éventuellement atteint par un lien) est lu : un dossier, une FIFO ou un
-/// périphérique (`/dev/zero`) est refusé avant toute ouverture, pour ne jamais bloquer ni lire sans fin.
-/// Au-delà de `MAX_FILE_SIZE`, la lecture est refusée (`TooLarge`).
-pub fn read_file(root: &Path, relative: &str) -> Result<Option<Vec<u8>>, ReadError> {
-    let path = resolve(root, relative)?;
-    let metadata = match std::fs::metadata(&path) {
-        Ok(metadata) => metadata,
-        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
-        Err(_) => return Err(ReadError::Unreadable),
-    };
-    if !metadata.is_file() {
-        return Err(ReadError::Unreadable);
-    }
-    if metadata.len() > MAX_FILE_SIZE {
-        return Err(ReadError::TooLarge);
-    }
-    // Le fichier peut grossir entre la vérification et la lecture : la lecture reste bornée.
-    let file = std::fs::File::open(&path).map_err(|_| ReadError::Unreadable)?;
-    let mut bytes = Vec::new();
-    file.take(MAX_FILE_SIZE + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|_| ReadError::Unreadable)?;
-    if bytes.len() as u64 > MAX_FILE_SIZE {
-        return Err(ReadError::TooLarge);
-    }
-    Ok(Some(bytes))
+/// Lit le fichier `relative` du projet ouvert en octets bruts ; `None` s'il n'existe pas.
+/// Seul un fichier ordinaire est lu : un dossier, une FIFO ou un périphérique est refusé avant
+/// toute ouverture. Au-delà de `MAX_FILE_SIZE`, même s'il grossit pendant la lecture : `TooLarge`.
+pub fn read_file(
+    etat: &ProjetOuvert,
+    root: &Path,
+    relative: &str,
+) -> Result<Option<Vec<u8>>, ReadError> {
+    open_project(etat, root)?
+        .lire_au_plus(relative, MAX_FILE_SIZE)
+        .map_err(read_error)
 }

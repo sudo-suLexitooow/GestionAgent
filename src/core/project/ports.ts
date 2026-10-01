@@ -25,16 +25,23 @@ export interface ProjectWarning {
   detail: string;
 }
 
-/** Nature d'une entrée de dossier ; `other` : ni fichier ni dossier (lien cassé, périphérique…). */
-export type EntryKind = "file" | "directory" | "other";
+/**
+ * Nature d'une entrée de dossier, lue sans suivre les liens. `link` : lien symbolique ou jonction
+ * (jamais suivi, US-076) ; `other` : ni fichier, ni dossier, ni lien (FIFO, périphérique…).
+ */
+export type EntryKind = "file" | "directory" | "link" | "other";
 
 export interface DirEntry {
   name: string;
   kind: EntryKind;
 }
 
-/** Motif de refus d'une lecture, tel que le rapportent les commandes système. */
-export type ReadError = "outside-project" | "unreadable" | "too-large";
+/**
+ * Motif de refus d'une lecture, tel que le rapportent les commandes système. `outside-project` :
+ * aucun projet ouvert, racine autre que celle du projet ouvert, ou chemin refusé (`..`, absolu,
+ * préfixe ou nom réservé Windows) ; `link` : le chemin passe par un lien ou une jonction (US-076).
+ */
+export type ReadError = "outside-project" | "unreadable" | "too-large" | "link";
 
 /** Rejet d'une lecture du projet : porte le motif rapporté par la commande système. */
 export class ProjectReadError extends Error {
@@ -44,17 +51,22 @@ export class ProjectReadError extends Error {
   }
 }
 
-/** Raison affichable d'un échec de lecture d'un fichier : trop gros, sinon illisible. */
-export function readFailureReason(error: unknown): "unreadable" | "too-large" {
-  return error instanceof ProjectReadError && error.reason === "too-large"
-    ? "too-large"
-    : "unreadable";
+/** Raison affichable d'un échec de lecture d'un fichier : trop gros, lien, sinon illisible. */
+export function readFailureReason(error: unknown): "unreadable" | "too-large" | "link" {
+  if (
+    error instanceof ProjectReadError &&
+    (error.reason === "too-large" || error.reason === "link")
+  )
+    return error.reason;
+  return "unreadable";
 }
 
 /**
- * Lecture seule du contenu d'un projet (SKL-01, PRJ-02). `path` est relatif à la racine `root`,
- * séparateur `/` (`""` désigne la racine elle-même) ; un chemin relatif qui sortirait de la racine fournie (`..`, chemin absolu) est
- * refusé. Ni la racine elle-même ni les liens symboliques (suivis) ne sont contrôlés.
+ * Lecture seule du contenu du projet ouvert (SKL-01, PRJ-02, US-076). `root` doit désigner le
+ * projet ouvert par `prepareProject` (sinon, ou si aucun projet n'est ouvert : `outside-project`).
+ * `path` est relatif à `root`, séparateur `/` (`""` désigne la racine elle-même) ; un chemin qui
+ * sortirait du projet (`..`, absolu, préfixe ou nom réservé Windows) est refusé
+ * (`outside-project`). Aucun lien symbolique ni jonction n'est suivi, même interne (`link`).
  * Un élément absent donne `null` ; un échec rejette avec un `ProjectReadError`.
  */
 export interface ProjectFiles {
