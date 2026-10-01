@@ -74,6 +74,9 @@ pub fn ecrire_fichiers_avec(
     fichiers: &[FichierAEcrire],
     points: &dyn PointsDeControle,
 ) -> Result<(), ErreurEcriture> {
+    for fichier in fichiers {
+        valider_chemin(&fichier.chemin)?;
+    }
     recuperer(racine)?;
     let transaction = nouveau_dossier_transaction(racine).map_err(classer)?;
     let preparation = preparer(racine, &transaction, fichiers, points).and_then(|entrees| {
@@ -103,6 +106,22 @@ pub fn ecrire_fichiers_avec(
         .and_then(|()| sauvegarder_versions_precedentes(racine, &transaction, &entrees));
     if sauvegarde.is_ok() {
         let _ = fs::remove_dir_all(&transaction);
+    }
+    Ok(())
+}
+
+/// Chemin relatif au projet, segments séparés par `/`, sans `.`, `..`, `\`, `:` ni segment
+/// vide, hors des dossiers internes de l'écrivain (`.cadre/tmp`, `.cadre/backups`).
+pub fn valider_chemin(chemin: &str) -> Result<(), ErreurEcriture> {
+    let segments: Vec<&str> = chemin.split('/').collect();
+    let segment_invalide = |segment: &&str| {
+        segment.is_empty() || *segment == "." || *segment == ".." || segment.contains(['\\', ':'])
+    };
+    let interne = [DOSSIER_TMP, DOSSIER_SAUVEGARDES]
+        .iter()
+        .any(|dossier| chemin == *dossier || chemin.starts_with(&format!("{dossier}/")));
+    if segments.iter().any(segment_invalide) || interne {
+        return Err(ErreurEcriture::CheminInvalide(chemin.to_owned()));
     }
     Ok(())
 }
