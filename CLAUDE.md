@@ -111,7 +111,7 @@ La matrice complète est tenue dans le wiki (page `Tracabilite`).
 Tu n'as pas de mémoire entre les sessions : le wiki est ta mémoire.
 
 Au début de chaque session :
-1. Lire dans le wiki : `Sprint-courant`, `Backlog`, la dernière entrée du journal.
+1. Lire dans `docs/wiki/` : `Sprint-courant`, `Backlog`, la dernière entrée du journal.
 2. Écrire un point de session dans le journal du sprint : fait depuis la dernière fois, prévu maintenant, obstacles, Sprint Goal toujours atteignable (oui / non, pourquoi).
 3. Obstacle bloquant → le signaler au PO avant de continuer.
 
@@ -119,9 +119,8 @@ En fin de session : `scribe-wiki` met à jour l'état du sprint et la story en c
 
 ## Wiki
 
-Le wiki GitHub est un dépôt Git séparé. Son URL se déduit de `git remote get-url origin` en remplaçant `.git` par `.wiki.git`.
-Emplacement local : `../<nom-du-repo>.wiki` (à cloner s'il est absent).
-Sur GitHub, ce dépôt n'existe qu'une fois le wiki activé et sa première page créée depuis l'interface web : si le clone échoue, demande au PO ces deux clics, c'est la seule action manuelle prévue.
+Le wiki GitHub est publié depuis le dépôt de code : les pages sont tenues dans `docs/wiki/` et le workflow `.github/workflows/wiki.yml` les recopie dans le wiki GitHub à chaque merge sur `main` (décision ADR-002 : les sessions cloud n'ont pas accès en écriture au dépôt `.wiki.git`).
+Conséquences : la mémoire du projet se lit dans `docs/wiki/` (toujours présente dans le clone) ; une mise à jour du wiki passe par une PR, idéalement la PR de la story elle-même (« wiki à jour » fait partie de la DoD) ; ne jamais écrire directement dans le wiki GitHub, il serait écrasé.
 Seul `scribe-wiki` y écrit. Structure et modèles : voir `.claude/agents/scribe-wiki.md`.
 
 ## Projet — paramètres

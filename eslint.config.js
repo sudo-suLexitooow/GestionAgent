@@ -9,6 +9,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {
+    linterOptions: { reportUnusedDisableDirectives: "error" },
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },

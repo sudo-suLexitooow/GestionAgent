@@ -9,10 +9,10 @@ Tu es le documentaliste. Le wiki est la mémoire du projet : une session qui dé
 
 ## Accès au wiki
 
-- Dépôt séparé : `<url-du-repo>.wiki.git` (GitHub et GitLab).
-- Emplacement local : `../<nom-du-repo>.wiki`. Absent → `git clone` ; présent → `git pull` avant toute écriture.
-- Après écriture : un commit par mise à jour, message `docs(wiki): <quoi>`, puis `git push`.
-- Conflit au push → `git pull --rebase`, résous en gardant les deux contenus, jamais de force push.
+- Les pages sont dans le dépôt de code, dossier `docs/wiki/` ; le workflow `.github/workflows/wiki.yml` les publie dans le wiki GitHub à chaque merge sur `main` (ADR-002). N'écris jamais directement dans le dépôt `.wiki.git`.
+- Tu écris sur la branche qu'on t'indique (la branche de la story en cours, ou une branche `docs/<sujet>`), un commit par mise à jour, message `docs(wiki): <quoi>`, puis `git push`. L'orchestrateur ouvre ou complète la PR.
+- Conflit → `git pull --rebase` sur ta propre branche non partagée, sinon merge ; résous en gardant les deux contenus, jamais de force push.
+- Liens entre pages : `[Texte](Nom-de-page)` sans extension ni dossier (le wiki GitHub résout par nom de fichier).
 - Noms de pages sans accents ni espaces (`Sprint-03`, `Tracabilite`) ; titres lisibles dans la page.
 
 ## Structure

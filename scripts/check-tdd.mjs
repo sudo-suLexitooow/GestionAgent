@@ -11,7 +11,13 @@ const TS_PATTERNS = [
   /\b(?:it|test|describe|suite)\s*\[\s*["'](?:only|skip|skipIf|runIf|todo)["']\s*\]/,
   /(?<![\w.])(?:xit|xtest|xdescribe|fit|fdescribe)\s*\(/,
 ];
-const RUST_PATTERNS = [/#\s*\[\s*ignore\b/, /#\s*\[\s*cfg_attr\s*\([^\]]*\bignore\b/];
+// Rust : recherche sur le fichier entier, car rustfmt peut couper un attribut sur plusieurs lignes.
+const RUST_PATTERNS = [
+  /#\s*\[\s*ignore\b/g,
+  /#\s*\[\s*cfg_attr\s*\([^\]]*\bignore\b/g,
+  // `#[cfg(any())]` ou `#[cfg(FALSE)]` retirent un test de la compilation sans le signaler.
+  /#\s*\[\s*cfg\s*\(\s*(?:any\s*\(\s*\)|FALSE|false)\s*\)\s*\]/g,
+];
 
 function* walk(dir) {
   for (const name of readdirSync(dir)) {
@@ -24,12 +30,20 @@ function* walk(dir) {
 const violations = [];
 for (const root of ROOTS.filter((r) => existsSync(r))) {
   for (const file of walk(root)) {
-    const patterns = file.endsWith(".rs") ? RUST_PATTERNS : TS_PATTERNS;
-    readFileSync(file, "utf8")
-      .split(/\r?\n/)
-      .forEach((line, i) => {
-        if (patterns.some((p) => p.test(line))) violations.push(`${file}:${i + 1}: ${line.trim()}`);
+    const content = readFileSync(file, "utf8");
+    if (file.endsWith(".rs")) {
+      for (const pattern of RUST_PATTERNS) {
+        for (const match of content.matchAll(pattern)) {
+          const line = content.slice(0, match.index).split("\n").length;
+          violations.push(`${file}:${line}: ${match[0].replace(/\s+/g, " ")}`);
+        }
+      }
+    } else {
+      content.split(/\r?\n/).forEach((line, i) => {
+        if (TS_PATTERNS.some((p) => p.test(line)))
+          violations.push(`${file}:${i + 1}: ${line.trim()}`);
       });
+    }
   }
 }
 
