@@ -1,5 +1,6 @@
 import type { ToolAdapter } from "../adapters/adapter";
 import type { ProjectFiles } from "../project/ports";
+import { decodeUtf8 } from "../text/utf8";
 import type { ContextEntry, ContextFileSpec, ImportedContext } from "./context";
 import { GENERIC_CONTEXT_FILES } from "./generic-format";
 
@@ -21,9 +22,17 @@ export interface ContextImport {
   warnings: ContextImportWarning[];
 }
 
-/** Construit les contextes à partir des octets lus (fonction pure). */
+/**
+ * Construit les contextes à partir des octets lus (fonction pure). Un fichier non UTF-8 est importé
+ * tel quel, octets compris, avec un avertissement d'encodage : son contenu n'est pas perdu.
+ */
 export function buildContextImport(read: readonly ReadContextFile[]): ContextImport {
-  return { contexts: read.map(({ spec, bytes }) => importedContext(spec, bytes)), warnings: [] };
+  return {
+    contexts: read.map(({ spec, bytes }) => importedContext(spec, bytes)),
+    warnings: read
+      .filter(({ bytes }) => decodeUtf8(bytes) === null)
+      .map(({ spec }) => ({ source: spec.file, code: "encoding" })),
+  };
 }
 
 /** Contexte importé depuis `spec` : métadonnées pour `cadre.yaml`, contenu brut (ADR-001, D2). */
