@@ -1,5 +1,6 @@
 import { claudeCodeAdapter } from "../adapters/claude-code/claude-code-adapter";
 import { InMemoryProjectFiles } from "../testing/in-memory-project-files";
+import { recordingProjectFiles } from "../testing/recording-project-files";
 import { buildContextImport, detectContextFiles, importContexts } from "./import-contexts";
 
 const ROOT = "/home/lea/projet";
@@ -130,5 +131,22 @@ describe("import des contextes détectés depuis le projet", () => {
     expect(result.contexts[0]?.content).toEqual(claude);
     expect(result.contexts[1]?.content).toEqual(agents);
     expect(result.warnings).toEqual([]);
+  });
+
+  test("test_ac_003_5_les_fichiers_d_origine_restent_inchanges_et_ne_sont_que_lus", async () => {
+    const claude = bytesOf("# Projet\r\n", { bom: true });
+    const agents = bytesOf("# Agents\n");
+    const disk = new InMemoryProjectFiles(ROOT, { "CLAUDE.md": claude, "AGENTS.md": agents });
+    const before = { claude: claude.slice(), agents: agents.slice() };
+    const recorded = recordingProjectFiles(disk);
+
+    const specs = await detectContextFiles(recorded.files, ROOT, claudeCodeAdapter);
+    const result = await importContexts(recorded.files, ROOT, specs);
+    // Le modèle en mémoire évolue ensuite (édition future) : le disque ne doit pas suivre.
+    for (const context of result.contexts) context.content.fill(0x78);
+
+    expect(await disk.readFile(ROOT, "CLAUDE.md")).toEqual(before.claude);
+    expect(await disk.readFile(ROOT, "AGENTS.md")).toEqual(before.agents);
+    expect([...recorded.used].sort()).toEqual(["listDir", "readFile"]);
   });
 });
