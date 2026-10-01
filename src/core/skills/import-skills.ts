@@ -2,6 +2,7 @@
 // `SKILL.md` et fichiers annexes, à l'octet près (ADR-001, D2). Lecture seule : rien n'est écrit ici.
 import type { ProjectFiles } from "../project/ports";
 import type { ListedSkill } from "./skill";
+import { describeSkill } from "./skills-folder";
 
 /** Fichier d'une skill : chemin relatif au dossier de la skill (séparateur `/`) et octets bruts. */
 export interface SkillFile {
@@ -32,12 +33,56 @@ export interface SkillImport {
   failures: SkillImportFailure[];
 }
 
-/** Importe les skills de `<dir>/<nom>/` (format Agent Skills). */
-export function importSkillsFolder(
+const SKILL_MD = "SKILL.md";
+
+/** Importe les skills de `<dir>/<nom>/` (format Agent Skills), triées par nom de dossier. */
+export async function importSkillsFolder(
   files: ProjectFiles,
   root: string,
   dir: string,
 ): Promise<SkillImport> {
-  void [files, root, dir];
-  return Promise.resolve({ skills: [], failures: [] });
+  const entries = (await files.listDir(root, dir)) ?? [];
+  const folders = entries
+    .filter((entry) => entry.kind === "directory")
+    .map((entry) => entry.name)
+    .sort(byName);
+  const skills: ImportedSkill[] = [];
+  for (const folder of folders) {
+    const source = `${dir}/${folder}`;
+    const skillFiles = await readTree(files, root, source, "");
+    const header = skillFiles.find((file) => file.path === SKILL_MD);
+    if (!header) continue;
+    skills.push({ skill: describeSkill(folder, header.content), source, files: skillFiles });
+  }
+  return { skills, failures: [] };
+}
+
+/** Fichiers de `<base>/<prefix>`, sous-dossiers compris, `SKILL.md` en tête puis triés par chemin. */
+async function readTree(
+  files: ProjectFiles,
+  root: string,
+  base: string,
+  prefix: string,
+): Promise<SkillFile[]> {
+  const entries = (await files.listDir(root, prefix === "" ? base : `${base}/${prefix}`)) ?? [];
+  const result: SkillFile[] = [];
+  for (const { name, kind } of [...entries].sort((a, b) => byName(a.name, b.name))) {
+    const path = prefix === "" ? name : `${prefix}/${name}`;
+    if (kind === "directory") result.push(...(await readTree(files, root, base, path)));
+    if (kind !== "file") continue;
+    const content = await files.readFile(root, `${base}/${path}`);
+    if (content !== null) result.push({ path, content });
+  }
+  return prefix === "" ? skillMdFirst(result) : result;
+}
+
+function skillMdFirst(skillFiles: SkillFile[]): SkillFile[] {
+  return [
+    ...skillFiles.filter((file) => file.path === SKILL_MD),
+    ...skillFiles.filter((file) => file.path !== SKILL_MD),
+  ];
+}
+
+function byName(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
