@@ -31,4 +31,21 @@ describe("sélecteur de dossier Tauri", () => {
       { cmd: "plugin:dialog|open", args: { options: { directory: true, multiple: false } } },
     ]);
   });
+
+  test("test_ac_001_5_annulation_du_selecteur_renvoie_null", async () => {
+    recordIpc(() => null);
+
+    expect(await tauriFolderAccess.pickFolder()).toBeNull();
+  });
+});
+
+describe("vérification d'un dossier par la commande système", () => {
+  test("test_ac_001_4_transmet_le_chemin_a_inspect_folder_et_relaie_son_verdict", async () => {
+    const calls = recordIpc(() => "unreadable");
+
+    const status = await tauriFolderAccess.inspectFolder("/home/lea/secret");
+
+    expect(status).toBe("unreadable");
+    expect(calls).toEqual([{ cmd: "inspect_folder", args: { path: "/home/lea/secret" } }]);
+  });
 });
