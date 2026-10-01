@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { DropSource, FolderAccess, FolderStatus } from "../core/project/ports";
 
@@ -9,5 +10,8 @@ export const tauriFolderAccess: FolderAccess = {
 };
 
 export const tauriDropSource: DropSource = {
-  onDrop: () => Promise.resolve(() => undefined),
+  onDrop: (listener) =>
+    getCurrentWebview().onDragDropEvent((event) => {
+      if (event.payload.type === "drop") listener(event.payload.paths);
+    }),
 };
