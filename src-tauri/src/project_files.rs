@@ -57,6 +57,10 @@ fn kind_of(path: &Path) -> EntryKind {
 }
 
 /// Lit le fichier `relative` du projet `root` en octets bruts ; `None` s'il n'existe pas.
-pub fn read_file(_root: &Path, _relative: &str) -> Result<Option<Vec<u8>>, ReadError> {
-    Err(ReadError::Unreadable)
+pub fn read_file(root: &Path, relative: &str) -> Result<Option<Vec<u8>>, ReadError> {
+    match std::fs::read(root.join(relative)) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
+        Err(_) => Err(ReadError::Unreadable),
+    }
 }
