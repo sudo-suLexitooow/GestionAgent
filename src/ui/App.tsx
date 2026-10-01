@@ -1,4 +1,7 @@
+import { useState } from "react";
+import { openFromPicker, type Project } from "../core/project/open-project";
 import type { DropSource, FolderAccess } from "../core/project/ports";
+import { tauriFolderAccess } from "../platform/tauri-project-ports";
 import { t } from "./i18n";
 
 export interface AppProps {
@@ -6,11 +9,29 @@ export interface AppProps {
   drops?: DropSource;
 }
 
-export function App(_props: AppProps) {
+export function App({ folders = tauriFolderAccess }: AppProps) {
+  const [project, setProject] = useState<Project | null>(null);
+
+  async function handleOpen() {
+    const outcome = await openFromPicker(folders);
+    if (outcome.kind === "opened") setProject(outcome.project);
+  }
+
+  if (project) {
+    return (
+      <main>
+        <h1>{project.name}</h1>
+        <p>{project.path}</p>
+      </main>
+    );
+  }
+
   return (
     <main>
       <h1>{t("app.title")}</h1>
-      <button type="button">{t("home.open")}</button>
+      <button type="button" onClick={() => void handleOpen()}>
+        {t("home.open")}
+      </button>
     </main>
   );
 }
