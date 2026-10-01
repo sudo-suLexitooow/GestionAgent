@@ -457,6 +457,143 @@ mod version_precedente {
     }
 }
 
+/// Erreur du système d'exploitation simulée à l'étape donnée (code d'erreur natif).
+struct ErreurSystemeA(Etape, i32);
+
+impl PointsDeControle for ErreurSystemeA {
+    fn atteint(&self, etape: Etape) -> io::Result<()> {
+        if etape == self.0 {
+            return Err(io::Error::from_raw_os_error(self.1));
+        }
+        Ok(())
+    }
+}
+
+#[cfg(unix)]
+mod codes {
+    pub const DISQUE_PLEIN: i32 = 28; // ENOSPC (Linux, macOS)
+    pub const VOLUME_EN_LECTURE_SEULE: i32 = 30; // EROFS (Linux, macOS)
+}
+
+#[cfg(windows)]
+mod codes {
+    pub const DISQUE_PLEIN: i32 = 112; // ERROR_DISK_FULL
+    pub const VOLUME_EN_LECTURE_SEULE: i32 = 19; // ERROR_WRITE_PROTECT
+}
+
+mod disque_plein_ou_lecture_seule {
+    use super::*;
+    use cadre_lib::fs_atomique::ErreurEcriture;
+
+    #[test]
+    fn test_ac_005_6_disque_plein_simule_erreur_claire_et_fichiers_inchanges() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+
+        let resultat = ecrire_fichiers_avec(
+            racine,
+            &fichiers,
+            &ErreurSystemeA(Etape::TemporaireEcrit(1), codes::DISQUE_PLEIN),
+        );
+
+        assert!(
+            matches!(resultat, Err(ErreurEcriture::DisquePlein(_))),
+            "{resultat:?}"
+        );
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_ac_005_6_disque_plein_pendant_le_remplacement_fichiers_inchanges() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+
+        let resultat = ecrire_fichiers_avec(
+            racine,
+            &fichiers,
+            &ErreurSystemeA(Etape::FichierRemplace(1), codes::DISQUE_PLEIN),
+        );
+
+        assert!(
+            matches!(resultat, Err(ErreurEcriture::DisquePlein(_))),
+            "{resultat:?}"
+        );
+        assert_projet_inchange(racine);
+    }
+
+    #[test]
+    fn test_ac_005_6_volume_en_lecture_seule_simule_erreur_claire_et_fichiers_inchanges() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+
+        let resultat = ecrire_fichiers_avec(
+            racine,
+            &fichiers,
+            &ErreurSystemeA(Etape::FichierRemplace(0), codes::VOLUME_EN_LECTURE_SEULE),
+        );
+
+        assert!(
+            matches!(resultat, Err(ErreurEcriture::LectureSeule(_))),
+            "{resultat:?}"
+        );
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    /// Unix : le dossier du projet et `.cadre/` sont réellement en lecture seule (droits).
+    /// Doit tourner sous un utilisateur non administrateur (cas de la CI) : root ignore les
+    /// droits.
+    #[cfg(unix)]
+    #[test]
+    fn test_ac_005_6_dossier_reellement_en_lecture_seule_erreur_claire_et_fichiers_inchanges() {
+        use std::os::unix::fs::PermissionsExt;
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        let dossiers = [racine.join(".cadre"), racine.to_path_buf()];
+        for chemin in &dossiers {
+            fs::set_permissions(chemin, fs::Permissions::from_mode(0o555)).unwrap();
+        }
+
+        let resultat = ecrire_fichiers(racine, &fichiers);
+
+        for chemin in dossiers.iter().rev() {
+            fs::set_permissions(chemin, fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        assert!(
+            matches!(resultat, Err(ErreurEcriture::LectureSeule(_))),
+            "{resultat:?}"
+        );
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+
+    /// Windows : le deuxième fichier porte l'attribut « lecture seule » ; le premier, déjà
+    /// remplacé, doit être remis d'origine. (Sous Windows l'attribut lecture seule d'un
+    /// dossier n'empêche pas d'y écrire : c'est le fichier qui est protégé.)
+    #[cfg(windows)]
+    #[test]
+    fn test_ac_005_6_fichier_reellement_en_lecture_seule_erreur_claire_et_fichiers_inchanges() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        let protege = racine.join(".gitignore");
+        let mut droits = fs::metadata(&protege).unwrap().permissions();
+        droits.set_readonly(true);
+        fs::set_permissions(&protege, droits.clone()).unwrap();
+
+        let resultat = ecrire_fichiers(racine, &fichiers);
+
+        droits.set_readonly(false);
+        fs::set_permissions(&protege, droits).unwrap();
+        assert!(
+            matches!(resultat, Err(ErreurEcriture::LectureSeule(_))),
+            "{resultat:?}"
+        );
+        assert_projet_inchange(racine);
+        assert_eq!(temporaires(racine), Vec::<String>::new());
+    }
+}
+
 mod transaction_reussie {
     use super::*;
 
