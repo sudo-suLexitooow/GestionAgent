@@ -12,6 +12,7 @@ export type OpenOutcome =
   | { kind: "cancelled" }
   | { kind: "error"; error: OpenError };
 
-export function openFromPicker(_folders: FolderAccess): Promise<OpenOutcome> {
-  return Promise.resolve({ kind: "cancelled" });
+export async function openFromPicker(folders: FolderAccess): Promise<OpenOutcome> {
+  const path = (await folders.pickFolder()) ?? "";
+  return { kind: "opened", project: { name: path.split("/").pop() ?? path, path } };
 }
