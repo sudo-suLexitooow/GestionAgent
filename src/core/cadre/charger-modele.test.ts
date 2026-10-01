@@ -30,6 +30,9 @@ function charger(contenu: Record<string, string | Uint8Array>) {
   return chargerModele(new InMemoryProjectFiles(ROOT, contenu), ROOT);
 }
 
+/** YAML valide mais aux alias démultipliés : la conversion refuse (épuisement de ressources). */
+const BOMBE_ALIAS = `a: &a [x]\nb: [${Array.from({ length: 150 }, () => "*a").join(", ")}]\n`;
+
 /** `cadre.yaml` v1 minimal valide. */
 const CADRE_V1 = "schema_version: 1\ngenerator_version: 0.1.0\ntools: [claude-code]\n";
 
@@ -193,6 +196,27 @@ describe("agent invalide (AC-006-3)", () => {
     });
   });
 
+  test("test_ac_006_3_agent_avec_alias_en_masse_seul_en_erreur_les_autres_charges", async () => {
+    const resultat = await charger({
+      ".cadre/cadre.yaml": CADRE_V1,
+      ".cadre/agents/bombe.yaml": BOMBE_ALIAS,
+      ".cadre/agents/valide.yaml": AGENT_VALIDE,
+    });
+
+    expect(resultat).toMatchObject({
+      etat: "charge",
+      modele: {
+        agents: [
+          {
+            statut: "erreur",
+            erreur: { fichier: ".cadre/agents/bombe.yaml", code: "YAML_ALIASES" },
+          },
+          { statut: "ok", fichier: ".cadre/agents/valide.yaml" },
+        ],
+      },
+    });
+  });
+
   test("test_ac_006_3_le_chargement_ne_fait_que_lire", async () => {
     const { files, used } = recordingProjectFiles(
       new InMemoryProjectFiles(ROOT, {
@@ -239,6 +263,13 @@ describe("modèle incomplet (AC-006-5) ou absent (AC-006-6)", () => {
       });
     },
   );
+
+  test("test_ac_006_5_cadre_yaml_avec_alias_en_masse_modele_incomplet", async () => {
+    expect(await charger({ ".cadre/cadre.yaml": BOMBE_ALIAS })).toEqual({
+      etat: "incomplet",
+      erreur: { fichier: ".cadre/cadre.yaml", code: "YAML_ALIASES" },
+    });
+  });
 
   test("test_ac_006_5_cadre_yaml_lien_symbolique_modele_incomplet_avec_le_motif", async () => {
     const files = new InMemoryProjectFiles(ROOT, {}).addLink(".cadre/cadre.yaml");
