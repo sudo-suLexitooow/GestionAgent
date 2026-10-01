@@ -1,6 +1,8 @@
 //! Intégration : lecture du contenu d'un projet sur de vrais fichiers temporaires (US-002).
 
-use cadre_lib::project_files::{list_dir, read_file, DirEntry, EntryKind, ReadError};
+use cadre_lib::project_files::{
+    list_dir, read_file, DirEntry, EntryKind, ReadError, MAX_FILE_SIZE,
+};
 use std::fs;
 
 fn sorted(mut entries: Vec<DirEntry>) -> Vec<DirEntry> {
@@ -84,6 +86,111 @@ fn test_ac_002_1_lit_un_fichier_du_projet_a_l_octet_pres() {
         read_file(project.path(), ".claude/skills/a/SKILL.md"),
         Ok(Some(bytes))
     );
+}
+
+/// Un projet contenant, à `.claude/skills/a/SKILL.md`, ce que `create` y place.
+fn project_with_skill_md(create: impl FnOnce(&std::path::Path)) -> tempfile::TempDir {
+    let project = tempfile::tempdir().unwrap();
+    let skill = project.path().join(".claude/skills/a");
+    fs::create_dir_all(&skill).unwrap();
+    create(&skill.join("SKILL.md"));
+    project
+}
+
+#[test]
+fn test_ac_002_3_un_fichier_au_plafond_de_taille_est_lu() {
+    let project = project_with_skill_md(|path| {
+        fs::write(path, vec![b'a'; MAX_FILE_SIZE as usize]).unwrap();
+    });
+
+    let bytes = read_file(project.path(), ".claude/skills/a/SKILL.md");
+
+    assert_eq!(bytes.map(|b| b.map(|b| b.len())), Ok(Some(8 * 1024 * 1024)));
+}
+
+#[test]
+fn test_ac_002_3_un_fichier_au_dela_du_plafond_de_taille_est_refuse() {
+    let project = project_with_skill_md(|path| {
+        fs::write(path, vec![b'a'; MAX_FILE_SIZE as usize + 1]).unwrap();
+    });
+
+    let bytes = read_file(project.path(), ".claude/skills/a/SKILL.md");
+
+    assert_eq!(bytes.map(|b| b.map(|b| b.len())), Err(ReadError::TooLarge));
+}
+
+#[test]
+fn test_ac_002_3_un_dossier_n_est_pas_lu_comme_un_fichier() {
+    let project = project_with_skill_md(|path| fs::create_dir(path).unwrap());
+
+    assert_eq!(
+        read_file(project.path(), ".claude/skills/a/SKILL.md"),
+        Err(ReadError::Unreadable)
+    );
+}
+
+/// Fichiers spéciaux et liens symboliques : compilés seulement sous Linux et macOS (`cfg(unix)`),
+/// où `/dev/zero`, les FIFO et les liens sans privilège existent. Aucun test désactivé.
+#[cfg(unix)]
+mod fichiers_speciaux_unix {
+    use super::*;
+    use std::os::unix::fs::symlink;
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    /// Lit `.claude/skills/a/SKILL.md` dans un fil séparé et échoue si la lecture ne rend pas la main
+    /// en 2 secondes : un fichier spécial ne doit ni bloquer ni être lu sans fin (le test non plus).
+    fn read_skill_md_without_blocking(
+        project: &tempfile::TempDir,
+    ) -> Result<Option<Vec<u8>>, ReadError> {
+        let root = project.path().to_path_buf();
+        let (sender, receiver) = mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = sender.send(read_file(&root, ".claude/skills/a/SKILL.md"));
+        });
+        receiver
+            .recv_timeout(Duration::from_secs(2))
+            .expect("la lecture bloque ou ne finit pas")
+    }
+
+    #[test]
+    fn test_ac_002_3_un_lien_vers_dev_zero_est_refuse_sans_bloquer() {
+        let project = project_with_skill_md(|path| symlink("/dev/zero", path).unwrap());
+
+        assert_eq!(
+            read_skill_md_without_blocking(&project),
+            Err(ReadError::Unreadable)
+        );
+    }
+
+    #[test]
+    fn test_ac_002_3_une_fifo_est_refusee_sans_bloquer() {
+        let project = project_with_skill_md(|path| {
+            let status = std::process::Command::new("mkfifo")
+                .arg(path)
+                .status()
+                .unwrap();
+            assert!(status.success());
+        });
+
+        assert_eq!(
+            read_skill_md_without_blocking(&project),
+            Err(ReadError::Unreadable)
+        );
+    }
+
+    #[test]
+    fn test_ac_002_1_un_lien_vers_un_fichier_du_projet_est_lu() {
+        let project = project_with_skill_md(|path| {
+            fs::write(path.with_file_name("vrai.md"), "contenu").unwrap();
+            symlink(path.with_file_name("vrai.md"), path).unwrap();
+        });
+
+        assert_eq!(
+            read_file(project.path(), ".claude/skills/a/SKILL.md"),
+            Ok(Some(b"contenu".to_vec()))
+        );
+    }
 }
 
 #[test]

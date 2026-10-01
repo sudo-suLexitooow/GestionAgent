@@ -27,7 +27,11 @@ pub struct DirEntry {
 pub enum ReadError {
     OutsideProject,
     Unreadable,
+    TooLarge,
 }
+
+/// Taille maximale d'un fichier lu (8 Mio) : au-delà, la lecture est refusée (`TooLarge`).
+pub const MAX_FILE_SIZE: u64 = 8 * 1024 * 1024;
 
 /// Chemin absolu de `relative` sous `root`. Refuse un chemin absolu, une racine ou un préfixe de
 /// lecteur (Windows) et tout segment `..` : rien ne peut être lu hors du projet par ce chemin.
