@@ -130,6 +130,18 @@ describe("enregistrer le modèle .cadre/ (US-005)", () => {
     }
   });
 
+  it("test_securite_gitignore_en_lien_n_est_ni_lu_ni_recopie", async () => {
+    const fs = new SystemeFichiersMemoire({ ".git/HEAD": "x" });
+    // Le système refuse de lire un `.gitignore` qui est un lien (ou une jonction).
+    fs.echouerProchaineLecture("CHEMIN_INVALIDE");
+
+    const resultat = await enregistrerCadre(fs, RACINE, cadre());
+
+    expect(resultat).toMatchObject({ ok: false, erreur: { code: "CHEMIN_INVALIDE" } });
+    if (!resultat.ok) expect(resultat.erreur.message).toContain("lien symbolique");
+    expect(fs.transactions).toEqual([]);
+  });
+
   it("test_ac_005_6_echec_de_lecture_du_gitignore_message_clair_rien_ecrit", async () => {
     const fs = new SystemeFichiersMemoire({ ".git/HEAD": "x" });
     fs.echouerProchaineLecture("LECTURE_SEULE");

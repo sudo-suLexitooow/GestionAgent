@@ -142,6 +142,43 @@ describe("préparation du projet côté système (US-005, revue B points 8 et 9)
 
     const outcome = await openFromPicker(folders);
 
-    expect(outcome).toEqual({ kind: "error", error: "project-preparation-failed" });
+    expect(outcome).toEqual({
+      kind: "error",
+      error: "project-preparation-failed",
+      detail: "RECUPERATION_IMPOSSIBLE : .cadre/tmp/txn-1",
+    });
+  });
+
+  test("test_ac_005_4_echec_de_ouvrir_projet_transmet_code_et_detail", async () => {
+    const folders = new InMemoryFolderAccess({ "/projets/x": "ok" }).answerPickerWith("/projets/x");
+    // Forme réelle du rejet Tauri : l'`ErreurDto` sérialisée.
+    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+    folders.prepareProject = () =>
+      Promise.reject({ code: "CHEMIN_INVALIDE", detail: "pas un dossier" });
+
+    const outcome = await openFromPicker(folders);
+
+    expect(outcome).toEqual({
+      kind: "error",
+      error: "project-preparation-failed",
+      detail: "CHEMIN_INVALIDE : pas un dossier",
+    });
+  });
+
+  test("test_ac_005_4_reprise_impossible_le_projet_s_ouvre_avec_un_avertissement", async () => {
+    const folders = new InMemoryFolderAccess({ "/projets/x": "ok" }).answerPickerWith("/projets/x");
+    const warning = {
+      code: "RECUPERATION_IMPOSSIBLE",
+      detail: "/projets/x/.cadre/tmp/de-cote-txn-1",
+    };
+    folders.warnOnPrepare(warning);
+
+    const outcome = await openFromPicker(folders);
+
+    expect(outcome).toEqual({
+      kind: "opened",
+      project: { name: "x", path: "/projets/x" },
+      warning,
+    });
   });
 });

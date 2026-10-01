@@ -1,4 +1,4 @@
-import type { DropSource, FolderAccess, FolderStatus } from "../project/ports";
+import type { DropSource, FolderAccess, FolderStatus, ProjectWarning } from "../project/ports";
 
 /** Faux système de fichiers en mémoire : chaque chemin connu a un état, les autres n'existent pas. */
 export class InMemoryFolderAccess implements FolderAccess {
@@ -26,9 +26,17 @@ export class InMemoryFolderAccess implements FolderAccess {
   /** Projets préparés côté système, dans l'ordre des appels. */
   readonly preparedProjects: string[] = [];
 
-  prepareProject(path: string): Promise<void> {
+  private prepareWarning: ProjectWarning | null = null;
+
+  /** La préparation suivante réussit avec cet avertissement (reprise impossible…). */
+  warnOnPrepare(warning: ProjectWarning): this {
+    this.prepareWarning = warning;
+    return this;
+  }
+
+  prepareProject(path: string): Promise<ProjectWarning | null> {
     this.preparedProjects.push(path);
-    return Promise.resolve();
+    return Promise.resolve(this.prepareWarning);
   }
 }
 

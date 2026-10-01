@@ -129,6 +129,29 @@ describe("écran d'accueil → écran principal", () => {
     },
   );
 
+  test.each([
+    [
+      "PROJET_OCCUPE",
+      "Une autre fenêtre de Cadre enregistre ce projet : la reprise des écritures interrompues est reportée.",
+    ],
+    [
+      "RECUPERATION_IMPOSSIBLE",
+      "Une écriture interrompue n'a pas pu être reprise : elle a été mise de côté sans rien supprimer.",
+    ],
+    ["LECTURE_SEULE", "Une écriture interrompue n'a pas pu être reprise à l'ouverture du projet."],
+  ])("test_ac_005_4_avertissement_%s_affiche_au_dessus_du_projet_ouvert", async (code, message) => {
+    const { folders } = renderApp({ "/home/lea/mon-projet": "ok" });
+    folders.answerPickerWith("/home/lea/mon-projet");
+    folders.warnOnPrepare({ code, detail: "/home/lea/mon-projet/.cadre/tmp/de-cote-txn-1" });
+
+    await clickOpen();
+
+    expect(await screen.findByRole("heading", { name: "mon-projet" })).toBeInTheDocument();
+    const avertissement = screen.getByRole("status");
+    expect(avertissement).toHaveTextContent(message);
+    expect(avertissement).toHaveTextContent("/home/lea/mon-projet/.cadre/tmp/de-cote-txn-1");
+  });
+
   test("test_ac_001_4_echec_systeme_affiche_un_message_sans_planter", async () => {
     const { folders } = renderApp();
     folders.pickFolder = () => Promise.reject(new Error("dialogue indisponible"));
