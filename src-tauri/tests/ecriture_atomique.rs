@@ -599,6 +599,43 @@ mod disque_plein_ou_lecture_seule {
     }
 }
 
+/// Sécurité (zone sensible) : la commande n'écrit que des chemins relatifs, dans le projet,
+/// hors des dossiers internes de l'écrivain.
+mod chemins_refuses {
+    use super::*;
+    use cadre_lib::fs_atomique::ErreurEcriture;
+
+    #[test]
+    fn test_securite_chemin_hors_projet_ou_interne_refuse_et_rien_n_est_ecrit() {
+        for chemin in [
+            "",
+            "/etc/cadre",
+            "C:/cadre.txt",
+            "../dehors.txt",
+            "a/../../dehors.txt",
+            "a//b",
+            "./a",
+            "a\\b",
+            ".cadre/tmp/x",
+            ".cadre/backups/x",
+            ".cadre/backups",
+        ] {
+            let (dossier, fichiers) = projet_existant();
+            let racine = dossier.path();
+            let mut lot = fichiers.clone();
+            lot.push(FichierAEcrire::new(chemin, "intrus"));
+
+            let resultat = ecrire_fichiers(racine, &lot);
+
+            assert!(
+                matches!(resultat, Err(ErreurEcriture::CheminInvalide(_))),
+                "{chemin:?} : {resultat:?}"
+            );
+            assert_projet_inchange(racine);
+        }
+    }
+}
+
 mod transaction_reussie {
     use super::*;
 
