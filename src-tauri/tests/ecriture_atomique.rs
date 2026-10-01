@@ -1399,6 +1399,168 @@ mod codes_disque_plein_par_os {
     }
 }
 
+/// Re-revues : résolution sûre de tous les chemins, robustesse de la récupération.
+mod re_revues {
+    use super::*;
+    use cadre_lib::fs_atomique::ErreurEcriture;
+
+    /// Re-revue n°1, bloquant A : un lien dans un sous-dossier de `.cadre/backups/` n'est
+    /// jamais suivi ; la sauvegarde est abandonnée, l'enregistrement réussit.
+    #[test]
+    fn test_securite_sauvegarde_ne_suit_pas_un_lien_dans_cadre_backups() {
+        let victime = dossier_victime();
+        ecrire(victime.path(), "cadre.yaml", "précieux");
+        let dossier = projet();
+        let racine = dossier.path();
+        ecrire_fichiers(racine, &[FichierAEcrire::new(".cadre/cadre.yaml", "v1\n")]).unwrap();
+        lier_dossier(victime.path(), &racine.join(".cadre/backups/.cadre"));
+
+        ecrire_fichiers(racine, &[FichierAEcrire::new(".cadre/cadre.yaml", "v2\n")])
+            .expect("l'enregistrement réussit, la sauvegarde est abandonnée");
+
+        assert_eq!(lire(racine, ".cadre/cadre.yaml").as_deref(), Some("v2\n"));
+        assert_eq!(
+            lire(victime.path(), "cadre.yaml").as_deref(),
+            Some("précieux")
+        );
+        assert_victime_intacte(victime.path());
+    }
+
+    /// Re-revue n°2, point 3 : noms courts 8.3 de Windows (`GIT~1` = `.git`).
+    #[test]
+    fn test_securite_noms_courts_windows_refuses() {
+        for chemin in [
+            "GIT~1/hooks/pre-commit",
+            "CADRE~1/tmp/x",
+            "git~1",
+            "progra~12.txt",
+        ] {
+            let dossier = projet();
+            let resultat = ecrire_fichiers(dossier.path(), &[FichierAEcrire::new(chemin, "x")]);
+            assert!(
+                matches!(resultat, Err(ErreurEcriture::CheminInvalide(_))),
+                "{chemin} : {resultat:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_securite_tildes_hors_forme_courte_acceptes() {
+        let dossier = projet();
+        let lot: Vec<FichierAEcrire> = ["a~b", "notes~", "a~1b.md", "~1"]
+            .iter()
+            .map(|chemin| FichierAEcrire::new(chemin, "ok"))
+            .collect();
+
+        ecrire_fichiers(dossier.path(), &lot).expect("noms acceptés");
+    }
+
+    /// Re-revue n°2, point 6 : 255 octets UTF-8 au plus par segment (R1).
+    #[test]
+    fn test_securite_segment_de_plus_de_255_octets_refuse() {
+        let dossier = projet();
+        let accepte = "a".repeat(255);
+        let trop_long = "é".repeat(128); // 256 octets
+        ecrire_fichiers(dossier.path(), &[FichierAEcrire::new(&accepte, "x")]).expect("255");
+
+        let resultat = ecrire_fichiers(
+            dossier.path(),
+            &[FichierAEcrire::new(&format!("d/{trop_long}"), "x")],
+        );
+
+        assert!(
+            matches!(resultat, Err(ErreurEcriture::CheminInvalide(_))),
+            "{resultat:?}"
+        );
+    }
+
+    fn assert_mise_de_cote_puis_ecriture_possible(racine: &Path, nom_attendu: &str) {
+        match recuperer(racine) {
+            Err(ErreurEcriture::RecuperationImpossible(detail)) => {
+                assert!(detail.contains(nom_attendu), "{detail}")
+            }
+            autre => panic!("{autre:?}"),
+        }
+        ecrire_fichiers(racine, &[FichierAEcrire::new("CLAUDE.md", "# P\n")])
+            .expect("pas de blocage permanent");
+        assert_eq!(lire(racine, "CLAUDE.md").as_deref(), Some("# P\n"));
+    }
+
+    /// Re-revue n°1, point B : `journal.json` est un dossier.
+    #[test]
+    fn test_ac_005_4_journal_qui_est_un_dossier_mis_de_cote() {
+        let (dossier, _) = projet_existant();
+        let racine = dossier.path();
+        fs::create_dir_all(racine.join(".cadre/tmp/txn-x/journal.json")).unwrap();
+
+        assert_mise_de_cote_puis_ecriture_possible(racine, "de-cote-txn-x");
+        assert_projet_inchange(racine);
+    }
+
+    /// Re-revue n°1, point B : le nom de mise de côté est déjà pris.
+    #[test]
+    fn test_ac_005_4_mise_de_cote_choisit_un_nom_libre() {
+        let (dossier, _) = projet_existant();
+        let racine = dossier.path();
+        ecrire(racine, ".cadre/tmp/de-cote-txn-y/temoin", "ancien");
+        ecrire(racine, ".cadre/tmp/txn-y/journal.json", "{ tronqué");
+
+        assert_mise_de_cote_puis_ecriture_possible(racine, "de-cote-txn-y-2");
+        assert_eq!(
+            lire(racine, ".cadre/tmp/de-cote-txn-y/temoin").as_deref(),
+            Some("ancien")
+        );
+    }
+
+    /// Re-revue n°1, point C : une cible devenue dossier rend la reprise impossible ; la
+    /// transaction est mise de côté au lieu d'échouer à chaque ouverture.
+    #[test]
+    fn test_ac_005_4_cible_devenue_dossier_transaction_mise_de_cote() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::FichierRemplace(1));
+        fs::remove_file(racine.join(".gitignore")).unwrap();
+        fs::create_dir(racine.join(".gitignore")).unwrap();
+
+        assert_mise_de_cote_puis_ecriture_possible(racine, "de-cote-txn-");
+    }
+
+    /// Re-revue n°1, point C : cible au nouveau contenu sans copie d'origine.
+    #[test]
+    fn test_ac_005_4_copie_d_origine_manquante_transaction_mise_de_cote() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        arreter_brutalement(racine, &fichiers, Etape::FichierRemplace(1));
+        let txn = fs::read_dir(racine.join(".cadre/tmp"))
+            .unwrap()
+            .map(|entree| entree.unwrap().path())
+            .find(|chemin| chemin.join("journal.json").exists())
+            .unwrap();
+        fs::remove_file(txn.join("0.ancien")).unwrap();
+
+        assert_mise_de_cote_puis_ecriture_possible(racine, "de-cote-txn-");
+        assert_eq!(
+            lire(racine, ".cadre/cadre.yaml").as_deref(),
+            Some("schema_version: 1\n"),
+            "rien n'est restauré sans copie d'origine"
+        );
+    }
+
+    /// Re-revue n°1, point E : la récupération ne supprime jamais le fichier de verrou.
+    #[test]
+    fn test_ac_005_3_recuperation_ne_supprime_jamais_le_verrou() {
+        let (dossier, fichiers) = projet_existant();
+        let racine = dossier.path();
+        ecrire_fichiers(racine, &fichiers).unwrap();
+        ecrire(racine, ".cadre/tmp/orphelin", "x");
+
+        recuperer(racine).unwrap();
+
+        assert!(racine.join(".cadre/tmp/verrou").is_file());
+        assert!(!racine.join(".cadre/tmp/orphelin").exists());
+    }
+}
+
 mod transaction_reussie {
     use super::*;
 

@@ -52,7 +52,7 @@ pub struct ProjetOuvert(Mutex<Option<PathBuf>>);
 
 /// Ouvre un projet : retient sa racine canonique, puis termine ou annule une écriture
 /// interrompue (AC-005-4, « au prochain démarrage »).
-pub fn ouvrir(etat: &ProjetOuvert, chemin: &str) -> Result<(), ErreurEcriture> {
+pub fn ouvrir(etat: &ProjetOuvert, chemin: &str) -> Result<Option<ErreurEcriture>, ErreurEcriture> {
     let racine = canonique(chemin)?;
     if !racine.is_dir() {
         return Err(ErreurEcriture::CheminInvalide(format!(
@@ -60,7 +60,7 @@ pub fn ouvrir(etat: &ProjetOuvert, chemin: &str) -> Result<(), ErreurEcriture> {
         )));
     }
     *verrouiller_etat(etat) = Some(racine.clone());
-    recuperer(&racine)
+    recuperer(&racine).map(|()| None)
 }
 
 fn canonique(chemin: &str) -> Result<PathBuf, ErreurEcriture> {
@@ -133,8 +133,11 @@ pub fn projet_dans_un_depot_git(
 }
 
 #[tauri::command]
-pub fn ouvrir_projet(etat: State<'_, ProjetOuvert>, chemin: String) -> Result<(), ErreurDto> {
-    Ok(ouvrir(&etat, &chemin)?)
+pub fn ouvrir_projet(
+    etat: State<'_, ProjetOuvert>,
+    chemin: String,
+) -> Result<Option<ErreurDto>, ErreurDto> {
+    Ok(ouvrir(&etat, &chemin)?.map(ErreurDto::from))
 }
 
 /// Écrit tous les fichiers ou aucun, avec sauvegarde de la version précédente.
