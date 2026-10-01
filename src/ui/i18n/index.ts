@@ -15,6 +15,13 @@ const fr = {
     "Fichiers de contexte détectés. Les importer dans Cadre ? Les fichiers d'origine ne seront pas modifiés.",
   "contexts.import": "Importer",
   "contexts.decline": "Ne pas importer",
+  "contexts.type.projet": "Projet",
+  "contexts.type.conventions": "Conventions",
+  "contexts.type.architecture": "Architecture",
+  "contexts.type.autre": "Autre",
+  "contexts.readonly": "lecture seule",
+  "contexts.unsaved":
+    "Non enregistré : les contextes importés ne sont pas encore écrits dans le dossier .cadre/.",
   "skills.title": "Skills",
   "skills.none": "Aucune skill détectée.",
   "skills.failed": "Les skills n'ont pas pu être lues.",
