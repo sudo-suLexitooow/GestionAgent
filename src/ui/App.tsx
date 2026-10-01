@@ -6,7 +6,7 @@ import {
   type OpenOutcome,
   type Project,
 } from "../core/project/open-project";
-import type { DropSource, FolderAccess } from "../core/project/ports";
+import type { DropSource, FolderAccess, ProjectFiles } from "../core/project/ports";
 import { tauriDropSource, tauriFolderAccess } from "../platform/tauri-project-ports";
 import { t } from "./i18n";
 
@@ -14,6 +14,7 @@ export interface AppProps {
   /** Ports injectés : les vrais (Tauri) par défaut, des faux en mémoire dans les tests. */
   folders?: FolderAccess;
   drops?: DropSource;
+  files?: ProjectFiles;
 }
 
 export function App({ folders = tauriFolderAccess, drops = tauriDropSource }: AppProps) {
