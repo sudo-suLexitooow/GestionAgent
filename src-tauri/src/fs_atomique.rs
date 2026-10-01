@@ -170,7 +170,16 @@ pub fn recuperer(racine: &Path) -> Result<(), ErreurEcriture> {
         if genre.is_file() {
             fs::remove_file(&chemin).map_err(classer)?;
         } else if genre.is_dir() && nom.to_string_lossy().starts_with("txn-") {
-            match lire_journal(&chemin)? {
+            let journal = match lire_journal(&chemin)? {
+                Ok(journal) => journal,
+                Err(raison) => return Err(mettre_de_cote(&chemin, &raison)),
+            };
+            if let Some(journal) = &journal {
+                if let Err(raison) = verifier_entrees(racine, &journal.entrees) {
+                    return Err(mettre_de_cote(&chemin, &raison));
+                }
+            }
+            match journal {
                 Some(Journal {
                     etat: EtatTransaction::EnCours,
                     entrees,
@@ -245,20 +254,66 @@ fn ecrire_journal(transaction: &Path, etat: EtatTransaction, entrees: &[Entree])
     synchroniser_dossier(transaction)
 }
 
-/// Journal d'une transaction interrompue. Un journal illisible est une erreur : supprimer
-/// la transaction ferait perdre les copies des fichiers d'origine.
-fn lire_journal(transaction: &Path) -> Result<Option<Journal>, ErreurEcriture> {
+/// Journal d'une transaction interrompue : `Ok(Err(raison))` s'il est illisible.
+fn lire_journal(transaction: &Path) -> Result<Result<Option<Journal>, String>, ErreurEcriture> {
     let octets = match fs::read(transaction.join(JOURNAL)) {
         Ok(octets) => octets,
-        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => return Ok(Ok(None)),
         Err(erreur) => return Err(classer(erreur)),
     };
-    serde_json::from_slice(&octets).map(Some).map_err(|erreur| {
-        ErreurEcriture::Autre(format!(
-            "journal de transaction illisible dans {} : {erreur}",
-            transaction.display()
-        ))
-    })
+    Ok(serde_json::from_slice(&octets)
+        .map(Some)
+        .map_err(|erreur| format!("journal illisible : {erreur}")))
+}
+
+/// Un journal ne désigne que des fichiers du projet, jamais à travers un lien.
+fn verifier_entrees(racine: &Path, entrees: &[Entree]) -> Result<(), String> {
+    for entree in entrees {
+        valider_chemin(&entree.chemin)
+            .and_then(|()| parents_reels(racine, &entree.chemin))
+            .map_err(|_| format!("chemin refusé dans le journal : {:?}", entree.chemin))?;
+    }
+    Ok(())
+}
+
+/// Chaque dossier parent existant de `chemin` (relatif au projet) est un vrai dossier :
+/// ni lien symbolique ni jonction.
+fn parents_reels(racine: &Path, chemin: &str) -> Result<(), ErreurEcriture> {
+    let segments: Vec<&str> = chemin.split('/').collect();
+    let mut courant = racine.to_path_buf();
+    for segment in &segments[..segments.len().saturating_sub(1)] {
+        courant.push(segment);
+        match fs::symlink_metadata(&courant) {
+            Ok(meta) if meta.is_dir() && !meta.file_type().is_symlink() => {}
+            Ok(_) => {
+                return Err(ErreurEcriture::CheminInvalide(format!(
+                    "{chemin} : un dossier parent est un lien, une jonction ou un fichier"
+                )))
+            }
+            Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(erreur) => return Err(classer(erreur)),
+        }
+    }
+    Ok(())
+}
+
+/// Met une transaction impossible à reprendre de côté (`de-cote-txn-…`) : rien n'est
+/// supprimé, et la récupération suivante ne la voit plus (pas de blocage permanent).
+fn mettre_de_cote(transaction: &Path, raison: &str) -> ErreurEcriture {
+    let nom = transaction
+        .file_name()
+        .map(|nom| nom.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let destination = transaction.with_file_name(format!("de-cote-{nom}"));
+    let examiner = match fs::rename(transaction, &destination) {
+        Ok(()) => destination,
+        Err(_) => transaction.to_path_buf(),
+    };
+    ErreurEcriture::RecuperationImpossible(format!(
+        "une écriture interrompue n'a pas pu être reprise ({raison}) ; rien n'a été supprimé, \
+         dossier à examiner : {}",
+        examiner.display()
+    ))
 }
 
 /// Ce que la transaction fait d'un fichier : de quoi l'annuler sans écraser un tiers.
