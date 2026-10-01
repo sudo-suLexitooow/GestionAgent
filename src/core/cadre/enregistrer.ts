@@ -24,7 +24,7 @@ const RASSURANCE = "Vos fichiers n'ont pas été modifiés.";
 export const MESSAGES_ERREUR_ENREGISTREMENT: Record<CodeErreurFichiers, string> = {
   LECTURE_SEULE: `Enregistrement impossible : le dossier du projet est en lecture seule ou son accès est refusé. ${RASSURANCE}`,
   DISQUE_PLEIN: `Enregistrement impossible : le disque est plein. Libérez de l'espace puis réessayez. ${RASSURANCE}`,
-  CHEMIN_INVALIDE: `Enregistrement impossible : un chemin de fichier est invalide. ${RASSURANCE}`,
+  CHEMIN_INVALIDE: `Enregistrement impossible : un chemin de fichier est invalide ou passe par un lien symbolique (par exemple un .gitignore lié à un autre fichier). ${RASSURANCE}`,
   PROJET_OCCUPE:
     "Le projet est en cours d'enregistrement par une autre fenêtre de Cadre. Réessayez.",
   ANNULATION_INCOMPLETE:

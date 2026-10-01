@@ -11,6 +11,13 @@ const fr = {
   "error.drop-single-folder": "Déposez un seul dossier : pas un fichier, ni plusieurs éléments.",
   "error.project-preparation-failed":
     "Le projet n'a pas pu être préparé : son dossier .cadre/ est inaccessible ou une écriture interrompue n'a pas pu être reprise. Réessayez ; si le problème persiste, examinez le dossier .cadre/tmp du projet.",
+  "openWarning.busy":
+    "Une autre fenêtre de Cadre enregistre ce projet : la reprise des écritures interrompues est reportée.",
+  "openWarning.setAside":
+    "Une écriture interrompue n'a pas pu être reprise : elle a été mise de côté sans rien supprimer.",
+  "openWarning.generic":
+    "Une écriture interrompue n'a pas pu être reprise à l'ouverture du projet.",
+  "openWarning.detail": "Détail",
   "error.unexpected": "Le dossier n'a pas pu être ouvert. Réessayez.",
   "skills.title": "Skills",
   "skills.none": "Aucune skill détectée.",

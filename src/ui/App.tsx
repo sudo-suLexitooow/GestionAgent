@@ -6,7 +6,7 @@ import {
   type OpenOutcome,
   type Project,
 } from "../core/project/open-project";
-import type { DropSource, FolderAccess, ProjectFiles } from "../core/project/ports";
+import type { DropSource, FolderAccess, ProjectFiles, ProjectWarning } from "../core/project/ports";
 import { claudeCodeAdapter } from "../core/adapters/claude-code/claude-code-adapter";
 import {
   tauriDropSource,
@@ -29,10 +29,14 @@ export function App({
   files = tauriProjectFiles,
 }: AppProps) {
   const [project, setProject] = useState<Project | null>(null);
+  const [warning, setWarning] = useState<ProjectWarning | null>(null);
   const [error, setError] = useState<OpenError | null>(null);
 
   function show(outcome: OpenOutcome) {
-    if (outcome.kind === "opened") setProject(outcome.project);
+    if (outcome.kind === "opened") {
+      setProject(outcome.project);
+      setWarning(outcome.warning ?? null);
+    }
     setError(outcome.kind === "error" ? outcome.error : null);
   }
 
@@ -49,7 +53,7 @@ export function App({
     };
   }, [drops, folders, project]);
 
-  if (project) return <ProjectScreen project={project} files={files} />;
+  if (project) return <ProjectScreen project={project} warning={warning} files={files} />;
   return <HomeScreen error={error} onOpen={() => void openFromPicker(folders).then(show)} />;
 }
 
@@ -66,10 +70,36 @@ function HomeScreen({ error, onOpen }: { error: OpenError | null; onOpen: () => 
   );
 }
 
-function ProjectScreen({ project, files }: { project: Project; files: ProjectFiles }) {
+/** Libellé d'un avertissement de reprise selon son code système. */
+function warningLabel(code: string): string {
+  if (code === "PROJET_OCCUPE") return t("openWarning.busy");
+  if (code === "RECUPERATION_IMPOSSIBLE") return t("openWarning.setAside");
+  return t("openWarning.generic");
+}
+
+function ProjectScreen({
+  project,
+  warning,
+  files,
+}: {
+  project: Project;
+  warning: ProjectWarning | null;
+  files: ProjectFiles;
+}) {
   return (
     <main>
       <h1>{project.name}</h1>
+      {warning && (
+        <p role="status">
+          {warningLabel(warning.code)}
+          {warning.detail && (
+            <>
+              {" "}
+              {t("openWarning.detail")} : <code>{warning.detail}</code>
+            </>
+          )}
+        </p>
+      )}
       <p>
         {t("project.path")} : <code>{project.path}</code>
       </p>

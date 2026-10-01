@@ -152,9 +152,9 @@ describe("préparation du projet côté système (US-005, revue B points 8 et 9)
   test("test_ac_005_4_echec_de_ouvrir_projet_transmet_code_et_detail", async () => {
     const folders = new InMemoryFolderAccess({ "/projets/x": "ok" }).answerPickerWith("/projets/x");
     // Forme réelle du rejet Tauri : l'`ErreurDto` sérialisée.
+    const rejet = { code: "CHEMIN_INVALIDE", detail: "pas un dossier" };
     // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
-    folders.prepareProject = () =>
-      Promise.reject({ code: "CHEMIN_INVALIDE", detail: "pas un dossier" });
+    folders.prepareProject = () => Promise.reject(rejet);
 
     const outcome = await openFromPicker(folders);
 
