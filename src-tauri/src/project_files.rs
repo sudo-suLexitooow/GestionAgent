@@ -4,7 +4,7 @@
 //! contrôlée ici (elle sera tenue côté Rust par une story de suivi), et les liens symboliques sont
 //! suivis (skills partagées par lien), y compris hors de la racine. Lecture seule.
 
-use crate::fs_atomique::commandes::ProjetOuvert;
+use crate::fs_atomique::commandes::{racine_autorisee, ProjetOuvert};
 use serde::Serialize;
 use std::io::{ErrorKind, Read};
 use std::path::{Component, Path, PathBuf};
@@ -52,6 +52,13 @@ fn resolve(root: &Path, relative: &str) -> Result<PathBuf, ReadError> {
     }
 }
 
+/// Racine du projet ouvert si `root` la désigne (après canonicalisation) ; sinon, ou si aucun
+/// projet n'est ouvert, `OutsideProject`.
+fn open_root(etat: &ProjetOuvert, root: &Path) -> Result<PathBuf, ReadError> {
+    let root = root.to_str().ok_or(ReadError::OutsideProject)?;
+    racine_autorisee(etat, root).map_err(|_| ReadError::OutsideProject)
+}
+
 /// Liste le dossier `relative` du projet `root` ; `None` s'il n'existe pas ou si ce n'est pas un
 /// dossier (un fichier `.cadre` n'est pas un modèle, un fichier `.claude/skills` ne contient aucune skill).
 pub fn list_dir(
@@ -59,8 +66,8 @@ pub fn list_dir(
     root: &Path,
     relative: &str,
 ) -> Result<Option<Vec<DirEntry>>, ReadError> {
-    let _ = etat;
-    let path = resolve(root, relative)?;
+    let root = open_root(etat, root)?;
+    let path = resolve(&root, relative)?;
     if kind_of(&path) == EntryKind::File {
         return Ok(None);
     }
@@ -98,8 +105,8 @@ pub fn read_file(
     root: &Path,
     relative: &str,
 ) -> Result<Option<Vec<u8>>, ReadError> {
-    let _ = etat;
-    let path = resolve(root, relative)?;
+    let root = open_root(etat, root)?;
+    let path = resolve(&root, relative)?;
     let metadata = match std::fs::metadata(&path) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
