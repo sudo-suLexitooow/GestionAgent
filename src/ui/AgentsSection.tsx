@@ -18,6 +18,8 @@ export interface AgentsSectionProps {
   /** Modèle non chargé, incomplet ou en lecture seule : aucune création. */
   desactive: boolean;
   onCreate: (agent: AgentNouveau) => void;
+  /** Retire un agent non enregistré, sans rien écrire. */
+  onRemove: (agent: AgentNouveau) => void;
 }
 
 type Retour = { refus: RefusCreation } | { avertissement: AvertissementAgent } | null;
@@ -29,6 +31,7 @@ export function AgentsSection({
   adaptateurs,
   desactive,
   onCreate,
+  onRemove,
 }: AgentsSectionProps) {
   const headingId = useId();
   const formId = useId();
@@ -59,9 +62,14 @@ export function AgentsSection({
     setDescription("");
   }
 
+  // Un agent apparu sur le disque peut porter le nom d'un agent non enregistré : clés distinctes.
   const lignes = [
-    ...enregistres.map((nomAgent) => ({ nom: nomAgent, texte: nomAgent })),
-    ...nouveaux.map(({ name }) => ({ nom: name, texte: `${name} — ${t("agents.unsaved")}` })),
+    ...enregistres.map((nomAgent) => ({ cle: `e:${nomAgent}`, nom: nomAgent, texte: nomAgent })),
+    ...nouveaux.map(({ id, name }) => ({
+      cle: `n:${id}`,
+      nom: name,
+      texte: `${name} — ${t("agents.unsaved")}`,
+    })),
   ].sort((a, b) => a.nom.localeCompare(b.nom));
 
   return (
@@ -69,9 +77,24 @@ export function AgentsSection({
       <h2 id={headingId}>{t("agents.title")}</h2>
       <ul>
         {lignes.map((ligne) => (
-          <li key={ligne.nom}>{ligne.texte}</li>
+          <li key={ligne.cle}>{ligne.texte}</li>
         ))}
       </ul>
+      {nouveaux.length > 0 && (
+        <div role="group" aria-label={t("agents.unsavedGroup")}>
+          {nouveaux.map((agent) => (
+            <button
+              key={agent.id}
+              type="button"
+              onClick={() => {
+                onRemove(agent);
+              }}
+            >
+              {t("agents.remove")} {agent.name}
+            </button>
+          ))}
+        </div>
+      )}
       <form aria-labelledby={formId} onSubmit={soumettre}>
         <h3 id={formId}>{t("agents.new")}</h3>
         <fieldset disabled={desactive}>

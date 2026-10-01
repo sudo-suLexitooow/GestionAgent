@@ -124,6 +124,8 @@ function ProjectScreen({
 }) {
   /** Incrémenté pour relire le projet (modèle, proposition d'import) après un enregistrement. */
   const [lecture, setLecture] = useState(0);
+  /** Incrémenté pour relire seulement le modèle (agent apparu sur le disque, AC-007-3). */
+  const [lectureModele, setLectureModele] = useState(0);
   const [importe, setImporte] = useState<ContextImport | null>(null);
   /** `null` tant que le modèle n'est pas (re)lu : aucune création d'agent possible. */
   const [chargement, setChargement] = useState<ChargementModele | null>(null);
@@ -168,6 +170,10 @@ function ProjectScreen({
       setImporte(null);
       setChargement(null);
       setLecture((n) => n + 1);
+    } else if (resultat.erreur.code === "AGENT_EXISTANT") {
+      // Seul le modèle est relu, pour afficher l'agent apparu ; le reste du cadrage est gardé.
+      setChargement(null);
+      setLectureModele((n) => n + 1);
     }
   }
 
@@ -200,7 +206,7 @@ function ProjectScreen({
         }}
       />
       <ModelSection
-        key={`m${String(lecture)}`}
+        key={`m${String(lecture)}-${String(lectureModele)}`}
         root={project.path}
         files={files}
         onLoaded={surChargement}
@@ -212,6 +218,9 @@ function ProjectScreen({
         desactive={!modifiable}
         onCreate={(agent) => {
           setNouveaux((actuels) => [...actuels, agent]);
+        }}
+        onRemove={(retire) => {
+          setNouveaux((actuels) => actuels.filter((agent) => agent !== retire));
         }}
       />
       <ContextsSection

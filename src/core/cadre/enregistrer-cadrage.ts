@@ -63,8 +63,13 @@ async function preparerDansLeModele(
   }
   const { cadre } = chargement.modele;
   const nomsPris = nomsDesAgents(chargement.modele);
+  // Contre le disque et contre les agents du lot qui précèdent, casse ignorée.
   const doublon = agents.find(
-    (agent) => regleNomAgentViolee(agent.name, nomsPris) === "NOM_EXISTANT",
+    (agent, i) =>
+      regleNomAgentViolee(agent.name, [
+        ...nomsPris,
+        ...agents.slice(0, i).map((precedent) => precedent.name),
+      ]) === "NOM_EXISTANT",
   );
   if (doublon) return { erreur: { code: "AGENT_EXISTANT", detail: doublon.name } };
 
