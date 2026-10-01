@@ -7,6 +7,7 @@ import type { ImportedContext } from "../contexts/context";
 import { GENERIC_ADAPTER_ID } from "../contexts/generic-format";
 import type { FichierAEcrire, SystemeFichiersProjet } from "../fichiers/systeme-fichiers";
 import type { ProjectFiles } from "../project/ports";
+import type { ImportedSkill } from "../skills/import-skills";
 import { nouveauCadre, serialiserCadre } from "./cadre-yaml";
 import { etatDossierCadre } from "./detection";
 import { empreinte } from "./empreinte";
@@ -38,6 +39,8 @@ export async function enregistrerContextesImportes(
   options: OptionsEnregistrement,
   /** Agents créés depuis l'ouverture (US-007), écrits dans la même transaction. */
   agents: readonly AgentNouveau[] = [],
+  /** Skills importées par l'adaptateur (US-004), copiées dans `.cadre/skills/`. */
+  skills: readonly ImportedSkill[] = [],
 ): Promise<ResultatEnregistrement> {
   // Ne rejette jamais : toute exception de la préparation (lecture, empreinte, sérialisation)
   // devient une erreur `ECHEC`, sans rien écrire.
@@ -47,7 +50,7 @@ export async function enregistrerContextesImportes(
       (await modeleApparu(disque.fichiers, racine)) ??
       (await sourceModifiee(disque.fichiers, racine, contextes));
     if (refus) return { ok: false, erreur: refus };
-    fichiers = await preparer(contextes, agents, options);
+    fichiers = await preparer(contextes, agents, skills, options);
   } catch (erreur) {
     return { ok: false, erreur: versErreurEnregistrement(erreur) };
   }
@@ -61,11 +64,13 @@ export async function enregistrerContextesImportes(
 async function preparer(
   contextes: readonly ImportedContext[],
   agents: readonly AgentNouveau[],
+  skills: readonly ImportedSkill[],
   options: OptionsEnregistrement,
 ): Promise<FichierAEcrire[]> {
-  const adoptions: FichierGenere[] = await Promise.all(
-    contextes.map((contexte) => adoption(contexte, options.adapter)),
-  );
+  const adoptions: FichierGenere[] = await Promise.all([
+    ...contextes.map((contexte) => adoption(contexte, options.adapter)),
+    ...skills.flatMap((skill) => adoptionsSkill(skill, options.adapter)),
+  ]);
   const cadre = {
     ...nouveauCadre({
       generatorVersion: options.generatorVersion,
@@ -76,6 +81,7 @@ async function preparer(
   return [
     { chemin: ".cadre/cadre.yaml", contenu: serialiserCadre(cadre) },
     ...contextes.map(({ path, content }) => ({ chemin: path, contenu: content })),
+    ...skills.flatMap(fichiersSkill),
     ...agents.flatMap(fichiersAgent),
     { chemin: ".cadre/generated.yaml", contenu: serialiserManifeste(adoptions) },
   ];
@@ -114,4 +120,25 @@ async function adoption(contexte: ImportedContext, adapter: ToolAdapter): Promis
     source: "contexts",
     sha256: await empreinte(contexte.content),
   };
+}
+
+/** Copie à l'octet près de la skill dans `.cadre/skills/<dossier>/` (ADR-001, D2). */
+function fichiersSkill({ skill, files }: ImportedSkill): FichierAEcrire[] {
+  return files.map(({ path, content }) => ({
+    chemin: `.cadre/skills/${skill.folder}/${path}`,
+    contenu: content,
+  }));
+}
+
+/** Adoption de chaque fichier d'origine de la skill, avec l'empreinte du contenu importé (D5). */
+function adoptionsSkill(
+  { skill, source, files }: ImportedSkill,
+  adapter: ToolAdapter,
+): Promise<FichierGenere>[] {
+  return files.map(async ({ path, content }) => ({
+    path: `${source}/${path}`,
+    adapter: adapter.id,
+    source: `skill:${skill.folder}`,
+    sha256: await empreinte(content),
+  }));
 }

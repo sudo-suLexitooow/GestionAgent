@@ -41,8 +41,15 @@ export async function enregistrerCadrage(
   options: OptionsEnregistrement,
 ): Promise<ResultatEnregistrement> {
   const creerLeModele = () =>
-    enregistrerContextesImportes(disque, racine, cadrage.contextes, options, cadrage.agents);
-  if (cadrage.contextes.length > 0) return creerLeModele();
+    enregistrerContextesImportes(
+      disque,
+      racine,
+      cadrage.contextes,
+      options,
+      cadrage.agents,
+      cadrage.skills,
+    );
+  if (cadrage.contextes.length > 0 || (cadrage.skills?.length ?? 0) > 0) return creerLeModele();
   let fichiers: FichierAEcrire[];
   try {
     if ((await etatDossierCadre(disque.fichiers, racine)) === "aucun") return await creerLeModele();
