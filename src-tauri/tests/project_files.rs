@@ -242,6 +242,34 @@ fn test_ac_002_4_fichier_absent_donne_none_sans_erreur() {
     );
 }
 
+#[test]
+fn test_ac_003_1_un_chemin_vide_liste_la_racine_et_ses_fichiers_de_contexte() {
+    let project = tempfile::tempdir().unwrap();
+    fs::write(project.path().join("CLAUDE.md"), "# Projet\r\n").unwrap();
+    fs::write(project.path().join("AGENTS.md"), "# Agents\n").unwrap();
+    fs::create_dir(project.path().join(".cadre")).unwrap();
+
+    let entries = list_dir(project.path(), "").unwrap().unwrap();
+
+    assert_eq!(
+        sorted(entries),
+        vec![
+            DirEntry {
+                name: ".cadre".into(),
+                kind: EntryKind::Directory
+            },
+            DirEntry {
+                name: "AGENTS.md".into(),
+                kind: EntryKind::File
+            },
+            DirEntry {
+                name: "CLAUDE.md".into(),
+                kind: EntryKind::File
+            },
+        ]
+    );
+}
+
 /// Formes de chemin propres à Windows (lecteur relatif, chemins étendus, UNC, racine du lecteur,
 /// `\` comme séparateur) : compilées seulement sous Windows (`cfg(windows)`), où elles ont ce sens.
 /// Sous Linux et macOS, `\` est un caractère ordinaire d'un nom de fichier. Aucun test désactivé.

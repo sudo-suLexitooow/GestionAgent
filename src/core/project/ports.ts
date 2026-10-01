@@ -44,9 +44,16 @@ export class ProjectReadError extends Error {
   }
 }
 
+/** Raison affichable d'un échec de lecture d'un fichier : trop gros, sinon illisible. */
+export function readFailureReason(error: unknown): "unreadable" | "too-large" {
+  return error instanceof ProjectReadError && error.reason === "too-large"
+    ? "too-large"
+    : "unreadable";
+}
+
 /**
  * Lecture seule du contenu d'un projet (SKL-01, PRJ-02). `path` est relatif à la racine `root`,
- * séparateur `/` ; un chemin relatif qui sortirait de la racine fournie (`..`, chemin absolu) est
+ * séparateur `/` (`""` désigne la racine elle-même) ; un chemin relatif qui sortirait de la racine fournie (`..`, chemin absolu) est
  * refusé. Ni la racine elle-même ni les liens symboliques (suivis) ne sont contrôlés.
  * Un élément absent donne `null` ; un échec rejette avec un `ProjectReadError`.
  */
