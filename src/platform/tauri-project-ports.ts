@@ -1,7 +1,13 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { DropSource, FolderAccess, FolderStatus } from "../core/project/ports";
+import type {
+  DirEntry,
+  DropSource,
+  FolderAccess,
+  FolderStatus,
+  ProjectFiles,
+} from "../core/project/ports";
 
 /** Implémentation réelle des ports d'ouverture : plugin dialog, commande `inspect_folder`, dépôt natif. */
 export const tauriFolderAccess: FolderAccess = {
@@ -17,4 +23,10 @@ export const tauriDropSource: DropSource = {
       if (event.payload.type === "drop") listener(event.payload.paths);
     });
   },
+};
+
+/** Lecture seule du projet par les commandes `list_project_dir` et `read_project_file`. */
+export const tauriProjectFiles: ProjectFiles = {
+  listDir: () => Promise.resolve<DirEntry[] | null>([]),
+  readFile: () => Promise.resolve<Uint8Array | null>(new Uint8Array()),
 };

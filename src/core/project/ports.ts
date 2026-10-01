@@ -12,6 +12,28 @@ export interface FolderAccess {
   inspectFolder(path: string): Promise<FolderStatus>;
 }
 
+/** Nature d'une entrée de dossier ; `other` : ni fichier ni dossier (lien cassé, périphérique…). */
+export type EntryKind = "file" | "directory" | "other";
+
+export interface DirEntry {
+  name: string;
+  kind: EntryKind;
+}
+
+/** Motif de refus d'une lecture, tel que le rapportent les commandes système. */
+export type ReadError = "outside-project" | "unreadable";
+
+/**
+ * Lecture seule du contenu d'un projet (SKL-01, PRJ-02). `path` est relatif à la racine `root`,
+ * séparateur `/` ; un chemin qui sortirait du projet est refusé. Un élément absent donne `null` ;
+ * un échec de lecture rejette la promesse avec un `ReadError`.
+ */
+export interface ProjectFiles {
+  listDir(root: string, path: string): Promise<DirEntry[] | null>;
+  /** Octets bruts du fichier, sans aucune conversion (encodage, fins de ligne). */
+  readFile(root: string, path: string): Promise<Uint8Array | null>;
+}
+
 /** Source des chemins déposés par glisser-déposer dans la fenêtre. */
 export interface DropSource {
   /** Abonne `listener` aux dépôts ; renvoie la fonction de désabonnement. */
