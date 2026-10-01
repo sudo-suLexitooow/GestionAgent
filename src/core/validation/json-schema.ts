@@ -196,8 +196,20 @@ function aLeType(valeur: unknown, type: unknown): boolean {
   });
 }
 
+/** Scalaires comparés par un `Set` (linéaire) ; objets et listes deux à deux, entre eux seulement. */
 function aDesDoublons(valeurs: readonly unknown[]): boolean {
-  return valeurs.some((v, i) => valeurs.slice(i + 1).some((w) => egal(v, w)));
+  const scalaires = new Set<unknown>();
+  const composes: unknown[] = [];
+  for (const valeur of valeurs) {
+    if (typeof valeur === "object" && valeur !== null) {
+      if (composes.some((autre) => egal(autre, valeur))) return true;
+      composes.push(valeur);
+    } else {
+      if (scalaires.has(valeur)) return true;
+      scalaires.add(valeur);
+    }
+  }
+  return false;
 }
 
 /** Égalité profonde au sens de JSON Schema (ordre des clés indifférent). */
