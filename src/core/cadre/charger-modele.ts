@@ -130,21 +130,24 @@ async function chargerContextes(
   root: string,
   declares: unknown,
 ): Promise<ContexteCharge[]> {
-  const entrees = Array.isArray(declares) ? declares : [];
-  // Un nom hors `cadreName` ne désigne aucun fichier (modèle en lecture seule, non validé).
-  const valides = entrees.filter(
-    (entree): entree is Record<string, unknown> =>
-      typeof entree === "object" &&
-      entree !== null &&
-      typeof (entree as Record<string, unknown>).name === "string" &&
-      NOM_CADRE.test((entree as Record<string, unknown>).name as string),
-  );
+  const entrees: unknown[] = Array.isArray(declares) ? declares : [];
   return Promise.all(
-    valides.map(async (entree) => {
-      const lu = await lireOctets(files, root, `.cadre/contexte/${entree.name as string}.md`);
+    entrees.filter(estEntreeNommee).map(async (entree) => {
+      const lu = await lireOctets(files, root, `.cadre/contexte/${entree.name}.md`);
       return { entree, contenu: lu.ok ? lu.octets : null };
     }),
   );
+}
+
+/**
+ * Entrée de contexte dont le nom suit `cadreName` : déjà garanti par le schéma, revérifié parce
+ * qu'un modèle en lecture seule (format plus récent) n'est pas validé, et que le nom devient un
+ * chemin de fichier.
+ */
+function estEntreeNommee(entree: unknown): entree is Record<string, unknown> & { name: string } {
+  if (typeof entree !== "object" || entree === null) return false;
+  const nom = (entree as Record<string, unknown>).name;
+  return typeof nom === "string" && NOM_CADRE.test(nom);
 }
 
 type Lecture<T> = ({ ok: true } & T) | { ok: false; erreur: ErreurFichierModele };

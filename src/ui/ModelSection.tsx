@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import {
   chargerModele,
   type ChargementModele,
@@ -70,7 +70,7 @@ function IncompleteBanner({ erreur }: { erreur: ErreurFichierModele }) {
   );
 }
 
-function Banner({ role, children }: { role: "status" | "alert"; children: React.ReactNode }) {
+function Banner({ role, children }: { role: "status" | "alert"; children: ReactNode }) {
   return (
     <div role={role} aria-label={t("model.title")}>
       {children}
