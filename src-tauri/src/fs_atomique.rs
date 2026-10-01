@@ -1,5 +1,6 @@
 //! Écriture atomique de fichiers du projet (NF-12, NF-13, ADR-001 D6).
 
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
@@ -73,8 +74,14 @@ pub fn ecrire_fichiers_avec(
     fichiers: &[FichierAEcrire],
     points: &dyn PointsDeControle,
 ) -> Result<(), ErreurEcriture> {
+    recuperer(racine)?;
     let transaction = nouveau_dossier_transaction(racine).map_err(classer)?;
-    let entrees = match preparer(racine, &transaction, fichiers) {
+    let preparation = preparer(racine, &transaction, fichiers, points).and_then(|entrees| {
+        ecrire_journal(&transaction, &entrees)?;
+        points.atteint(Etape::AvantRemplacement)?;
+        Ok(entrees)
+    });
+    let entrees = match preparation {
         Ok(entrees) => entrees,
         Err(erreur) => {
             let _ = fs::remove_dir_all(&transaction);
@@ -82,6 +89,7 @@ pub fn ecrire_fichiers_avec(
         }
     };
     if let Err(erreur) = remplacer(racine, &transaction, &entrees, points) {
+        // Si l'annulation échoue, le journal reste : la prochaine récupération la reprend.
         annuler(racine, &transaction, &entrees).map_err(classer)?;
         let _ = fs::remove_dir_all(&transaction);
         return Err(classer(erreur));
@@ -89,8 +97,58 @@ pub fn ecrire_fichiers_avec(
     fs::remove_dir_all(&transaction).map_err(classer)
 }
 
+/// Termine ou annule une transaction interrompue, puis vide `.cadre/tmp/` (AC-005-4).
+///
+/// À appeler à l'ouverture du projet ; chaque écriture l'appelle aussi avant de commencer.
+pub fn recuperer(racine: &Path) -> Result<(), ErreurEcriture> {
+    let contenu = match fs::read_dir(racine.join(DOSSIER_TMP)) {
+        Ok(contenu) => contenu,
+        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(erreur) => return Err(classer(erreur)),
+    };
+    for element in contenu {
+        let chemin = element.map_err(classer)?.path();
+        if chemin.is_dir() {
+            if let Some(entrees) = lire_journal(&chemin)? {
+                annuler(racine, &chemin, &entrees).map_err(classer)?;
+            }
+            fs::remove_dir_all(&chemin).map_err(classer)?;
+        } else {
+            fs::remove_file(&chemin).map_err(classer)?;
+        }
+    }
+    Ok(())
+}
+
+const JOURNAL: &str = "journal.json";
+
+/// Écrit le journal de la transaction de façon atomique. Tant qu'il est absent, aucun
+/// fichier du projet n'a été touché ; présent, il permet d'annuler après un arrêt brutal.
+fn ecrire_journal(transaction: &Path, entrees: &[Entree]) -> io::Result<()> {
+    let provisoire = transaction.join(format!("{JOURNAL}.provisoire"));
+    ecrire_et_synchroniser(&provisoire, &serde_json::to_vec_pretty(entrees)?)?;
+    fs::rename(&provisoire, transaction.join(JOURNAL))?;
+    synchroniser_dossier(transaction)
+}
+
+/// Journal d'une transaction interrompue. Un journal illisible est une erreur : supprimer
+/// la transaction ferait perdre les copies des fichiers d'origine.
+fn lire_journal(transaction: &Path) -> Result<Option<Vec<Entree>>, ErreurEcriture> {
+    let octets = match fs::read(transaction.join(JOURNAL)) {
+        Ok(octets) => octets,
+        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(erreur) => return Err(classer(erreur)),
+    };
+    serde_json::from_slice(&octets).map(Some).map_err(|erreur| {
+        ErreurEcriture::Autre(format!(
+            "journal de transaction illisible dans {} : {erreur}",
+            transaction.display()
+        ))
+    })
+}
+
 /// Ce que la transaction fait d'un fichier : de quoi l'annuler sans écraser un tiers.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Entree {
     chemin: String,
     existait: bool,
@@ -110,10 +168,12 @@ fn preparer(
     racine: &Path,
     transaction: &Path,
     fichiers: &[FichierAEcrire],
+    points: &dyn PointsDeControle,
 ) -> io::Result<Vec<Entree>> {
     let mut entrees = Vec::with_capacity(fichiers.len());
     for (i, fichier) in fichiers.iter().enumerate() {
         ecrire_et_synchroniser(&temporaire_nouveau(transaction, i), &fichier.contenu)?;
+        points.atteint(Etape::TemporaireEcrit(i))?;
         let existait = match fs::read(racine.join(&fichier.chemin)) {
             Ok(ancien) => {
                 ecrire_et_synchroniser(&copie_ancienne(transaction, i), &ancien)?;
@@ -183,11 +243,6 @@ fn empreinte(contenu: &[u8]) -> String {
         .collect()
 }
 
-/// Termine ou annule une transaction interrompue, puis vide `.cadre/tmp/` (AC-005-4).
-pub fn recuperer(_racine: &Path) -> Result<(), ErreurEcriture> {
-    Ok(())
-}
-
 static COMPTEUR: AtomicU64 = AtomicU64::new(0);
 
 fn nouveau_dossier_transaction(racine: &Path) -> io::Result<PathBuf> {
@@ -196,10 +251,9 @@ fn nouveau_dossier_transaction(racine: &Path) -> io::Result<PathBuf> {
         .map(|d| d.as_nanos())
         .unwrap_or_default();
     let numero = COMPTEUR.fetch_add(1, Ordering::Relaxed);
-    let dossier = racine.join(DOSSIER_TMP).join(format!(
-        "txn-{}-{horodatage}-{numero}",
-        std::process::id()
-    ));
+    let dossier = racine
+        .join(DOSSIER_TMP)
+        .join(format!("txn-{}-{horodatage}-{numero}", std::process::id()));
     fs::create_dir_all(&dossier)?;
     Ok(dossier)
 }

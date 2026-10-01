@@ -240,7 +240,11 @@ mod arret_brutal_puis_redemarrage {
         let (dossier, fichiers) = projet_existant();
         let racine = dossier.path();
         arreter_brutalement(racine, &fichiers, Etape::FichierRemplace(1));
-        ecrire(racine, ".gitignore", "modifié par l'utilisateur après l'arrêt\n");
+        ecrire(
+            racine,
+            ".gitignore",
+            "modifié par l'utilisateur après l'arrêt\n",
+        );
 
         recuperer(racine).expect("récupération");
 
