@@ -62,9 +62,11 @@ export function readFailureReason(error: unknown): "unreadable" | "too-large" | 
 }
 
 /**
- * Lecture seule du contenu d'un projet (SKL-01, PRJ-02). `path` est relatif à la racine `root`,
- * séparateur `/` (`""` désigne la racine elle-même) ; un chemin relatif qui sortirait de la racine fournie (`..`, chemin absolu) est
- * refusé. Ni la racine elle-même ni les liens symboliques (suivis) ne sont contrôlés.
+ * Lecture seule du contenu du projet ouvert (SKL-01, PRJ-02, US-076). `root` doit désigner le
+ * projet ouvert par `prepareProject` (sinon, ou si aucun projet n'est ouvert : `outside-project`).
+ * `path` est relatif à `root`, séparateur `/` (`""` désigne la racine elle-même) ; un chemin qui
+ * sortirait du projet (`..`, absolu, préfixe ou nom réservé Windows) est refusé
+ * (`outside-project`). Aucun lien symbolique ni jonction n'est suivi, même interne (`link`).
  * Un élément absent donne `null` ; un échec rejette avec un `ProjectReadError`.
  */
 export interface ProjectFiles {

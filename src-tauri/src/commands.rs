@@ -14,7 +14,8 @@ pub fn inspect_folder(path: String) -> FolderStatus {
 
 // Les commandes de lecture sont asynchrones (`async`) : Tauri les exécute hors du fil principal,
 // une lecture lente (disque réseau, gros dossier) ne gèle donc pas l'interface.
-// `root` vient de l'interface et n'est pas contrôlé ici (voir `project_files`).
+// `root` doit désigner le projet ouvert (état `ProjetOuvert`) ; contrôle et résolution sûre
+// des chemins dans `project_files` (US-076).
 
 /// Liste un dossier du projet `root` (`path` relatif à la racine) ; `null` s'il n'existe pas (US-002).
 #[tauri::command(async)]

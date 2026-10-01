@@ -1,4 +1,5 @@
-//! Seul point d'accès au disque de l'écrivain atomique et de ses commandes (re-revue n°1).
+//! Seul point d'accès au disque de l'écrivain atomique, de ses commandes (re-revue n°1) et des
+//! commandes de lecture du projet (`project_files`, US-076).
 //!
 //! Toute opération sur un chemin du projet passe par [`Projet::reel`], qui :
 //! - applique la règle R1 (ADR-001 D4) à chaque segment du chemin relatif ;
@@ -7,7 +8,7 @@
 //!
 //! Les lectures exigent en plus un fichier ordinaire (pas de dossier, FIFO, périphérique).
 //! Le test d'architecture `tests/architecture_fichiers.rs` vérifie qu'aucun autre fichier de
-//! `fs_atomique` n'appelle `std::fs`.
+//! `fs_atomique`, ni `project_files.rs` ni `commands.rs`, n'appelle `std::fs`.
 
 use super::segment_portable;
 use std::fmt;
