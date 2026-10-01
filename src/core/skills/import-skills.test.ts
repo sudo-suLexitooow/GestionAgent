@@ -58,6 +58,43 @@ describe("importer les skills de Claude Code (AC-004-1)", () => {
   });
 });
 
+describe("noms non portables (ADR-001, R1)", () => {
+  test("test_ac_004_3_nom_non_portable_rend_la_skill_en_erreur_et_les_autres_continuent", async () => {
+    const skill = "---\nname: x\ndescription: X.\n---\n";
+    const long = `${"é".repeat(127)}ab`; // 256 octets UTF-8
+    const files = new InMemoryProjectFiles(ROOT, {
+      ".claude/skills/a-ok/SKILL.md": skill,
+      ".claude/skills/a-ok/references/guide.md": "# ok\n",
+      ".claude/skills/deux:points/SKILL.md": skill,
+      ".claude/skills/point-final./SKILL.md": skill,
+      ".claude/skills/espace/SKILL.md": skill,
+      ".claude/skills/espace/notes /a.md": "# a\n",
+      ".claude/skills/reserve/SKILL.md": skill,
+      ".claude/skills/reserve/con.txt": "x",
+      ".claude/skills/interdit/SKILL.md": skill,
+      ".claude/skills/interdit/a<b>.md": "x",
+      ".claude/skills/controle/SKILL.md": skill,
+      ".claude/skills/controle/a\u0007.md": "x",
+      ".claude/skills/long/SKILL.md": skill,
+      [`.claude/skills/long/${long}`]: "x",
+      ".claude/skills/z-ok/SKILL.md": skill,
+    });
+
+    const { skills, failures } = await importer(files);
+
+    expect(skills.map(({ skill: s }) => s.folder)).toEqual(["a-ok", "z-ok"]);
+    expect(failures).toEqual([
+      { folder: "controle", path: ".claude/skills/controle/a\u0007.md", code: "non-portable" },
+      { folder: "deux:points", path: ".claude/skills/deux:points", code: "non-portable" },
+      { folder: "espace", path: ".claude/skills/espace/notes ", code: "non-portable" },
+      { folder: "interdit", path: ".claude/skills/interdit/a<b>.md", code: "non-portable" },
+      { folder: "long", path: `.claude/skills/long/${long}`, code: "non-portable" },
+      { folder: "point-final.", path: ".claude/skills/point-final.", code: "non-portable" },
+      { folder: "reserve", path: ".claude/skills/reserve/con.txt", code: "non-portable" },
+    ]);
+  });
+});
+
 describe("skill impossible à copier entièrement : non importée, signalée, les autres continuent", () => {
   const AUTRE = { ".claude/skills/autre/SKILL.md": "---\nname: autre\ndescription: B.\n---\n" };
 
