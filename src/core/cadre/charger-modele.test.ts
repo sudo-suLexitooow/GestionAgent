@@ -217,6 +217,33 @@ describe("agent invalide (AC-006-3)", () => {
     });
   });
 
+  test("test_ac_006_3_contexte_lien_illisible_ou_trop_gros_signale_en_erreur", async () => {
+    const cadre = `${CADRE_V1}contexts:\n  - { name: A }\n  - { name: B }\n  - { name: C }\n  - { name: D }\n`;
+    const files = new InMemoryProjectFiles(ROOT, {
+      ".cadre/cadre.yaml": cadre,
+      ".cadre/contexte/B.md": "b",
+      ".cadre/contexte/C.md": "c",
+      ".cadre/contexte/D.md": "d",
+    })
+      .addLink(".cadre/contexte/A.md")
+      .makeUnreadable(".cadre/contexte/B.md")
+      .failWith(".cadre/contexte/C.md", "too-large");
+
+    const resultat = await chargerModele(files, ROOT);
+
+    expect(resultat).toMatchObject({
+      etat: "charge",
+      modele: {
+        contextes: [
+          { contenu: null, erreur: { fichier: ".cadre/contexte/A.md", code: "LINK" } },
+          { contenu: null, erreur: { fichier: ".cadre/contexte/B.md", code: "UNREADABLE" } },
+          { contenu: null, erreur: { fichier: ".cadre/contexte/C.md", code: "TOO_LARGE" } },
+          { contenu: octets("d") },
+        ],
+      },
+    });
+  });
+
   test("test_ac_006_3_le_chargement_ne_fait_que_lire", async () => {
     const { files, used } = recordingProjectFiles(
       new InMemoryProjectFiles(ROOT, {

@@ -23,10 +23,14 @@ const MODELE = {
     "---\nname: ui-design\ndescription: Conçoit les écrans.\n---\n",
 };
 
-/** Ouvre le projet `ROOT` dont le contenu est `content`, et attend la fin des lectures. */
-async function openProject(content: Record<string, string>) {
+/**
+ * Ouvre le projet `ROOT` dont le contenu est `content` (complété par `links`, liens symboliques),
+ * et attend la fin des lectures.
+ */
+async function openProject(content: Record<string, string>, links: string[] = []) {
   const folders = new InMemoryFolderAccess({ [ROOT]: "ok" }).answerPickerWith(ROOT);
   const files = new InMemoryProjectFiles(ROOT, content);
+  for (const link of links) files.addLink(link);
   render(<App folders={folders} drops={new InMemoryDropSource()} files={files} />);
   fireEvent.click(screen.getByRole("button", { name: "Ouvrir un dossier" }));
   await screen.findByRole("heading", { name: "projet" });
@@ -83,6 +87,34 @@ describe("réouverture d'un projet qui a un modèle .cadre/", () => {
       "Agent en erreur : .cadre/agents/x.yaml, ligne 3 : clé en double",
     );
     expect(listed("Contextes")).toHaveLength(2);
+  });
+
+  test("test_ac_006_3_contexte_lien_bandeau_avec_le_fichier_et_le_motif", async () => {
+    const { ".cadre/contexte/CLAUDE.md": _lien, ...reste } = MODELE;
+    await openProject(reste, [".cadre/contexte/CLAUDE.md"]);
+
+    expect(screen.getByRole("alert", { name: "Modèle" })).toHaveTextContent(
+      "Contexte en erreur : .cadre/contexte/CLAUDE.md : le fichier est un lien symbolique ou une jonction, que Cadre ne suit pas",
+    );
+  });
+
+  test("test_ac_006_3_dossier_du_modele_lien_message_explicite", async () => {
+    await openProject(MODELE, [".cadre/agents"]);
+
+    expect(screen.getByRole("alert", { name: "Modèle" })).toHaveTextContent(
+      "Le modèle .cadre/ n'a pas pu être lu : un de ses chemins est un lien symbolique ou une jonction, que Cadre ne suit pas.",
+    );
+  });
+
+  test("test_ac_006_3_dossier_du_modele_illisible_message_explicite", async () => {
+    const folders = new InMemoryFolderAccess({ [ROOT]: "ok" }).answerPickerWith(ROOT);
+    const files = new InMemoryProjectFiles(ROOT, MODELE).makeUnreadable(".cadre/agents");
+    render(<App folders={folders} drops={new InMemoryDropSource()} files={files} />);
+    fireEvent.click(screen.getByRole("button", { name: "Ouvrir un dossier" }));
+
+    expect(await screen.findByRole("alert", { name: "Modèle" })).toHaveTextContent(
+      "Le modèle .cadre/ n'a pas pu être lu.",
+    );
   });
 
   test("test_ac_006_5_modele_incomplet_bandeau_et_reparation_proposee_sans_import", async () => {
