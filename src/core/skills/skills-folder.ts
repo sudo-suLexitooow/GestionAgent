@@ -1,4 +1,4 @@
-import type { ProjectFiles } from "../project/ports";
+import { ProjectReadError, type ProjectFiles } from "../project/ports";
 import { decodeUtf8 } from "../text/utf8";
 import type { ListedSkill } from "./skill";
 import { parseSkillHeader } from "./skill-header";
@@ -34,8 +34,9 @@ async function readSkill(
   let bytes: Uint8Array | null;
   try {
     bytes = await files.readFile(root, path);
-  } catch {
-    return { folder, status: "error", issue: { code: "unreadable" } };
+  } catch (error) {
+    const tooLarge = error instanceof ProjectReadError && error.reason === "too-large";
+    return { folder, status: "error", issue: { code: tooLarge ? "too-large" : "unreadable" } };
   }
   if (bytes === null) return null;
   const text = decodeUtf8(bytes);

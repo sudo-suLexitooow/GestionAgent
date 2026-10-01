@@ -10,7 +10,8 @@ export type SkillIssueCode =
   | "missing-name"
   | "missing-description"
   | "encoding"
-  | "unreadable";
+  | "unreadable"
+  | "too-large";
 
 /** Skill trouvée dans le projet : valide (nom, description) ou en erreur (raison). */
 export type ListedSkill =

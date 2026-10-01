@@ -25,6 +25,7 @@ const fr = {
   "skills.issue.missing-description": "le champ description est absent ou vide",
   "skills.issue.encoding": "le fichier SKILL.md n'est pas encodé en UTF-8",
   "skills.issue.unreadable": "le fichier SKILL.md ne peut pas être lu",
+  "skills.issue.too-large": "le fichier SKILL.md dépasse la taille maximale de 8 Mio",
 } as const;
 
 export type LabelKey = keyof typeof fr;
