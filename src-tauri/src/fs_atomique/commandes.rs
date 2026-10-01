@@ -253,6 +253,29 @@ mod tests {
         );
     }
 
+    /// US-077 : un contexte importé non UTF-8 (Latin-1, BOM, CRLF) est écrit à l'octet près ;
+    /// l'interface transmet alors le contenu comme une liste d'octets.
+    #[test]
+    fn test_ac_077_1_commande_ecrit_un_contenu_en_octets_a_l_octet_pres() {
+        let (dossier, etat) = projet_ouvert();
+        let fichiers: Vec<FichierDto> = serde_json::from_value(serde_json::json!([
+            { "chemin": ".cadre/contexte/CLAUDE.md", "contenu": [0xef, 0xbb, 0xbf, 0x52, 0xe8, 0x0d, 0x0a] },
+            { "chemin": ".cadre/cadre.yaml", "contenu": "schema_version: 1\n" }
+        ]))
+        .expect("désérialisation");
+
+        ecrire(&etat, &racine(&dossier), fichiers).expect("écriture");
+
+        assert_eq!(
+            fs::read(dossier.path().join(".cadre/contexte/CLAUDE.md")).unwrap(),
+            vec![0xef, 0xbb, 0xbf, 0x52, 0xe8, 0x0d, 0x0a]
+        );
+        assert_eq!(
+            fs::read_to_string(dossier.path().join(".cadre/cadre.yaml")).unwrap(),
+            "schema_version: 1\n"
+        );
+    }
+
     #[test]
     fn test_ac_005_6_commande_renvoie_un_code_d_erreur() {
         let (dossier, etat) = projet_ouvert();
