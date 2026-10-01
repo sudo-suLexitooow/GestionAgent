@@ -1,13 +1,14 @@
 //! Opérations système de Cadre : fichiers, surveillance, processus, terminal, Git, trousseau.
 //! La logique métier reste en TypeScript.
 
+mod commands;
 pub mod folder;
 
 use tauri::{Builder, Runtime};
 
 /// Branche plugins et commandes sur un constructeur d'application (réel ou simulé en test).
 pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
-    builder
+    builder.invoke_handler(tauri::generate_handler![commands::inspect_folder])
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
