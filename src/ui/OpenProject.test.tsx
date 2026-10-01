@@ -16,6 +16,34 @@ async function clickOpen() {
   await act(() => Promise.resolve());
 }
 
+async function drop(drops: InMemoryDropSource, paths: string[]) {
+  // L'abonnement au dépôt est pris au montage : on le laisse s'établir avant de déposer.
+  await act(() => Promise.resolve());
+  await act(async () => {
+    drops.drop(paths);
+    await Promise.resolve();
+  });
+}
+
+describe("glisser-déposer sur l'accueil", () => {
+  test("test_ac_001_2_deposer_un_dossier_ouvre_le_projet_comme_le_selecteur", async () => {
+    const { drops } = renderApp({ "/home/lea/mon-projet": "ok" });
+
+    await drop(drops, ["/home/lea/mon-projet"]);
+
+    expect(await screen.findByRole("heading", { name: "mon-projet" })).toBeInTheDocument();
+    expect(screen.getByText("/home/lea/mon-projet")).toBeInTheDocument();
+  });
+
+  test("test_ac_001_2_la_zone_de_depot_est_indiquee_sur_l_accueil", () => {
+    renderApp();
+
+    expect(
+      screen.getByText("ou déposez un dossier de projet dans cette fenêtre"),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("écran d'accueil → écran principal", () => {
   test("test_ac_001_1_le_dossier_choisi_ouvre_l_ecran_principal_avec_nom_et_chemin", async () => {
     const { folders } = renderApp({ "/home/lea/mon-projet": "ok" });
