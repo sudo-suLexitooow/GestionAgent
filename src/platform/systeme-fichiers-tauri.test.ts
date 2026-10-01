@@ -77,6 +77,19 @@ describe("SystemeFichiersTauri (commandes Rust fs_atomique)", () => {
     await expect(promesse).rejects.toBeInstanceOf(ErreurSystemeFichiers);
   });
 
+  it("test_ac_005_6_codes_de_revue_conserves", async () => {
+    for (const code of ["PROJET_OCCUPE", "ANNULATION_INCOMPLETE", "RECUPERATION_IMPOSSIBLE"]) {
+      intercepter(() => {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error
+        throw { code, detail: "d" };
+      });
+
+      await expect(new SystemeFichiersTauri().ecrireTransaction(RACINE, [])).rejects.toMatchObject({
+        code,
+      });
+    }
+  });
+
   it("test_ac_005_6_erreur_inconnue_convertie_en_echec", async () => {
     intercepter(() => {
       // Erreur de Tauri lui-même (commande absente…) : une simple chaîne.

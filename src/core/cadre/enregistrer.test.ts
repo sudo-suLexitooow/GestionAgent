@@ -1,6 +1,7 @@
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { parse } from "yaml";
 import schemaCadre from "../schemas/v1/cadre.json";
+import { ErreurSystemeFichiers } from "../fichiers/systeme-fichiers";
 import { SystemeFichiersMemoire } from "../testing/systeme-fichiers-memoire";
 import { nouveauCadre } from "./cadre-yaml";
 import { enregistrerCadre } from "./enregistrer";
@@ -152,6 +153,61 @@ describe("enregistrer le modèle .cadre/ (US-005)", () => {
         message:
           "Enregistrement impossible à cause d'une erreur inattendue. Vos fichiers n'ont pas été modifiés.",
         detail: "panne IPC",
+      },
+    });
+  });
+
+  it("test_ac_005_6_projet_occupe_par_une_autre_fenetre_message_clair", async () => {
+    const fs = new SystemeFichiersMemoire();
+    fs.echouerProchaineEcriture("PROJET_OCCUPE");
+
+    const resultat = await enregistrerCadre(fs, RACINE, cadre());
+
+    expect(resultat).toMatchObject({
+      ok: false,
+      erreur: {
+        code: "PROJET_OCCUPE",
+        message:
+          "Le projet est en cours d'enregistrement par une autre fenêtre de Cadre. Réessayez.",
+      },
+    });
+  });
+
+  it("test_ac_005_6_annulation_incomplete_message_honnete", async () => {
+    const fs = new SystemeFichiersMemoire();
+    fs.echouerProchaineEcriture("ANNULATION_INCOMPLETE");
+
+    const resultat = await enregistrerCadre(fs, RACINE, cadre());
+
+    expect(resultat).toMatchObject({
+      ok: false,
+      erreur: {
+        code: "ANNULATION_INCOMPLETE",
+        message:
+          "L'enregistrement a échoué et n'a pas pu être entièrement annulé ; Cadre terminera l'annulation à la prochaine opération.",
+      },
+    });
+  });
+
+  it("test_ac_005_6_recuperation_impossible_indique_le_dossier_a_examiner", async () => {
+    const fs = new SystemeFichiersMemoire();
+    fs.ecrireTransaction = () =>
+      Promise.reject(
+        new ErreurSystemeFichiers(
+          "RECUPERATION_IMPOSSIBLE",
+          "dossier à examiner : /p/.cadre/tmp/de-cote-txn-1",
+        ),
+      );
+
+    const resultat = await enregistrerCadre(fs, RACINE, cadre());
+
+    expect(resultat).toEqual({
+      ok: false,
+      erreur: {
+        code: "RECUPERATION_IMPOSSIBLE",
+        message:
+          "Enregistrement impossible : une écriture interrompue n'a pas pu être reprise. Elle a été mise de côté sans rien supprimer (voir le détail) ; réessayez pour enregistrer.",
+        detail: "dossier à examiner : /p/.cadre/tmp/de-cote-txn-1",
       },
     });
   });
