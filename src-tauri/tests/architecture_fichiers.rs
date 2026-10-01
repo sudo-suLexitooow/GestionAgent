@@ -30,6 +30,7 @@ const ACCES_DISQUE: [&str; 11] = [
 /// de `mod tests`), qui prépare ses dossiers avec `std::fs`.
 fn code_de_production(source: &str) -> String {
     source
+        .replace("\r\n", "\n")
         .split("#[cfg(test)]\nmod tests")
         .next()
         .unwrap_or_default()
