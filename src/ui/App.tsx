@@ -16,7 +16,7 @@ export function App({ folders = tauriFolderAccess }: AppProps) {
   async function handleOpen() {
     const outcome = await openFromPicker(folders);
     if (outcome.kind === "opened") setProject(outcome.project);
-    if (outcome.kind === "error") setError(outcome.error);
+    setError(outcome.kind === "error" ? outcome.error : null);
   }
 
   if (project) {
