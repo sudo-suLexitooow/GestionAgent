@@ -10,6 +10,11 @@ export type SkillIssueCode =
   | "missing-name"
   | "missing-description";
 
+/** Skill trouvée dans le projet : valide (nom, description) ou en erreur (raison). */
+export type ListedSkill =
+  | { folder: string; status: "ok"; name: string; description: string }
+  | { folder: string; status: "error"; issue: SkillIssue };
+
 export interface SkillIssue {
   code: SkillIssueCode;
   /** Ligne du fichier `SKILL.md` concernée, quand elle est connue (1 = première ligne). */

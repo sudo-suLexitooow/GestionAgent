@@ -26,7 +26,7 @@ export type ReadError = "outside-project" | "unreadable";
 /**
  * Lecture seule du contenu d'un projet (SKL-01, PRJ-02). `path` est relatif à la racine `root`,
  * séparateur `/` ; un chemin qui sortirait du projet est refusé. Un élément absent donne `null` ;
- * un échec de lecture rejette la promesse avec un `ReadError`.
+ * un échec de lecture (`ReadError`) rejette la promesse.
  */
 export interface ProjectFiles {
   listDir(root: string, path: string): Promise<DirEntry[] | null>;
