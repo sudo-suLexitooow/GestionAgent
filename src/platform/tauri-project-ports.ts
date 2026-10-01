@@ -7,6 +7,7 @@ import type { DropSource, FolderAccess, FolderStatus } from "../core/project/por
 export const tauriFolderAccess: FolderAccess = {
   pickFolder: () => open({ directory: true, multiple: false }),
   inspectFolder: (path) => invoke<FolderStatus>("inspect_folder", { path }),
+  prepareProject: () => Promise.resolve(),
 };
 
 export const tauriDropSource: DropSource = {

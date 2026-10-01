@@ -116,3 +116,32 @@ describe("ouverture depuis le sélecteur", () => {
     expect(outcome).toEqual({ kind: "error", error: "unexpected" });
   });
 });
+
+describe("préparation du projet côté système (US-005, revue B points 8 et 9)", () => {
+  test("test_ac_005_4_ouvrir_un_projet_le_prepare_cote_systeme", async () => {
+    const folders = new InMemoryFolderAccess({ "/home/lea/mon-projet": "ok" });
+
+    const outcome = await openFromDrop(folders, ["/home/lea/mon-projet"]);
+
+    expect(outcome.kind).toBe("opened");
+    expect(folders.preparedProjects).toEqual(["/home/lea/mon-projet"]);
+  });
+
+  test("test_ac_005_4_dossier_invalide_n_est_pas_prepare", async () => {
+    const folders = new InMemoryFolderAccess({ "/home/lea/notes.txt": "not-a-directory" });
+
+    await openFromDrop(folders, ["/home/lea/notes.txt"]);
+
+    expect(folders.preparedProjects).toEqual([]);
+  });
+
+  test("test_ac_005_4_echec_de_preparation_produit_une_erreur_dediee", async () => {
+    const folders = new InMemoryFolderAccess({ "/projets/x": "ok" }).answerPickerWith("/projets/x");
+    folders.prepareProject = () =>
+      Promise.reject(new Error("RECUPERATION_IMPOSSIBLE : .cadre/tmp/txn-1"));
+
+    const outcome = await openFromPicker(folders);
+
+    expect(outcome).toEqual({ kind: "error", error: "project-preparation-failed" });
+  });
+});

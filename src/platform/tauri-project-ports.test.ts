@@ -51,6 +51,16 @@ describe("vérification d'un dossier par la commande système", () => {
   });
 });
 
+describe("préparation du projet par la commande système (US-005)", () => {
+  test("test_ac_005_4_transmet_le_chemin_a_ouvrir_projet", async () => {
+    const calls = recordIpc(() => null);
+
+    await tauriFolderAccess.prepareProject("/home/lea/mon-projet");
+
+    expect(calls).toEqual([{ cmd: "ouvrir_projet", args: { chemin: "/home/lea/mon-projet" } }]);
+  });
+});
+
 describe("glisser-déposer hors d'une fenêtre Tauri (navigateur de développement)", () => {
   test("test_ac_001_2_hors_de_tauri_le_depot_est_inactif_sans_erreur", async () => {
     const unsubscribe = await tauriDropSource.onDrop(() => undefined);

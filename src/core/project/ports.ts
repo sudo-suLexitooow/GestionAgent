@@ -10,6 +10,11 @@ export interface FolderAccess {
   pickFolder(): Promise<string | null>;
   /** Vérifie qu'un chemin est un dossier existant et lisible. */
   inspectFolder(path: string): Promise<FolderStatus>;
+  /**
+   * Ouvre le projet côté système : la racine est retenue par Rust (seule racine où lire et
+   * écrire) et une écriture interrompue est terminée ou annulée (AC-005-4). Rejette en cas d'échec.
+   */
+  prepareProject(path: string): Promise<void>;
 }
 
 /** Source des chemins déposés par glisser-déposer dans la fenêtre. */

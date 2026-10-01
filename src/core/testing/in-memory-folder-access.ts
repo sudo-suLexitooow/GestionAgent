@@ -22,6 +22,14 @@ export class InMemoryFolderAccess implements FolderAccess {
     this.inspected.push(path);
     return Promise.resolve(this.entries[path] ?? "not-found");
   }
+
+  /** Projets préparés côté système, dans l'ordre des appels. */
+  readonly preparedProjects: string[] = [];
+
+  prepareProject(path: string): Promise<void> {
+    this.preparedProjects.push(path);
+    return Promise.resolve();
+  }
 }
 
 /** Fausse source de dépôts : `drop()` simule un glisser-déposer dans la fenêtre. */

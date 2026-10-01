@@ -1,11 +1,16 @@
 //! Commandes Tauri de lecture et d'écriture des fichiers du projet (appelées par
 //! `src/platform/`). Toute écriture passe par la transaction atomique.
+//!
+//! La racine du projet est tenue côté Rust (état [`ProjetOuvert`], défini par
+//! `ouvrir_projet`) : l'interface ne peut ni lire ni écrire hors du projet ouvert.
 
 use super::{classer, ecrire_fichiers, recuperer, valider_chemin, ErreurEcriture, FichierAEcrire};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use tauri::State;
 
 /// Fichier à écrire, tel que reçu de l'interface.
 #[derive(Debug, Clone, Deserialize)]
@@ -37,37 +42,99 @@ impl From<ErreurEcriture> for ErreurDto {
     }
 }
 
-/// Écrit tous les fichiers ou aucun, avec sauvegarde de la version précédente.
-#[tauri::command]
-pub fn ecrire_fichiers_projet(racine: String, fichiers: Vec<FichierDto>) -> Result<(), ErreurDto> {
+/// Racine canonique du projet ouvert, seule racine acceptée par les commandes de fichiers.
+#[derive(Debug, Default)]
+pub struct ProjetOuvert(Mutex<Option<PathBuf>>);
+
+/// Ouvre un projet : retient sa racine canonique, puis termine ou annule une écriture
+/// interrompue (AC-005-4, « au prochain démarrage »).
+pub fn ouvrir(_etat: &ProjetOuvert, _chemin: &str) -> Result<(), ErreurEcriture> {
+    Ok(())
+}
+
+/// Racine du projet ouvert si `racine` la désigne ; sinon `CheminInvalide`.
+fn racine_autorisee(_etat: &ProjetOuvert, racine: &str) -> Result<PathBuf, ErreurEcriture> {
+    Ok(PathBuf::from(racine))
+}
+
+pub fn ecrire(
+    etat: &ProjetOuvert,
+    racine: &str,
+    fichiers: Vec<FichierDto>,
+) -> Result<(), ErreurEcriture> {
+    let racine = racine_autorisee(etat, racine)?;
     let fichiers: Vec<FichierAEcrire> = fichiers
         .into_iter()
         .map(|fichier| FichierAEcrire::new(&fichier.chemin, fichier.contenu))
         .collect();
-    Ok(ecrire_fichiers(Path::new(&racine), &fichiers)?)
+    ecrire_fichiers(&racine, &fichiers)
 }
 
-/// À appeler à l'ouverture d'un projet : termine ou annule une écriture interrompue.
+pub fn recuperer_projet(etat: &ProjetOuvert, racine: &str) -> Result<(), ErreurEcriture> {
+    recuperer(&racine_autorisee(etat, racine)?)
+}
+
+pub fn lire(
+    etat: &ProjetOuvert,
+    racine: &str,
+    chemin: &str,
+) -> Result<Option<String>, ErreurEcriture> {
+    let racine = racine_autorisee(etat, racine)?;
+    valider_chemin(chemin)?;
+    match fs::read_to_string(racine.join(chemin)) {
+        Ok(contenu) => Ok(Some(contenu)),
+        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(erreur) => Err(classer(erreur)),
+    }
+}
+
+pub fn existe(etat: &ProjetOuvert, racine: &str, chemin: &str) -> Result<bool, ErreurEcriture> {
+    let racine = racine_autorisee(etat, racine)?;
+    valider_chemin(chemin)?;
+    Ok(Path::new(&racine).join(chemin).exists())
+}
+
 #[tauri::command]
-pub fn recuperer_ecritures_projet(racine: String) -> Result<(), ErreurDto> {
-    Ok(recuperer(Path::new(&racine))?)
+pub fn ouvrir_projet(etat: State<'_, ProjetOuvert>, chemin: String) -> Result<(), ErreurDto> {
+    Ok(ouvrir(&etat, &chemin)?)
+}
+
+/// Écrit tous les fichiers ou aucun, avec sauvegarde de la version précédente.
+#[tauri::command]
+pub fn ecrire_fichiers_projet(
+    etat: State<'_, ProjetOuvert>,
+    racine: String,
+    fichiers: Vec<FichierDto>,
+) -> Result<(), ErreurDto> {
+    Ok(ecrire(&etat, &racine, fichiers)?)
+}
+
+/// Termine ou annule une écriture interrompue.
+#[tauri::command]
+pub fn recuperer_ecritures_projet(
+    etat: State<'_, ProjetOuvert>,
+    racine: String,
+) -> Result<(), ErreurDto> {
+    Ok(recuperer_projet(&etat, &racine)?)
 }
 
 /// Contenu texte (UTF-8) d'un fichier du projet, `None` s'il n'existe pas.
 #[tauri::command]
-pub fn lire_fichier_projet(racine: String, chemin: String) -> Result<Option<String>, ErreurDto> {
-    valider_chemin(&chemin)?;
-    match fs::read_to_string(Path::new(&racine).join(&chemin)) {
-        Ok(contenu) => Ok(Some(contenu)),
-        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(erreur) => Err(classer(erreur).into()),
-    }
+pub fn lire_fichier_projet(
+    etat: State<'_, ProjetOuvert>,
+    racine: String,
+    chemin: String,
+) -> Result<Option<String>, ErreurDto> {
+    Ok(lire(&etat, &racine, &chemin)?)
 }
 
 #[tauri::command]
-pub fn chemin_projet_existe(racine: String, chemin: String) -> Result<bool, ErreurDto> {
-    valider_chemin(&chemin)?;
-    Ok(Path::new(&racine).join(&chemin).exists())
+pub fn chemin_projet_existe(
+    etat: State<'_, ProjetOuvert>,
+    racine: String,
+    chemin: String,
+) -> Result<bool, ErreurDto> {
+    Ok(existe(&etat, &racine, &chemin)?)
 }
 
 #[cfg(test)]
@@ -84,6 +151,18 @@ mod tests {
 
     fn racine(dossier: &tempfile::TempDir) -> String {
         dossier.path().to_string_lossy().into_owned()
+    }
+
+    /// Projet temporaire ouvert par `ouvrir`, comme le fait l'interface.
+    fn projet_ouvert() -> (tempfile::TempDir, ProjetOuvert) {
+        let dossier = tempfile::tempdir().unwrap();
+        let etat = ProjetOuvert::default();
+        ouvrir(&etat, &racine(&dossier)).expect("ouverture");
+        (dossier, etat)
+    }
+
+    fn code(erreur: ErreurEcriture) -> String {
+        ErreurDto::from(erreur).code
     }
 
     #[test]
@@ -104,6 +183,11 @@ mod tests {
                 "CHEMIN_INVALIDE",
                 "d3",
             ),
+            (
+                ErreurEcriture::RecuperationImpossible("d5".into()),
+                "RECUPERATION_IMPOSSIBLE",
+                "d5",
+            ),
             (ErreurEcriture::Autre("d4".into()), "ECHEC", "d4"),
         ];
         for (erreur, code, detail) in cas {
@@ -119,10 +203,11 @@ mod tests {
 
     #[test]
     fn test_ac_005_3_commande_ecrit_tous_les_fichiers() {
-        let dossier = tempfile::tempdir().unwrap();
+        let (dossier, etat) = projet_ouvert();
 
-        ecrire_fichiers_projet(
-            racine(&dossier),
+        ecrire(
+            &etat,
+            &racine(&dossier),
             vec![
                 dto(".cadre/cadre.yaml", "schema_version: 1\n"),
                 dto(".gitignore", ".cadre/tmp/\n"),
@@ -142,65 +227,140 @@ mod tests {
 
     #[test]
     fn test_ac_005_6_commande_renvoie_un_code_d_erreur() {
-        let dossier = tempfile::tempdir().unwrap();
+        let (dossier, etat) = projet_ouvert();
 
-        let erreur = ecrire_fichiers_projet(racine(&dossier), vec![dto("../x", "x")]).unwrap_err();
+        let erreur = ecrire(&etat, &racine(&dossier), vec![dto("../x", "x")]).unwrap_err();
 
-        assert_eq!(erreur.code, "CHEMIN_INVALIDE");
+        assert_eq!(code(erreur), "CHEMIN_INVALIDE");
     }
 
     #[test]
     fn test_ac_005_4_commande_de_recuperation_vide_les_temporaires() {
-        let dossier = tempfile::tempdir().unwrap();
+        let (dossier, etat) = projet_ouvert();
         let orphelin = dossier.path().join(".cadre/tmp/orphelin");
         fs::create_dir_all(orphelin.parent().unwrap()).unwrap();
         fs::write(&orphelin, "x").unwrap();
 
-        recuperer_ecritures_projet(racine(&dossier)).expect("récupération");
+        recuperer_projet(&etat, &racine(&dossier)).expect("récupération");
 
         assert!(!orphelin.exists());
     }
 
     #[test]
     fn test_ac_005_2_lecture_d_un_fichier_du_projet() {
-        let dossier = tempfile::tempdir().unwrap();
+        let (dossier, etat) = projet_ouvert();
+        let r = racine(&dossier);
         fs::write(dossier.path().join(".gitignore"), "dist\r\n").unwrap();
 
         assert_eq!(
-            lire_fichier_projet(racine(&dossier), ".gitignore".into()),
-            Ok(Some("dist\r\n".to_owned()))
+            lire(&etat, &r, ".gitignore").unwrap(),
+            Some("dist\r\n".to_owned())
         );
+        assert_eq!(lire(&etat, &r, "absent.txt").unwrap(), None);
         assert_eq!(
-            lire_fichier_projet(racine(&dossier), "absent.txt".into()),
-            Ok(None)
-        );
-        assert_eq!(
-            lire_fichier_projet(racine(&dossier), "../x".into())
-                .unwrap_err()
-                .code,
+            code(lire(&etat, &r, "../x").unwrap_err()),
             "CHEMIN_INVALIDE"
         );
     }
 
     #[test]
     fn test_ac_005_2_detection_d_un_projet_git() {
-        let dossier = tempfile::tempdir().unwrap();
-        assert_eq!(
-            chemin_projet_existe(racine(&dossier), ".git".into()),
-            Ok(false)
-        );
+        let (dossier, etat) = projet_ouvert();
+        let r = racine(&dossier);
+        assert!(!existe(&etat, &r, ".git").unwrap());
 
         fs::create_dir(dossier.path().join(".git")).unwrap();
 
+        assert!(existe(&etat, &r, ".git").unwrap());
         assert_eq!(
-            chemin_projet_existe(racine(&dossier), ".git".into()),
-            Ok(true)
-        );
-        assert_eq!(
-            chemin_projet_existe(racine(&dossier), "/etc".into())
-                .unwrap_err()
-                .code,
+            code(existe(&etat, &r, "/etc").unwrap_err()),
             "CHEMIN_INVALIDE"
         );
+    }
+
+    /// Revue B n° 8 : la racine est tenue côté Rust.
+    #[test]
+    fn test_securite_aucun_projet_ouvert_toute_commande_refusee() {
+        let dossier = tempfile::tempdir().unwrap();
+        let etat = ProjetOuvert::default();
+        let r = racine(&dossier);
+
+        assert_eq!(
+            code(ecrire(&etat, &r, vec![dto("CLAUDE.md", "x")]).unwrap_err()),
+            "CHEMIN_INVALIDE"
+        );
+        assert_eq!(code(lire(&etat, &r, "x").unwrap_err()), "CHEMIN_INVALIDE");
+        assert_eq!(code(existe(&etat, &r, "x").unwrap_err()), "CHEMIN_INVALIDE");
+        assert_eq!(
+            code(recuperer_projet(&etat, &r).unwrap_err()),
+            "CHEMIN_INVALIDE"
+        );
+        assert!(!dossier.path().join("CLAUDE.md").exists());
+    }
+
+    #[test]
+    fn test_securite_racine_differente_du_projet_ouvert_refusee() {
+        let (_projet, etat) = projet_ouvert();
+        let autre = tempfile::tempdir().unwrap();
+        fs::write(autre.path().join("secret.txt"), "secret").unwrap();
+        let r = racine(&autre);
+
+        assert_eq!(
+            code(ecrire(&etat, &r, vec![dto("CLAUDE.md", "x")]).unwrap_err()),
+            "CHEMIN_INVALIDE"
+        );
+        assert_eq!(
+            code(lire(&etat, &r, "secret.txt").unwrap_err()),
+            "CHEMIN_INVALIDE"
+        );
+        assert_eq!(
+            code(existe(&etat, &r, "secret.txt").unwrap_err()),
+            "CHEMIN_INVALIDE"
+        );
+        assert_eq!(
+            code(recuperer_projet(&etat, &r).unwrap_err()),
+            "CHEMIN_INVALIDE"
+        );
+        assert!(!autre.path().join("CLAUDE.md").exists());
+    }
+
+    #[test]
+    fn test_securite_ouvrir_un_chemin_qui_n_est_pas_un_dossier_est_refuse() {
+        let dossier = tempfile::tempdir().unwrap();
+        let fichier = dossier.path().join("notes.txt");
+        fs::write(&fichier, "x").unwrap();
+        let etat = ProjetOuvert::default();
+
+        assert_eq!(
+            code(ouvrir(&etat, &fichier.to_string_lossy()).unwrap_err()),
+            "CHEMIN_INVALIDE"
+        );
+        assert_eq!(
+            code(ouvrir(&etat, &dossier.path().join("absent").to_string_lossy()).unwrap_err()),
+            "CHEMIN_INVALIDE"
+        );
+    }
+
+    #[test]
+    fn test_securite_racine_equivalente_acceptee_apres_canonicalisation() {
+        let (dossier, etat) = projet_ouvert();
+        let equivalente = dossier.path().join(".").to_string_lossy().into_owned();
+
+        ecrire(&etat, &equivalente, vec![dto("CLAUDE.md", "x")]).expect("même projet");
+
+        assert!(dossier.path().join("CLAUDE.md").exists());
+    }
+
+    /// Revue B n° 9 : AC-005-4 « après le prochain démarrage » = à l'ouverture du projet.
+    #[test]
+    fn test_ac_005_4_ouvrir_le_projet_supprime_les_temporaires_orphelins() {
+        let dossier = tempfile::tempdir().unwrap();
+        let orphelin = dossier.path().join(".cadre/tmp/txn-ancien/0.nouveau");
+        fs::create_dir_all(orphelin.parent().unwrap()).unwrap();
+        fs::write(&orphelin, "x").unwrap();
+
+        ouvrir(&ProjetOuvert::default(), &racine(&dossier)).expect("ouverture");
+
+        assert!(!dossier.path().join(".cadre/tmp/txn-ancien").exists());
     }
 }
