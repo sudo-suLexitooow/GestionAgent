@@ -21,12 +21,23 @@ export async function openFromPicker(folders: FolderAccess): Promise<OpenOutcome
   try {
     const path = await folders.pickFolder();
     if (path === null) return { kind: "cancelled" };
-    const status = await folders.inspectFolder(path);
-    if (status !== "ok") return { kind: "error", error: status };
-    return { kind: "opened", project: { name: projectName(path), path } };
+    return await openPath(folders, path);
   } catch {
     return { kind: "error", error: "unexpected" };
   }
+}
+
+export function openFromDrop(
+  _folders: FolderAccess,
+  _paths: readonly string[],
+): Promise<OpenOutcome> {
+  return Promise.resolve({ kind: "cancelled" });
+}
+
+async function openPath(folders: FolderAccess, path: string): Promise<OpenOutcome> {
+  const status = await folders.inspectFolder(path);
+  if (status !== "ok") return { kind: "error", error: status };
+  return { kind: "opened", project: { name: projectName(path), path } };
 }
 
 /** Nom affiché d'un projet : dernier segment du chemin, séparateurs `/` ou `\`. Une racine garde son chemin. */

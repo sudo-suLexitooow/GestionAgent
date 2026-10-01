@@ -1,5 +1,18 @@
 import { InMemoryFolderAccess } from "../testing/in-memory-folder-access";
-import { openFromPicker } from "./open-project";
+import { openFromDrop, openFromPicker } from "./open-project";
+
+describe("ouverture par glisser-déposer", () => {
+  test("test_ac_001_2_ouvre_le_dossier_depose_comme_avec_le_selecteur", async () => {
+    const folders = new InMemoryFolderAccess({ "/home/lea/mon-projet": "ok" });
+
+    const outcome = await openFromDrop(folders, ["/home/lea/mon-projet"]);
+
+    expect(outcome).toEqual({
+      kind: "opened",
+      project: { name: "mon-projet", path: "/home/lea/mon-projet" },
+    });
+  });
+});
 
 describe("ouverture depuis le sélecteur", () => {
   test("test_ac_001_1_ouvre_le_dossier_choisi_dans_le_selecteur", async () => {
