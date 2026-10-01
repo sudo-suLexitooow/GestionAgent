@@ -33,6 +33,11 @@ export class SystemeFichiersTauri implements SystemeFichiersProjet {
   }
 
   ecrireTransaction(racine: string, fichiers: FichierAEcrire[]): Promise<void> {
-    return appeler("ecrire_fichiers_projet", { racine, fichiers });
+    // Un `Uint8Array` n'est pas sérialisé en liste par JSON : il est converti (`ContenuDto` Rust).
+    const transmis = fichiers.map(({ chemin, contenu }) => ({
+      chemin,
+      contenu: typeof contenu === "string" ? contenu : Array.from(contenu),
+    }));
+    return appeler("ecrire_fichiers_projet", { racine, fichiers: transmis });
   }
 }
