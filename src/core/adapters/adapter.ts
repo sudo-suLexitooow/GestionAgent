@@ -2,6 +2,7 @@
 // derrière elle, dans `src/core/adapters/<outil>/`. Le reste du cœur ne connaît que ce contrat.
 import type { ContextFileSpec } from "../contexts/context";
 import type { ProjectFiles } from "../project/ports";
+import type { SkillImport } from "../skills/import-skills";
 import type { ListedSkill } from "../skills/skill";
 
 export interface ToolAdapter {
@@ -13,4 +14,10 @@ export interface ToolAdapter {
   readonly contextFiles?: readonly ContextFileSpec[];
   /** Skills présentes dans les dossiers natifs de l'outil, triées par dossier (lecture seule). */
   detectSkills(files: ProjectFiles, root: string): Promise<ListedSkill[]>;
+  /**
+   * Opération « importer » (ADP-01) : copie en mémoire, à l'octet près, les skills des dossiers
+   * natifs de l'outil (lecture seule ; l'écriture relève de l'enregistrement). Absente : l'outil
+   * n'a rien à importer.
+   */
+  readonly importer?: (files: ProjectFiles, root: string) => Promise<SkillImport>;
 }

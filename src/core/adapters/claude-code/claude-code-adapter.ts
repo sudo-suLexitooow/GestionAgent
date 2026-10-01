@@ -1,3 +1,4 @@
+import { importSkillsFolder } from "../../skills/import-skills";
 import { readSkillsFolder } from "../../skills/skills-folder";
 import type { ToolAdapter } from "../adapter";
 
@@ -7,4 +8,5 @@ export const claudeCodeAdapter: ToolAdapter = {
   name: "Claude Code",
   contextFiles: [{ file: "CLAUDE.md", name: "CLAUDE", type: "projet" }],
   detectSkills: (files, root) => readSkillsFolder(files, root, ".claude/skills"),
+  importer: (files, root) => importSkillsFolder(files, root, ".claude/skills"),
 };
