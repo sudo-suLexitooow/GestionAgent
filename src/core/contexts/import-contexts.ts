@@ -1,5 +1,5 @@
 import type { ToolAdapter } from "../adapters/adapter";
-import type { ProjectFiles } from "../project/ports";
+import { ProjectReadError, type ProjectFiles } from "../project/ports";
 import { decodeUtf8 } from "../text/utf8";
 import type { ContextEntry, ContextFileSpec, ImportedContext } from "./context";
 import { GENERIC_CONTEXT_FILES } from "./generic-format";
@@ -38,6 +38,7 @@ export function buildContextImport(read: readonly ReadContextFile[]): ContextImp
 /**
  * Importe en mémoire les fichiers de contexte détectés : lecture seule des octets, puis
  * construction des contextes. L'écriture de `.cadre/` relève de l'enregistrement (US-005).
+ * Un fichier qui ne peut pas être lu n'est pas importé et donne un avertissement.
  */
 export async function importContexts(
   files: ProjectFiles,
@@ -45,11 +46,18 @@ export async function importContexts(
   specs: readonly ContextFileSpec[],
 ): Promise<ContextImport> {
   const read: ReadContextFile[] = [];
+  const failures: ContextImportWarning[] = [];
   for (const spec of specs) {
-    const bytes = await files.readFile(root, spec.file);
-    if (bytes !== null) read.push({ spec, bytes });
+    try {
+      const bytes = await files.readFile(root, spec.file);
+      if (bytes !== null) read.push({ spec, bytes });
+    } catch (error) {
+      const tooLarge = error instanceof ProjectReadError && error.reason === "too-large";
+      failures.push({ source: spec.file, code: tooLarge ? "too-large" : "unreadable" });
+    }
   }
-  return buildContextImport(read);
+  const built = buildContextImport(read);
+  return { contexts: built.contexts, warnings: [...failures, ...built.warnings] };
 }
 
 /** Contexte importé depuis `spec` : métadonnées pour `cadre.yaml`, copie des octets bruts (ADR-001, D2). */
