@@ -3,6 +3,7 @@
 
 mod commands;
 pub mod folder;
+pub mod fs_atomique;
 pub mod project_files;
 
 use tauri::{Builder, Runtime};
@@ -11,10 +12,15 @@ use tauri::{Builder, Runtime};
 pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
     builder
         .plugin(tauri_plugin_dialog::init())
+        .manage(fs_atomique::commandes::ProjetOuvert::default())
         .invoke_handler(tauri::generate_handler![
             commands::inspect_folder,
             commands::list_project_dir,
-            commands::read_project_file
+            commands::read_project_file,
+            fs_atomique::commandes::ouvrir_projet,
+            fs_atomique::commandes::ecrire_fichiers_projet,
+            fs_atomique::commandes::lire_fichier_projet,
+            fs_atomique::commandes::projet_dans_un_depot_git,
         ])
 }
 

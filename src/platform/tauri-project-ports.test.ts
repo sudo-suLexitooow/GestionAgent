@@ -52,6 +52,25 @@ describe("vérification d'un dossier par la commande système", () => {
   });
 });
 
+describe("préparation du projet par la commande système (US-005)", () => {
+  test("test_ac_005_4_transmet_le_chemin_a_ouvrir_projet", async () => {
+    const calls = recordIpc(() => null);
+
+    await tauriFolderAccess.prepareProject("/home/lea/mon-projet");
+
+    expect(calls).toEqual([{ cmd: "ouvrir_projet", args: { chemin: "/home/lea/mon-projet" } }]);
+  });
+
+  test("test_ac_005_4_relaie_l_avertissement_de_reprise", async () => {
+    recordIpc(() => ({ code: "PROJET_OCCUPE", detail: "" }));
+
+    expect(await tauriFolderAccess.prepareProject("/home/lea/mon-projet")).toEqual({
+      code: "PROJET_OCCUPE",
+      detail: "",
+    });
+  });
+});
+
 describe("lecture du projet par les commandes système", () => {
   test("test_ac_002_1_liste_un_dossier_par_list_project_dir", async () => {
     const calls = recordIpc(() => [{ name: "a", kind: "directory" }]);

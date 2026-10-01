@@ -8,6 +8,7 @@ import {
   type FolderAccess,
   type FolderStatus,
   type ProjectFiles,
+  type ProjectWarning,
   type ReadError,
 } from "../core/project/ports";
 
@@ -15,6 +16,7 @@ import {
 export const tauriFolderAccess: FolderAccess = {
   pickFolder: () => open({ directory: true, multiple: false }),
   inspectFolder: (path) => invoke<FolderStatus>("inspect_folder", { path }),
+  prepareProject: (path) => invoke<ProjectWarning | null>("ouvrir_projet", { chemin: path }),
 };
 
 export const tauriDropSource: DropSource = {

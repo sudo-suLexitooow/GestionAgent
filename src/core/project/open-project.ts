@@ -1,5 +1,5 @@
 import { decideDrop } from "./drop";
-import type { FolderAccess } from "./ports";
+import type { FolderAccess, ProjectWarning } from "./ports";
 
 export interface Project {
   name: string;
@@ -7,12 +7,19 @@ export interface Project {
 }
 
 export type OpenError =
-  "not-found" | "unreadable" | "not-a-directory" | "drop-single-folder" | "unexpected";
+  | "not-found"
+  | "unreadable"
+  | "not-a-directory"
+  | "drop-single-folder"
+  | "project-preparation-failed"
+  | "unexpected";
 
 export type OpenOutcome =
-  | { kind: "opened"; project: Project }
+  /** `warning` : la reprise d'une écriture interrompue a échoué, le projet est quand même ouvert. */
+  | { kind: "opened"; project: Project; warning?: ProjectWarning }
   | { kind: "cancelled" }
-  | { kind: "error"; error: OpenError };
+  /** `detail` : code et détail technique d'un échec système, pour le diagnostic. */
+  | { kind: "error"; error: OpenError; detail?: string };
 
 /** Ouvre le dossier choisi dans le sélecteur (AC-001-1, AC-001-4, AC-001-5). */
 export function openFromPicker(folders: FolderAccess): Promise<OpenOutcome> {
@@ -51,7 +58,24 @@ async function withoutCrash(open: () => Promise<OpenOutcome>): Promise<OpenOutco
 async function openPath(folders: FolderAccess, path: string): Promise<OpenOutcome> {
   const status = await folders.inspectFolder(path);
   if (status !== "ok") return { kind: "error", error: status };
-  return { kind: "opened", project: { name: projectName(path), path } };
+  let warning: ProjectWarning | null;
+  try {
+    warning = await folders.prepareProject(path);
+  } catch (failure) {
+    return { kind: "error", error: "project-preparation-failed", detail: describe(failure) };
+  }
+  const project = { name: projectName(path), path };
+  return warning ? { kind: "opened", project, warning } : { kind: "opened", project };
+}
+
+/** Code et détail d'un rejet système (`{ code, detail }` sérialisé par Rust) ou d'une `Error`. */
+function describe(failure: unknown): string {
+  if (failure instanceof Error) return failure.message;
+  if (typeof failure === "object" && failure !== null && "code" in failure) {
+    const detail = "detail" in failure ? String(failure.detail) : "";
+    return `${String(failure.code)} : ${detail}`;
+  }
+  return String(failure);
 }
 
 /** Nom affiché d'un projet : dernier segment du chemin, séparateurs `/` ou `\`. Une racine garde son chemin. */

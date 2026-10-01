@@ -116,3 +116,69 @@ describe("ouverture depuis le sélecteur", () => {
     expect(outcome).toEqual({ kind: "error", error: "unexpected" });
   });
 });
+
+describe("préparation du projet côté système (US-005, revue B points 8 et 9)", () => {
+  test("test_ac_005_4_ouvrir_un_projet_le_prepare_cote_systeme", async () => {
+    const folders = new InMemoryFolderAccess({ "/home/lea/mon-projet": "ok" });
+
+    const outcome = await openFromDrop(folders, ["/home/lea/mon-projet"]);
+
+    expect(outcome.kind).toBe("opened");
+    expect(folders.preparedProjects).toEqual(["/home/lea/mon-projet"]);
+  });
+
+  test("test_ac_005_4_dossier_invalide_n_est_pas_prepare", async () => {
+    const folders = new InMemoryFolderAccess({ "/home/lea/notes.txt": "not-a-directory" });
+
+    await openFromDrop(folders, ["/home/lea/notes.txt"]);
+
+    expect(folders.preparedProjects).toEqual([]);
+  });
+
+  test("test_ac_005_4_echec_de_preparation_produit_une_erreur_dediee", async () => {
+    const folders = new InMemoryFolderAccess({ "/projets/x": "ok" }).answerPickerWith("/projets/x");
+    folders.prepareProject = () =>
+      Promise.reject(new Error("RECUPERATION_IMPOSSIBLE : .cadre/tmp/txn-1"));
+
+    const outcome = await openFromPicker(folders);
+
+    expect(outcome).toEqual({
+      kind: "error",
+      error: "project-preparation-failed",
+      detail: "RECUPERATION_IMPOSSIBLE : .cadre/tmp/txn-1",
+    });
+  });
+
+  test("test_ac_005_4_echec_de_ouvrir_projet_transmet_code_et_detail", async () => {
+    const folders = new InMemoryFolderAccess({ "/projets/x": "ok" }).answerPickerWith("/projets/x");
+    // Forme réelle du rejet Tauri : l'`ErreurDto` sérialisée.
+    const rejet = { code: "CHEMIN_INVALIDE", detail: "pas un dossier" };
+    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+    folders.prepareProject = () => Promise.reject(rejet);
+
+    const outcome = await openFromPicker(folders);
+
+    expect(outcome).toEqual({
+      kind: "error",
+      error: "project-preparation-failed",
+      detail: "CHEMIN_INVALIDE : pas un dossier",
+    });
+  });
+
+  test("test_ac_005_4_reprise_impossible_le_projet_s_ouvre_avec_un_avertissement", async () => {
+    const folders = new InMemoryFolderAccess({ "/projets/x": "ok" }).answerPickerWith("/projets/x");
+    const warning = {
+      code: "RECUPERATION_IMPOSSIBLE",
+      detail: "/projets/x/.cadre/tmp/de-cote-txn-1",
+    };
+    folders.warnOnPrepare(warning);
+
+    const outcome = await openFromPicker(folders);
+
+    expect(outcome).toEqual({
+      kind: "opened",
+      project: { name: "x", path: "/projets/x" },
+      warning,
+    });
+  });
+});
