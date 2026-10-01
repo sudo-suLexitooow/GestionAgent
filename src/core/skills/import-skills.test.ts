@@ -125,6 +125,21 @@ describe("skill impossible à copier entièrement : non importée, signalée, le
     ]);
   });
 
+  test("test_ac_004_1_un_skill_md_qui_est_un_dossier_rend_la_skill_en_erreur", async () => {
+    const files = new InMemoryProjectFiles(ROOT, {
+      ...AUTRE,
+      ".claude/skills/revue/SKILL.md/note.md": "# pas un SKILL.md\n",
+      ".claude/skills/revue/a.md": "# a\n",
+    });
+
+    const { skills, failures } = await importer(files);
+
+    expect(skills.map(({ skill }) => skill.folder)).toEqual(["autre"]);
+    expect(failures).toEqual([
+      { folder: "revue", path: ".claude/skills/revue/SKILL.md", code: "unreadable" },
+    ]);
+  });
+
   test("test_ac_004_1_un_skill_md_illisible_rend_la_skill_en_erreur", async () => {
     const { dossiers, failures } = await importerAvec((files) => {
       files.makeUnreadable(".claude/skills/revue/SKILL.md");
