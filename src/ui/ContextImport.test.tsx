@@ -79,6 +79,26 @@ describe("import de CLAUDE.md et AGENTS.md depuis l'écran principal", () => {
   });
 });
 
+describe("échec de lecture pendant la détection des contextes", () => {
+  test("test_ac_003_1_une_racine_illisible_ne_propose_rien_et_ne_plante_pas", async () => {
+    const unhandled: unknown[] = [];
+    const record = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", record);
+    try {
+      await openProject(
+        new InMemoryProjectFiles(ROOT, { "CLAUDE.md": "# P\n" }).makeUnreadable(""),
+      );
+      await screen.findByText("Aucune skill détectée.");
+      await settle();
+
+      expect(screen.queryByRole("region", { name: "Contextes" })).not.toBeInTheDocument();
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", record);
+    }
+  });
+});
+
 /** Seuls membres du port de lecture : tout autre accès serait une tentative d'écriture. */
 const READ_ONLY = new Set(["listDir", "readFile"]);
 
