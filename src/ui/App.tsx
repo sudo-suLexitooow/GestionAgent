@@ -15,6 +15,7 @@ import {
 } from "../platform/tauri-project-ports";
 import { t } from "./i18n";
 import { ContextsSection } from "./ContextsSection";
+import { ModelSection } from "./ModelSection";
 import { SkillsSection } from "./SkillsSection";
 
 export interface AppProps {
@@ -104,6 +105,7 @@ function ProjectScreen({
       <p>
         {t("project.path")} : <code>{project.path}</code>
       </p>
+      <ModelSection root={project.path} files={files} />
       <ContextsSection root={project.path} files={files} adapter={claudeCodeAdapter} />
       <SkillsSection root={project.path} files={files} adapter={claudeCodeAdapter} />
     </main>

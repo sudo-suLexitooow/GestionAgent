@@ -36,6 +36,20 @@ const fr = {
     "le fichier dépasse la taille maximale de 8 Mio ; il n'est pas importé.",
   "contexts.unsaved":
     "Non enregistré : les contextes importés ne sont pas encore écrits dans le dossier .cadre/.",
+  "model.title": "Modèle",
+  "model.readOnly":
+    "Ce projet a été enregistré par une version plus récente de Cadre. Il est ouvert en lecture seule : mettez Cadre à jour pour le modifier.",
+  "model.agentInError": "Agent en erreur",
+  "model.incomplete": "Modèle incomplet",
+  "model.repair":
+    "Réparation proposée : recréer .cadre/cadre.yaml à partir du contenu de .cadre/. Rien n'a été écrit et rien ne le sera sans votre accord.",
+  "model.error.CADRE_MISSING": "fichier absent",
+  "model.error.ENCODING": "le fichier n'est pas encodé en UTF-8",
+  "model.error.YAML_SYNTAX": "YAML invalide",
+  "model.error.YAML_DUPLICATE_KEY": "clé en double",
+  "model.error.SCHEMA": "non conforme au format .cadre/ v1",
+  "model.error.UNREADABLE": "le fichier ne peut pas être lu",
+  "model.error.TOO_LARGE": "le fichier dépasse la taille maximale de 8 Mio",
   "skills.title": "Skills",
   "skills.none": "Aucune skill détectée.",
   "skills.failed": "Les skills n'ont pas pu être lues.",
