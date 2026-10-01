@@ -48,6 +48,7 @@ const fr = {
   "model.error.ENCODING": "le fichier n'est pas encodé en UTF-8",
   "model.error.YAML_SYNTAX": "YAML invalide",
   "model.error.YAML_DUPLICATE_KEY": "clé en double",
+  "model.error.YAML_ALIASES": "trop d'alias YAML (&, *) : fichier refusé par sécurité",
   "model.error.SCHEMA": "non conforme au format .cadre/ v1",
   "model.error.UNREADABLE": "le fichier ne peut pas être lu",
   "model.error.TOO_LARGE": "le fichier dépasse la taille maximale de 8 Mio",

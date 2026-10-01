@@ -18,7 +18,8 @@ export type CodeErreurModele =
   | "SCHEMA"
   | "UNREADABLE"
   | "TOO_LARGE"
-  | "LINK";
+  | "LINK"
+  | "YAML_ALIASES";
 
 /** Erreur d'un fichier du modèle : chemin relatif au projet et, si connue, ligne (1 = première). */
 export interface ErreurFichierModele {
@@ -185,6 +186,20 @@ async function lireYaml(files: ProjectFiles, root: string, fichier: string): Pro
   if (lu.octets === null) return { ok: false, erreur: { fichier, code: "CADRE_MISSING" } };
   const texte = decodeUtf8(lu.octets);
   if (texte === null) return { ok: false, erreur: { fichier, code: "ENCODING" } };
+  // Aucune exception de l'analyse ou de la conversion ne doit faire échouer tout le chargement.
+  try {
+    return analyserYaml(texte, fichier);
+  } catch (erreur) {
+    const alias = erreur instanceof Error && /alias/i.test(erreur.message);
+    return { ok: false, erreur: { fichier, code: alias ? "YAML_ALIASES" : "YAML_SYNTAX" } };
+  }
+}
+
+/**
+ * YAML 1.2, clé en double = erreur. Lève si la conversion refuse le document (alias en masse :
+ * limite de la bibliothèque contre l'épuisement de ressources).
+ */
+function analyserYaml(texte: string, fichier: string): YamlLu {
   const lignes = new LineCounter();
   const document = parseDocument(texte, { lineCounter: lignes });
   const [erreur] = document.errors;
