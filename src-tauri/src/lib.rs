@@ -3,6 +3,7 @@
 
 mod commands;
 pub mod folder;
+pub mod project_files;
 
 use tauri::{Builder, Runtime};
 
@@ -10,7 +11,11 @@ use tauri::{Builder, Runtime};
 pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
     builder
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![commands::inspect_folder])
+        .invoke_handler(tauri::generate_handler![
+            commands::inspect_folder,
+            commands::list_project_dir,
+            commands::read_project_file
+        ])
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

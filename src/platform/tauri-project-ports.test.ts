@@ -1,6 +1,7 @@
 import { emit } from "@tauri-apps/api/event";
 import { clearMocks, mockIPC, mockWindows } from "@tauri-apps/api/mocks";
-import { tauriDropSource, tauriFolderAccess } from "./tauri-project-ports";
+import { ProjectReadError } from "../core/project/ports";
+import { tauriDropSource, tauriFolderAccess, tauriProjectFiles } from "./tauri-project-ports";
 
 // Le pont IPC de Tauri est simulé par `mockIPC` (outil officiel) : le code testé reste l'adaptateur réel.
 interface Call {
@@ -48,6 +49,68 @@ describe("vérification d'un dossier par la commande système", () => {
 
     expect(status).toBe("unreadable");
     expect(calls).toEqual([{ cmd: "inspect_folder", args: { path: "/home/lea/secret" } }]);
+  });
+});
+
+describe("lecture du projet par les commandes système", () => {
+  test("test_ac_002_1_liste_un_dossier_par_list_project_dir", async () => {
+    const calls = recordIpc(() => [{ name: "a", kind: "directory" }]);
+
+    const entries = await tauriProjectFiles.listDir("/home/lea/p", ".claude/skills");
+
+    expect(entries).toEqual([{ name: "a", kind: "directory" }]);
+    expect(calls).toEqual([
+      { cmd: "list_project_dir", args: { root: "/home/lea/p", path: ".claude/skills" } },
+    ]);
+  });
+
+  test("test_ac_002_2_dossier_absent_relaye_null", async () => {
+    recordIpc(() => null);
+
+    expect(await tauriProjectFiles.listDir("/home/lea/p", ".claude/skills")).toBeNull();
+  });
+
+  test("test_ac_002_1_lit_un_fichier_en_octets_par_read_project_file", async () => {
+    const calls = recordIpc(() => [97, 13, 10, 255]);
+
+    const bytes = await tauriProjectFiles.readFile("/home/lea/p", ".claude/skills/a/SKILL.md");
+
+    expect(bytes).toEqual(new Uint8Array([97, 13, 10, 255]));
+    expect(calls).toEqual([
+      {
+        cmd: "read_project_file",
+        args: { root: "/home/lea/p", path: ".claude/skills/a/SKILL.md" },
+      },
+    ]);
+  });
+
+  test("test_ac_002_4_fichier_absent_relaye_null", async () => {
+    recordIpc(() => null);
+
+    expect(await tauriProjectFiles.readFile("/home/lea/p", "SKILL.md")).toBeNull();
+  });
+
+  // Une commande en échec rejette `invoke` avec son erreur sérialisée : ici la chaîne du `ReadError`.
+  test.each([["readFile"], ["listDir"]] as const)(
+    "test_ac_002_3_%s_rejette_avec_le_motif_de_la_commande",
+    async (method) => {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- forme réelle du rejet Tauri
+      mockIPC(() => Promise.reject("too-large"));
+
+      const reading = tauriProjectFiles[method]("/home/lea/p", "SKILL.md");
+
+      await expect(reading).rejects.toBeInstanceOf(ProjectReadError);
+      await expect(reading).rejects.toMatchObject({ reason: "too-large" });
+    },
+  );
+
+  test("test_ac_002_3_un_echec_inattendu_de_l_ipc_rejette_comme_illisible", async () => {
+    mockIPC(() => Promise.reject(new Error("IPC indisponible")));
+
+    await expect(tauriProjectFiles.readFile("/home/lea/p", "SKILL.md")).rejects.toMatchObject({
+      name: "ProjectReadError",
+      reason: "unreadable",
+    });
   });
 });
 
