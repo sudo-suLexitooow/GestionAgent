@@ -8,31 +8,14 @@ import {
 import { serialiserCadre, type CadreYaml } from "./cadre-yaml";
 import { completerGitignore } from "./gitignore";
 
+/** Erreur d'enregistrement : code stable (libellé dans `src/ui/i18n/`, AC-005-6) et détail. */
 export interface ErreurEnregistrement {
   code: CodeErreurFichiers;
-  /** Libellé à afficher à l'utilisateur. */
-  message: string;
   /** Détail technique (journal, rapport de bogue). */
   detail: string;
 }
 
 export type ResultatEnregistrement = { ok: true } | { ok: false; erreur: ErreurEnregistrement };
-
-const RASSURANCE = "Vos fichiers n'ont pas été modifiés.";
-
-/** Libellés utilisateur (fr, Q-22) des erreurs d'enregistrement (AC-005-6). */
-export const MESSAGES_ERREUR_ENREGISTREMENT: Record<CodeErreurFichiers, string> = {
-  LECTURE_SEULE: `Enregistrement impossible : le dossier du projet est en lecture seule ou son accès est refusé. ${RASSURANCE}`,
-  DISQUE_PLEIN: `Enregistrement impossible : le disque est plein. Libérez de l'espace puis réessayez. ${RASSURANCE}`,
-  CHEMIN_INVALIDE: `Enregistrement impossible : un chemin de fichier est invalide ou passe par un lien symbolique (par exemple un .gitignore lié à un autre fichier). ${RASSURANCE}`,
-  PROJET_OCCUPE:
-    "Le projet est en cours d'enregistrement par une autre fenêtre de Cadre. Réessayez.",
-  ANNULATION_INCOMPLETE:
-    "L'enregistrement a échoué et n'a pas pu être entièrement annulé ; Cadre terminera l'annulation à la prochaine opération.",
-  RECUPERATION_IMPOSSIBLE:
-    "Enregistrement impossible : une écriture interrompue n'a pas pu être reprise. Des fichiers du projet peuvent être partiellement modifiés ; les copies d'origine sont dans le dossier indiqué dans le détail, rien n'a été supprimé. Réessayez pour enregistrer.",
-  ECHEC: `Enregistrement impossible à cause d'une erreur inattendue. ${RASSURANCE}`,
-};
 
 /**
  * Écrit `.cadre/cadre.yaml` et, dans un projet Git, complète le `.gitignore` racine :
@@ -60,15 +43,7 @@ export async function enregistrerCadre(
 
 function versErreurEnregistrement(erreur: unknown): ErreurEnregistrement {
   if (erreur instanceof ErreurSystemeFichiers) {
-    return {
-      code: erreur.code,
-      message: MESSAGES_ERREUR_ENREGISTREMENT[erreur.code],
-      detail: erreur.detail,
-    };
+    return { code: erreur.code, detail: erreur.detail };
   }
-  return {
-    code: "ECHEC",
-    message: MESSAGES_ERREUR_ENREGISTREMENT.ECHEC,
-    detail: erreur instanceof Error ? erreur.message : String(erreur),
-  };
+  return { code: "ECHEC", detail: erreur instanceof Error ? erreur.message : String(erreur) };
 }

@@ -1,5 +1,7 @@
 // Libellés de l'interface (Q-22) : clés stables, français d'abord ; l'anglais viendra plus tard.
 
+const RASSURANCE = "Vos fichiers n'ont pas été modifiés.";
+
 const fr = {
   "app.title": "Cadre",
   "home.open": "Ouvrir un dossier",
@@ -57,6 +59,16 @@ const fr = {
   "model.error.UNREADABLE": "le fichier ne peut pas être lu",
   "model.error.TOO_LARGE": "le fichier dépasse la taille maximale de 8 Mio",
   "model.error.LINK": "le fichier est un lien symbolique ou une jonction, que Cadre ne suit pas",
+  "save.error.LECTURE_SEULE": `Enregistrement impossible : le dossier du projet est en lecture seule ou son accès est refusé. ${RASSURANCE}`,
+  "save.error.DISQUE_PLEIN": `Enregistrement impossible : le disque est plein. Libérez de l'espace puis réessayez. ${RASSURANCE}`,
+  "save.error.CHEMIN_INVALIDE": `Enregistrement impossible : un chemin de fichier est invalide ou passe par un lien symbolique (par exemple un .gitignore lié à un autre fichier). ${RASSURANCE}`,
+  "save.error.PROJET_OCCUPE":
+    "Le projet est en cours d'enregistrement par une autre fenêtre de Cadre. Réessayez.",
+  "save.error.ANNULATION_INCOMPLETE":
+    "L'enregistrement a échoué et n'a pas pu être entièrement annulé ; Cadre terminera l'annulation à la prochaine opération.",
+  "save.error.RECUPERATION_IMPOSSIBLE":
+    "Enregistrement impossible : une écriture interrompue n'a pas pu être reprise. Des fichiers du projet peuvent être partiellement modifiés ; les copies d'origine sont dans le dossier indiqué dans le détail, rien n'a été supprimé. Réessayez pour enregistrer.",
+  "save.error.ECHEC": `Enregistrement impossible à cause d'une erreur inattendue. ${RASSURANCE}`,
   "skills.title": "Skills",
   "skills.none": "Aucune skill détectée.",
   "skills.failed": "Les skills n'ont pas pu être lues.",
