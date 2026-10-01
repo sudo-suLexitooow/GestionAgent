@@ -103,6 +103,15 @@ describe("lecture du projet par les commandes système", () => {
       await expect(reading).rejects.toMatchObject({ reason: "too-large" });
     },
   );
+
+  test("test_ac_002_3_un_echec_inattendu_de_l_ipc_rejette_comme_illisible", async () => {
+    mockIPC(() => Promise.reject(new Error("IPC indisponible")));
+
+    await expect(tauriProjectFiles.readFile("/home/lea/p", "SKILL.md")).rejects.toMatchObject({
+      name: "ProjectReadError",
+      reason: "unreadable",
+    });
+  });
 });
 
 describe("glisser-déposer hors d'une fenêtre Tauri (navigateur de développement)", () => {
