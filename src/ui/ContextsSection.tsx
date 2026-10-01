@@ -1,11 +1,12 @@
 import { useEffect, useId, useState } from "react";
 import type { ToolAdapter } from "../core/adapters/adapter";
-import type { ContextFileSpec, ImportedContext } from "../core/contexts/context";
+import type { ImportedContext } from "../core/contexts/context";
 import {
-  detectContextFiles,
-  importContexts,
-  type ContextImport,
-} from "../core/contexts/import-contexts";
+  detecterImport,
+  importerProjet,
+  type ImportPropose,
+  type ProjetImporte,
+} from "../core/import/importer-projet";
 import type { ProjectFiles } from "../core/project/ports";
 import { t } from "./i18n";
 
@@ -13,19 +14,20 @@ import { t } from "./i18n";
 type State =
   | { kind: "detecting" }
   | { kind: "hidden" }
-  | { kind: "proposed"; specs: ContextFileSpec[] }
-  | { kind: "imported"; result: ContextImport };
+  | { kind: "proposed"; propose: ImportPropose }
+  | { kind: "imported"; result: ProjetImporte };
 
 export interface ContextsSectionProps {
   root: string;
   files: ProjectFiles;
   adapter: ToolAdapter;
-  /** Contextes importés en mémoire, à enregistrer (US-077). */
-  onImported?: (result: ContextImport) => void;
+  /** Contextes et skills importés en mémoire, à enregistrer (US-077, US-004). */
+  onImported?: (result: ProjetImporte) => void;
 }
 
 /**
- * Proposition d'import de CLAUDE.md et AGENTS.md, puis contextes importés en mémoire (PRJ-02).
+ * Proposition d'import de CLAUDE.md, AGENTS.md et des skills de l'outil, puis contextes et skills
+ * importés en mémoire (PRJ-02).
  * Lecture seule : l'enregistrement dans `.cadre/` est fait par l'écran principal (US-077).
  */
 export function ContextsSection({ root, files, adapter, onImported }: ContextsSectionProps) {
@@ -35,9 +37,11 @@ export function ContextsSection({ root, files, adapter, onImported }: ContextsSe
   useEffect(() => {
     let current = true;
     // Racine illisible : rien à proposer, sans planter.
-    void detectContextFiles(files, root, adapter).then(
-      (specs) => {
-        if (current) setState(specs.length > 0 ? { kind: "proposed", specs } : { kind: "hidden" });
+    void detecterImport(files, root, adapter).then(
+      (propose) => {
+        if (!current) return;
+        const rien = propose.specs.length === 0 && propose.skills === 0;
+        setState(rien ? { kind: "hidden" } : { kind: "proposed", propose });
       },
       () => {
         if (current) setState({ kind: "hidden" });
@@ -48,8 +52,8 @@ export function ContextsSection({ root, files, adapter, onImported }: ContextsSe
     };
   }, [adapter, files, root]);
 
-  function accept(specs: ContextFileSpec[]) {
-    void importContexts(files, root, specs).then((result) => {
+  function accept({ specs }: ImportPropose) {
+    void importerProjet(files, root, adapter, specs).then((result) => {
       setState({ kind: "imported", result });
       onImported?.(result);
     });
@@ -61,9 +65,9 @@ export function ContextsSection({ root, files, adapter, onImported }: ContextsSe
       <h2 id={headingId}>{t("contexts.title")}</h2>
       {state.kind === "proposed" && (
         <Proposal
-          specs={state.specs}
+          propose={state.propose}
           onAccept={() => {
-            accept(state.specs);
+            accept(state.propose);
           }}
           onDecline={() => {
             setState({ kind: "hidden" });
@@ -76,21 +80,24 @@ export function ContextsSection({ root, files, adapter, onImported }: ContextsSe
 }
 
 interface ProposalProps {
-  specs: ContextFileSpec[];
+  propose: ImportPropose;
   onAccept: () => void;
   onDecline: () => void;
 }
 
-/** Fichiers détectés et choix d'importer ou non. */
-function Proposal({ specs, onAccept, onDecline }: ProposalProps) {
+/** Fichiers et skills détectés, et choix d'importer ou non. */
+function Proposal({ propose: { specs, skills }, onAccept, onDecline }: ProposalProps) {
   return (
     <>
       <p>{t("contexts.detected")}</p>
-      <ul>
-        {specs.map((spec) => (
-          <li key={spec.file}>{spec.file}</li>
-        ))}
-      </ul>
+      {specs.length > 0 && (
+        <ul>
+          {specs.map((spec) => (
+            <li key={spec.file}>{spec.file}</li>
+          ))}
+        </ul>
+      )}
+      {skills > 0 && <p>{`${t("import.skills.detected")} : ${String(skills)}`}</p>}
       <button type="button" onClick={onAccept}>
         {t("contexts.import")}
       </button>
@@ -101,8 +108,8 @@ function Proposal({ specs, onAccept, onDecline }: ProposalProps) {
   );
 }
 
-/** Contextes importés en mémoire, avertissements, et rappel qu'ils ne sont pas enregistrés. */
-function Imported({ result }: { result: ContextImport }) {
+/** Contextes et skills importés en mémoire, avertissements, et rappel qu'ils ne sont pas enregistrés. */
+function Imported({ result }: { result: ProjetImporte }) {
   return (
     <>
       <ul>
@@ -113,6 +120,15 @@ function Imported({ result }: { result: ContextImport }) {
       {result.warnings.map((warning) => (
         <p key={warning.source} role="alert">
           {warning.source} : {t(`contexts.warning.${warning.code}`)}
+        </p>
+      ))}
+      {result.skills.skills.length > 0 && (
+        <p>{`${t("import.skills.imported")} : ${String(result.skills.skills.length)}`}</p>
+      )}
+      {result.skills.failures.map((failure) => (
+        <p key={failure.folder} role="alert">
+          {failure.path} : {t(`import.skills.failure.${failure.code}`)} ;{" "}
+          {t("import.skills.notImported").replace("{nom}", failure.folder)}
         </p>
       ))}
       <p>{t("contexts.unsaved")}</p>

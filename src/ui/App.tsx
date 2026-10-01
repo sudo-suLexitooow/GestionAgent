@@ -8,7 +8,8 @@ import {
 import { enregistrerCadrage } from "../core/cadre/enregistrer-cadrage";
 import type { AgentNouveau } from "../core/agents/agent";
 import type { ImportedContext } from "../core/contexts/context";
-import type { ContextImport } from "../core/contexts/import-contexts";
+import type { ProjetImporte } from "../core/import/importer-projet";
+import type { ImportedSkill } from "../core/skills/import-skills";
 import type { SystemeFichiersProjet } from "../core/fichiers/systeme-fichiers";
 import { SystemeFichiersTauri } from "../platform/systeme-fichiers-tauri";
 import { SaveBar } from "./SaveBar";
@@ -126,7 +127,7 @@ function ProjectScreen({
   const [lecture, setLecture] = useState(0);
   /** Incrémenté pour relire seulement le modèle (agent apparu sur le disque, AC-007-3). */
   const [lectureModele, setLectureModele] = useState(0);
-  const [importe, setImporte] = useState<ContextImport | null>(null);
+  const [importe, setImporte] = useState<ProjetImporte | null>(null);
   /** `null` tant que le modèle n'est pas (re)lu : aucune création d'agent possible. */
   const [chargement, setChargement] = useState<ChargementModele | null>(null);
   const [nouveaux, setNouveaux] = useState<AgentNouveau[]>([]);
@@ -142,7 +143,10 @@ function ProjectScreen({
   const modifiable =
     chargement?.etat === "aucun" || (chargement?.etat === "charge" && !chargement.lectureSeule);
 
-  async function enregistrer(contextes: readonly ImportedContext[]) {
+  async function enregistrer(
+    contextes: readonly ImportedContext[],
+    skills: readonly ImportedSkill[],
+  ) {
     if (enregistrementEnCours.current) return;
     enregistrementEnCours.current = true;
     setEnCours(true);
@@ -153,7 +157,7 @@ function ProjectScreen({
       resultat = await enregistrerCadrage(
         { fichiers: files, systeme },
         project.path,
-        { contextes, agents },
+        { contextes, agents, skills },
         { adapter: claudeCodeAdapter, generatorVersion: VERSION_CADRE },
       );
     } catch (exception) {
@@ -178,7 +182,8 @@ function ProjectScreen({
   }
 
   const contextes = importe?.contexts ?? [];
-  const modifie = contextes.length > 0 || nouveaux.length > 0;
+  const skills = importe?.skills.skills ?? [];
+  const modifie = contextes.length > 0 || skills.length > 0 || nouveaux.length > 0;
   return (
     <main>
       <h1>{project.name}</h1>
@@ -202,7 +207,7 @@ function ProjectScreen({
         enCours={enCours}
         erreur={erreur}
         onSave={() => {
-          if (modifie) void enregistrer(contextes);
+          if (modifie) void enregistrer(contextes, skills);
         }}
       />
       <ModelSection
@@ -230,7 +235,12 @@ function ProjectScreen({
         adapter={claudeCodeAdapter}
         onImported={setImporte}
       />
-      <SkillsSection root={project.path} files={files} adapter={claudeCodeAdapter} />
+      <SkillsSection
+        key={`s${String(lecture)}`}
+        root={project.path}
+        files={files}
+        adapter={claudeCodeAdapter}
+      />
     </main>
   );
 }
