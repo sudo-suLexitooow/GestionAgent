@@ -110,7 +110,9 @@ pub fn ecrire_fichiers_avec(
 ) -> Result<(), ErreurEcriture> {
     for fichier in fichiers {
         valider_chemin(&fichier.chemin)?;
+        parents_reels(racine, &fichier.chemin)?;
     }
+    sans_doublon(fichiers)?;
     dossiers_internes_reels(racine)?;
     fs::create_dir_all(racine.join(DOSSIER_TMP)).map_err(classer)?;
     dossiers_internes_reels(racine)?;
@@ -166,15 +168,78 @@ fn nettoyer_transaction(transaction: &Path, points: &dyn PointsDeControle) -> io
 /// Chemin relatif au projet, segments séparés par `/`, sans `.`, `..`, `\`, `:` ni segment
 /// vide, hors des dossiers internes de l'écrivain (`.cadre/tmp`, `.cadre/backups`).
 pub fn valider_chemin(chemin: &str) -> Result<(), ErreurEcriture> {
-    let segments: Vec<&str> = chemin.split('/').collect();
-    let segment_invalide = |segment: &&str| {
-        segment.is_empty() || *segment == "." || *segment == ".." || segment.contains(['\\', ':'])
-    };
+    let minuscules = chemin.to_lowercase();
     let interne = [DOSSIER_TMP, DOSSIER_SAUVEGARDES]
         .iter()
-        .any(|dossier| chemin == *dossier || chemin.starts_with(&format!("{dossier}/")));
-    if segments.iter().any(segment_invalide) || interne {
+        .any(|dossier| minuscules == *dossier || minuscules.starts_with(&format!("{dossier}/")));
+    if chemin.split('/').any(|segment| !segment_portable(segment)) || interne {
         return Err(ErreurEcriture::CheminInvalide(chemin.to_owned()));
+    }
+    Ok(())
+}
+
+/// Chemin de lecture : relatif au projet, sans `.`, `..`, segment vide, `\` ni `:`.
+pub fn valider_chemin_relatif(chemin: &str) -> Result<(), ErreurEcriture> {
+    let invalide = |segment: &str| {
+        segment.is_empty() || segment == "." || segment == ".." || segment.contains(['\\', ':'])
+    };
+    if chemin.split('/').any(invalide) {
+        return Err(ErreurEcriture::CheminInvalide(chemin.to_owned()));
+    }
+    Ok(())
+}
+
+/// Règle R1 d'ADR-001 (D4) : nom valide sous Windows, macOS et Linux, et jamais `.git`
+/// (un hook écrit dans `.git/hooks/` serait exécuté par Git).
+fn segment_portable(segment: &str) -> bool {
+    const INTERDITS: [char; 9] = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+    let base = segment
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .trim_end()
+        .to_uppercase();
+    let reserve = matches!(base.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || ["COM", "LPT"].iter().any(|prefixe| {
+            base.strip_prefix(prefixe).is_some_and(|suffixe| {
+                matches!(
+                    suffixe,
+                    "0" | "1"
+                        | "2"
+                        | "3"
+                        | "4"
+                        | "5"
+                        | "6"
+                        | "7"
+                        | "8"
+                        | "9"
+                        | "\u{b9}"
+                        | "\u{b2}"
+                        | "\u{b3}"
+                )
+            })
+        });
+    !segment.is_empty()
+        && segment != "."
+        && segment != ".."
+        && !segment.ends_with(['.', ' '])
+        && !segment
+            .chars()
+            .any(|c| INTERDITS.contains(&c) || c.is_control())
+        && !segment.eq_ignore_ascii_case(".git")
+        && !reserve
+}
+
+/// Un même fichier (casse comprise : NTFS et APFS l'ignorent) une seule fois par lot.
+fn sans_doublon(fichiers: &[FichierAEcrire]) -> Result<(), ErreurEcriture> {
+    let mut vus = std::collections::HashSet::new();
+    for fichier in fichiers {
+        if !vus.insert(fichier.chemin.to_lowercase()) {
+            return Err(ErreurEcriture::CheminInvalide(format!(
+                "{} figure deux fois dans l'enregistrement",
+                fichier.chemin
+            )));
+        }
     }
     Ok(())
 }

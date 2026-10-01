@@ -4,7 +4,9 @@
 //! La racine du projet est tenue côté Rust (état [`ProjetOuvert`], défini par
 //! `ouvrir_projet`) : l'interface ne peut ni lire ni écrire hors du projet ouvert.
 
-use super::{classer, ecrire_fichiers, recuperer, valider_chemin, ErreurEcriture, FichierAEcrire};
+use super::{
+    classer, ecrire_fichiers, recuperer, valider_chemin_relatif, ErreurEcriture, FichierAEcrire,
+};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
@@ -109,7 +111,7 @@ pub fn lire(
     chemin: &str,
 ) -> Result<Option<String>, ErreurEcriture> {
     let racine = racine_autorisee(etat, racine)?;
-    valider_chemin(chemin)?;
+    valider_chemin_relatif(chemin)?;
     match fs::read_to_string(racine.join(chemin)) {
         Ok(contenu) => Ok(Some(contenu)),
         Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => Ok(None),
@@ -119,7 +121,7 @@ pub fn lire(
 
 pub fn existe(etat: &ProjetOuvert, racine: &str, chemin: &str) -> Result<bool, ErreurEcriture> {
     let racine = racine_autorisee(etat, racine)?;
-    valider_chemin(chemin)?;
+    valider_chemin_relatif(chemin)?;
     Ok(Path::new(&racine).join(chemin).exists())
 }
 
