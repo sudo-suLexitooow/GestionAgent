@@ -18,7 +18,10 @@ export function nouveauCadre(options: { generatorVersion: string; outils: string
   };
 }
 
-/** UTF-8 sans BOM, LF, indentation 2, ligne finale (ADR-001, D1). */
-export function serialiserCadre(cadre: CadreYaml): string {
+/**
+ * UTF-8 sans BOM, LF, indentation 2, ligne finale (ADR-001, D1). Accepte aussi un `cadre.yaml`
+ * relu, dont les champs inconnus de ce type sont conservés.
+ */
+export function serialiserCadre(cadre: CadreYaml | Readonly<Record<string, unknown>>): string {
   return stringify(cadre, { indent: 2, indentSeq: true, lineWidth: 0 });
 }

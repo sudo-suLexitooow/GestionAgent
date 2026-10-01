@@ -68,6 +68,8 @@ const fr = {
   "save.error.SOURCE_MODIFIEE":
     "a changé depuis l'import (modifié, supprimé ou devenu illisible) : réimportez-le. Rien n'a été enregistré.",
   "save.error.MODELE_EXISTANT": `Enregistrement annulé : un modèle .cadre/ a été créé dans ce projet depuis l'import (par exemple par une autre fenêtre de Cadre). Il est affiché à la place ; vos contextes importés n'ont pas été enregistrés. ${RASSURANCE}`,
+  "save.error.MODELE_NON_MODIFIABLE": `Enregistrement annulé : le modèle .cadre/ de ce projet est incomplet ou a été enregistré par une version plus récente de Cadre ; Cadre ne le modifie pas. ${RASSURANCE}`,
+  "save.error.AGENT_EXISTANT": `Enregistrement annulé : un agent du même nom (casse comprise) existe déjà dans .cadre/agents/, créé entre-temps hors de cette fenêtre. Choisissez un autre nom. ${RASSURANCE}`,
   "save.error.LECTURE_SEULE": `Enregistrement impossible : le dossier du projet est en lecture seule ou son accès est refusé. ${RASSURANCE}`,
   "save.error.DISQUE_PLEIN": `Enregistrement impossible : le disque est plein. Libérez de l'espace puis réessayez. ${RASSURANCE}`,
   "save.error.CHEMIN_INVALIDE": `Enregistrement impossible : un chemin de fichier est invalide ou passe par un lien symbolique (par exemple un .gitignore lié à un autre fichier). ${RASSURANCE}`,
