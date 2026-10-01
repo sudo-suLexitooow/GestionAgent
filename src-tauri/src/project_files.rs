@@ -4,6 +4,7 @@
 //! contrôlée ici (elle sera tenue côté Rust par une story de suivi), et les liens symboliques sont
 //! suivis (skills partagées par lien), y compris hors de la racine. Lecture seule.
 
+use crate::fs_atomique::commandes::ProjetOuvert;
 use serde::Serialize;
 use std::io::{ErrorKind, Read};
 use std::path::{Component, Path, PathBuf};
@@ -53,7 +54,12 @@ fn resolve(root: &Path, relative: &str) -> Result<PathBuf, ReadError> {
 
 /// Liste le dossier `relative` du projet `root` ; `None` s'il n'existe pas ou si ce n'est pas un
 /// dossier (un fichier `.cadre` n'est pas un modèle, un fichier `.claude/skills` ne contient aucune skill).
-pub fn list_dir(root: &Path, relative: &str) -> Result<Option<Vec<DirEntry>>, ReadError> {
+pub fn list_dir(
+    etat: &ProjetOuvert,
+    root: &Path,
+    relative: &str,
+) -> Result<Option<Vec<DirEntry>>, ReadError> {
+    let _ = etat;
     let path = resolve(root, relative)?;
     if kind_of(&path) == EntryKind::File {
         return Ok(None);
@@ -87,7 +93,12 @@ fn kind_of(path: &Path) -> EntryKind {
 /// Seul un fichier ordinaire (éventuellement atteint par un lien) est lu : un dossier, une FIFO ou un
 /// périphérique (`/dev/zero`) est refusé avant toute ouverture, pour ne jamais bloquer ni lire sans fin.
 /// Au-delà de `MAX_FILE_SIZE`, la lecture est refusée (`TooLarge`).
-pub fn read_file(root: &Path, relative: &str) -> Result<Option<Vec<u8>>, ReadError> {
+pub fn read_file(
+    etat: &ProjetOuvert,
+    root: &Path,
+    relative: &str,
+) -> Result<Option<Vec<u8>>, ReadError> {
+    let _ = etat;
     let path = resolve(root, relative)?;
     let metadata = match std::fs::metadata(&path) {
         Ok(metadata) => metadata,

@@ -1,9 +1,18 @@
 //! Intégration : lecture du contenu d'un projet sur de vrais fichiers temporaires (US-002).
 
+use cadre_lib::fs_atomique::commandes::{ouvrir, ProjetOuvert};
 use cadre_lib::project_files::{
     list_dir, read_file, DirEntry, EntryKind, ReadError, MAX_FILE_SIZE,
 };
 use std::fs;
+use std::path::Path;
+
+/// État d'un projet ouvert sur `root`, comme après `ouvrir_projet` (US-005, US-076).
+fn ouvert(root: &Path) -> ProjetOuvert {
+    let etat = ProjetOuvert::default();
+    ouvrir(&etat, root.to_str().unwrap()).expect("ouverture du projet");
+    etat
+}
 
 fn sorted(mut entries: Vec<DirEntry>) -> Vec<DirEntry> {
     entries.sort_by(|a, b| a.name.cmp(&b.name));
@@ -17,7 +26,9 @@ fn test_ac_002_1_liste_les_entrees_d_un_dossier_du_projet_avec_leur_nature() {
     fs::create_dir_all(skills.join("a")).unwrap();
     fs::write(skills.join("notes.txt"), "x").unwrap();
 
-    let entries = list_dir(project.path(), ".claude/skills").unwrap().unwrap();
+    let entries = list_dir(&ouvert(project.path()), project.path(), ".claude/skills")
+        .unwrap()
+        .unwrap();
 
     assert_eq!(
         sorted(entries),
@@ -38,7 +49,10 @@ fn test_ac_002_1_liste_les_entrees_d_un_dossier_du_projet_avec_leur_nature() {
 fn test_ac_002_2_dossier_absent_donne_none_sans_erreur() {
     let project = tempfile::tempdir().unwrap();
 
-    assert_eq!(list_dir(project.path(), ".claude/skills"), Ok(None));
+    assert_eq!(
+        list_dir(&ouvert(project.path()), project.path(), ".claude/skills"),
+        Ok(None)
+    );
 }
 
 #[test]
@@ -48,8 +62,14 @@ fn test_ac_002_2_un_fichier_a_la_place_du_dossier_donne_none_sans_erreur() {
     fs::write(project.path().join(".claude/skills"), "pas un dossier").unwrap();
     fs::write(project.path().join(".cadre"), "pas un modèle").unwrap();
 
-    assert_eq!(list_dir(project.path(), ".claude/skills"), Ok(None));
-    assert_eq!(list_dir(project.path(), ".cadre"), Ok(None));
+    assert_eq!(
+        list_dir(&ouvert(project.path()), project.path(), ".claude/skills"),
+        Ok(None)
+    );
+    assert_eq!(
+        list_dir(&ouvert(project.path()), project.path(), ".cadre"),
+        Ok(None)
+    );
 }
 
 /// Un projet et, à côté, un dossier étranger contenant `secret.txt`, réellement lisible.
@@ -70,14 +90,14 @@ fn test_ac_002_1_la_lecture_refuse_tout_chemin_qui_sort_du_projet() {
 
     for relative in ["../autre/secret.txt", "a/../../autre/secret.txt", absolute] {
         assert_eq!(
-            read_file(&root, relative),
+            read_file(&ouvert(&root), &root, relative),
             Err(ReadError::OutsideProject),
             "{relative}"
         );
     }
     for relative in ["..", "../autre", parent.path().to_str().unwrap()] {
         assert_eq!(
-            list_dir(&root, relative),
+            list_dir(&ouvert(&root), &root, relative),
             Err(ReadError::OutsideProject),
             "{relative}"
         );
@@ -94,7 +114,11 @@ fn test_ac_002_1_lit_un_fichier_du_projet_a_l_octet_pres() {
     fs::write(skill.join("SKILL.md"), &bytes).unwrap();
 
     assert_eq!(
-        read_file(project.path(), ".claude/skills/a/SKILL.md"),
+        read_file(
+            &ouvert(project.path()),
+            project.path(),
+            ".claude/skills/a/SKILL.md"
+        ),
         Ok(Some(bytes))
     );
 }
@@ -114,7 +138,11 @@ fn test_ac_002_3_un_fichier_au_plafond_de_taille_est_lu() {
         fs::write(path, vec![b'a'; MAX_FILE_SIZE as usize]).unwrap();
     });
 
-    let bytes = read_file(project.path(), ".claude/skills/a/SKILL.md");
+    let bytes = read_file(
+        &ouvert(project.path()),
+        project.path(),
+        ".claude/skills/a/SKILL.md",
+    );
 
     assert_eq!(bytes.map(|b| b.map(|b| b.len())), Ok(Some(8 * 1024 * 1024)));
 }
@@ -125,7 +153,11 @@ fn test_ac_002_3_un_fichier_au_dela_du_plafond_de_taille_est_refuse() {
         fs::write(path, vec![b'a'; MAX_FILE_SIZE as usize + 1]).unwrap();
     });
 
-    let bytes = read_file(project.path(), ".claude/skills/a/SKILL.md");
+    let bytes = read_file(
+        &ouvert(project.path()),
+        project.path(),
+        ".claude/skills/a/SKILL.md",
+    );
 
     assert_eq!(bytes.map(|b| b.map(|b| b.len())), Err(ReadError::TooLarge));
 }
@@ -135,7 +167,11 @@ fn test_ac_002_3_un_dossier_n_est_pas_lu_comme_un_fichier() {
     let project = project_with_skill_md(|path| fs::create_dir(path).unwrap());
 
     assert_eq!(
-        read_file(project.path(), ".claude/skills/a/SKILL.md"),
+        read_file(
+            &ouvert(project.path()),
+            project.path(),
+            ".claude/skills/a/SKILL.md"
+        ),
         Err(ReadError::Unreadable)
     );
 }
@@ -157,7 +193,11 @@ mod fichiers_speciaux_unix {
         let root = project.path().to_path_buf();
         let (sender, receiver) = mpsc::channel();
         std::thread::spawn(move || {
-            let _ = sender.send(read_file(&root, ".claude/skills/a/SKILL.md"));
+            let _ = sender.send(read_file(
+                &ouvert(&root),
+                &root,
+                ".claude/skills/a/SKILL.md",
+            ));
         });
         receiver
             .recv_timeout(Duration::from_secs(2))
@@ -198,7 +238,11 @@ mod fichiers_speciaux_unix {
         });
 
         assert_eq!(
-            read_file(project.path(), ".claude/skills/a/SKILL.md"),
+            read_file(
+                &ouvert(project.path()),
+                project.path(),
+                ".claude/skills/a/SKILL.md"
+            ),
             Ok(Some(b"contenu".to_vec()))
         );
     }
@@ -213,7 +257,9 @@ mod fichiers_speciaux_unix {
         symlink(shared.path(), skills.join("partagee")).unwrap();
         symlink(project.path().join("disparu"), skills.join("cassee")).unwrap();
 
-        let entries = list_dir(project.path(), ".claude/skills").unwrap().unwrap();
+        let entries = list_dir(&ouvert(project.path()), project.path(), ".claude/skills")
+            .unwrap()
+            .unwrap();
 
         assert_eq!(
             sorted(entries),
@@ -237,7 +283,11 @@ fn test_ac_002_4_fichier_absent_donne_none_sans_erreur() {
     fs::create_dir_all(project.path().join(".claude/skills/a")).unwrap();
 
     assert_eq!(
-        read_file(project.path(), ".claude/skills/a/SKILL.md"),
+        read_file(
+            &ouvert(project.path()),
+            project.path(),
+            ".claude/skills/a/SKILL.md"
+        ),
         Ok(None)
     );
 }
@@ -249,7 +299,9 @@ fn test_ac_003_1_un_chemin_vide_liste_la_racine_et_ses_fichiers_de_contexte() {
     fs::write(project.path().join("AGENTS.md"), "# Agents\n").unwrap();
     fs::create_dir(project.path().join(".cadre")).unwrap();
 
-    let entries = list_dir(project.path(), "").unwrap().unwrap();
+    let entries = list_dir(&ouvert(project.path()), project.path(), "")
+        .unwrap()
+        .unwrap();
 
     assert_eq!(
         sorted(entries),
@@ -290,12 +342,12 @@ mod chemins_windows {
             r"a\..\..\x",
         ] {
             assert_eq!(
-                read_file(project.path(), relative),
+                read_file(&ouvert(project.path()), project.path(), relative),
                 Err(ReadError::OutsideProject),
                 "{relative}"
             );
             assert_eq!(
-                list_dir(project.path(), relative),
+                list_dir(&ouvert(project.path()), project.path(), relative),
                 Err(ReadError::OutsideProject),
                 "{relative}"
             );

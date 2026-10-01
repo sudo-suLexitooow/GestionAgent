@@ -1,8 +1,10 @@
 //! Commandes Tauri exposées à l'interface. Fines : elles délèguent aux modules système.
 
 use crate::folder::{self, FolderStatus};
+use crate::fs_atomique::commandes::ProjetOuvert;
 use crate::project_files::{self, DirEntry, ReadError};
 use std::path::Path;
+use tauri::State;
 
 /// Vérifie qu'un chemin est un dossier existant et lisible, avant d'ouvrir un projet (US-001).
 #[tauri::command]
@@ -16,12 +18,20 @@ pub fn inspect_folder(path: String) -> FolderStatus {
 
 /// Liste un dossier du projet `root` (`path` relatif à la racine) ; `null` s'il n'existe pas (US-002).
 #[tauri::command(async)]
-pub fn list_project_dir(root: String, path: String) -> Result<Option<Vec<DirEntry>>, ReadError> {
-    project_files::list_dir(Path::new(&root), &path)
+pub fn list_project_dir(
+    etat: State<'_, ProjetOuvert>,
+    root: String,
+    path: String,
+) -> Result<Option<Vec<DirEntry>>, ReadError> {
+    project_files::list_dir(&etat, Path::new(&root), &path)
 }
 
 /// Lit un fichier du projet `root` en octets bruts ; `null` s'il n'existe pas (US-002).
 #[tauri::command(async)]
-pub fn read_project_file(root: String, path: String) -> Result<Option<Vec<u8>>, ReadError> {
-    project_files::read_file(Path::new(&root), &path)
+pub fn read_project_file(
+    etat: State<'_, ProjetOuvert>,
+    root: String,
+    path: String,
+) -> Result<Option<Vec<u8>>, ReadError> {
+    project_files::read_file(&etat, Path::new(&root), &path)
 }
