@@ -1,6 +1,8 @@
 //! Opérations système de Cadre : fichiers, surveillance, processus, terminal, Git, trousseau.
 //! La logique métier reste en TypeScript.
 
+pub mod fs_atomique;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
