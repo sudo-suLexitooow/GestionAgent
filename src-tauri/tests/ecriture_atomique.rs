@@ -741,6 +741,148 @@ mod liens_dans_cadre {
     }
 }
 
+fn sha256_hex(texte: &str) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(texte.as_bytes())
+        .iter()
+        .map(|octet| format!("{octet:02x}"))
+        .collect()
+}
+
+/// Dépose dans `.cadre/tmp/txn-forge/` un journal fabriqué (dépôt cloné malveillant).
+fn forger_transaction(racine: &Path, etat: &str, chemin: &str, empreinte_nouvelle: &str) {
+    let journal = serde_json::json!({
+        "etat": etat,
+        "entrees": [{
+            "chemin": chemin,
+            "empreinte_precedente": sha256_hex("pirate"),
+            "empreinte_nouvelle": empreinte_nouvelle,
+        }],
+    });
+    ecrire(
+        racine,
+        ".cadre/tmp/txn-forge/journal.json",
+        &journal.to_string(),
+    );
+    ecrire(racine, ".cadre/tmp/txn-forge/0.ancien", "pirate");
+}
+
+/// Bloquant de revue n° 2 : les chemins lus dans un journal sont validés comme ceux écrits.
+mod journal_forge {
+    use super::*;
+    use cadre_lib::fs_atomique::ErreurEcriture;
+
+    fn assert_refus_puis_ecriture_possible(racine: &Path) {
+        let recuperation = recuperer(racine);
+        assert!(
+            matches!(recuperation, Err(ErreurEcriture::RecuperationImpossible(_))),
+            "{recuperation:?}"
+        );
+        ecrire_fichiers(racine, &[FichierAEcrire::new("CLAUDE.md", "# Projet\n")])
+            .expect("le journal forgé ne bloque pas les écritures suivantes");
+        assert_eq!(lire(racine, "CLAUDE.md").as_deref(), Some("# Projet\n"));
+    }
+
+    #[test]
+    fn test_ac_005_4_journal_en_cours_avec_chemin_absolu_ne_supprime_rien_hors_du_projet() {
+        let victime = dossier_victime();
+        let (dossier, _) = projet_existant();
+        let racine = dossier.path();
+        let cible = victime.path().join("temoin.txt");
+        forger_transaction(
+            racine,
+            "en_cours",
+            &cible.to_string_lossy(),
+            &sha256_hex("précieux"),
+        );
+
+        assert_refus_puis_ecriture_possible(racine);
+
+        assert_victime_intacte(victime.path());
+        assert_projet_inchange(racine);
+    }
+
+    #[test]
+    fn test_ac_005_4_journal_en_cours_avec_chemin_remontant_ne_supprime_rien() {
+        let parent = projet();
+        ecrire(parent.path(), "temoin.txt", "précieux");
+        let racine = parent.path().join("projet");
+        ecrire(&racine, ".cadre/cadre.yaml", "schema_version: 1\n");
+        forger_transaction(
+            &racine,
+            "en_cours",
+            "../temoin.txt",
+            &sha256_hex("précieux"),
+        );
+
+        assert_refus_puis_ecriture_possible(&racine);
+
+        assert_eq!(
+            lire(parent.path(), "temoin.txt").as_deref(),
+            Some("précieux")
+        );
+    }
+
+    #[test]
+    fn test_ac_005_5_journal_valide_avec_chemin_remontant_n_ecrit_rien_hors_du_projet() {
+        let parent = projet();
+        let racine = parent.path().join("projet");
+        ecrire(&racine, ".cadre/cadre.yaml", "schema_version: 1\n");
+        // .cadre/backups/../../../intrus.txt sortirait du projet.
+        forger_transaction(&racine, "validee", "../../../intrus.txt", &sha256_hex("x"));
+
+        assert_refus_puis_ecriture_possible(&racine);
+
+        assert_eq!(lire(parent.path(), "intrus.txt"), None);
+        assert_eq!(lire(&racine, "intrus.txt"), None);
+    }
+
+    /// Revue B n° 11 : journal illisible → erreur qui nomme le dossier à examiner, rien
+    /// n'est supprimé, et les écritures suivantes restent possibles.
+    #[test]
+    fn test_ac_005_4_journal_illisible_mis_de_cote_sans_rien_supprimer() {
+        let (dossier, _) = projet_existant();
+        let racine = dossier.path();
+        ecrire(racine, ".cadre/tmp/txn-abime/journal.json", "{ tronqué");
+        ecrire(racine, ".cadre/tmp/txn-abime/0.ancien", "copie d'origine");
+
+        let recuperation = recuperer(racine);
+
+        match &recuperation {
+            Err(ErreurEcriture::RecuperationImpossible(detail)) => {
+                assert!(detail.contains("txn-abime"), "{detail}")
+            }
+            autre => panic!("{autre:?}"),
+        }
+        let copies: Vec<String> = temporaires(racine)
+            .into_iter()
+            .filter(|chemin| chemin.ends_with("0.ancien"))
+            .collect();
+        assert_eq!(copies.len(), 1, "la copie d'origine est conservée");
+        ecrire_fichiers(racine, &[FichierAEcrire::new("CLAUDE.md", "x")])
+            .expect("pas de blocage permanent");
+        assert_projet_inchange(racine);
+    }
+
+    #[test]
+    fn test_ac_005_4_journal_dont_un_parent_est_un_lien_ne_supprime_rien_hors_du_projet() {
+        let victime = dossier_victime();
+        let (dossier, _) = projet_existant();
+        let racine = dossier.path();
+        lier_dossier(victime.path(), &racine.join("docs"));
+        forger_transaction(
+            racine,
+            "en_cours",
+            "docs/temoin.txt",
+            &sha256_hex("précieux"),
+        );
+
+        assert_refus_puis_ecriture_possible(racine);
+
+        assert_victime_intacte(victime.path());
+    }
+}
+
 mod transaction_reussie {
     use super::*;
 

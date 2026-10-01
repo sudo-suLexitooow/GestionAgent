@@ -80,6 +80,9 @@ pub enum ErreurEcriture {
     LectureSeule(String),
     DisquePlein(String),
     CheminInvalide(String),
+    /// Une transaction interrompue ne peut pas être reprise sans risque : elle est mise de
+    /// côté, rien n'est supprimé ; le détail indique le dossier à examiner.
+    RecuperationImpossible(String),
     Autre(String),
 }
 
