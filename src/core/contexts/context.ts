@@ -25,7 +25,7 @@ export interface ImportedContext {
 
 /** Fichier de contexte qu'un outil (ou le format générique) dépose à la racine du projet. */
 export interface ContextFileSpec {
-  /** Nom du fichier à la racine du projet (ex. `CLAUDE.md`). */
+  /** Nom du fichier à la racine du projet (propre à un outil, voir son adaptateur). */
   file: string;
   /** Nom Cadre du contexte importé (`cadreName`). */
   name: string;
