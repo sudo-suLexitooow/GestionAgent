@@ -17,18 +17,22 @@ pub enum FolderStatus {
 /// Indique si `path` est un dossier existant et lisible.
 pub fn inspect_folder(path: &Path) -> FolderStatus {
     match std::fs::metadata(path) {
-        Err(_) => FolderStatus::NotFound,
+        Err(error) => status_for_error(error.kind()),
         Ok(metadata) if !metadata.is_dir() => FolderStatus::NotADirectory,
         Ok(_) => match std::fs::read_dir(path) {
             Ok(_) => FolderStatus::Ok,
-            Err(_) => FolderStatus::NotFound,
+            Err(error) => status_for_error(error.kind()),
         },
     }
 }
 
-/// Traduit une erreur d'accès en état affichable.
-fn status_for_error(_kind: ErrorKind) -> FolderStatus {
-    FolderStatus::NotFound
+/// Traduit une erreur d'accès en état affichable : seule l'absence du chemin est « inexistant »,
+/// toute autre erreur (droits insuffisants, verrou, support débranché…) rend le dossier illisible.
+fn status_for_error(kind: ErrorKind) -> FolderStatus {
+    match kind {
+        ErrorKind::NotFound => FolderStatus::NotFound,
+        _ => FolderStatus::Unreadable,
+    }
 }
 
 #[cfg(test)]
