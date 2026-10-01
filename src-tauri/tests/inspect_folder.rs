@@ -27,3 +27,27 @@ fn test_ac_001_4_dossier_inexistant() {
         FolderStatus::NotFound
     );
 }
+
+/// Le cas « droits insuffisants » s'appuie sur les permissions POSIX : il ne s'exécute que sous
+/// Linux et macOS (`#[cfg(unix)]`, pas `#[ignore]`). Sous Windows, la correspondance
+/// « accès refusé → illisible » est couverte par le test unitaire de `folder.rs`.
+/// Il doit tourner sous un utilisateur non administrateur : root ignore les permissions.
+#[cfg(unix)]
+mod droits_unix {
+    use super::*;
+    use std::fs::{set_permissions, Permissions};
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn test_ac_001_4_dossier_illisible() {
+        let dir = tempfile::tempdir().unwrap();
+        let locked = dir.path().join("verrouille");
+        std::fs::create_dir(&locked).unwrap();
+        set_permissions(&locked, Permissions::from_mode(0o000)).unwrap();
+
+        let status = inspect_folder(&locked);
+
+        set_permissions(&locked, Permissions::from_mode(0o755)).unwrap();
+        assert_eq!(status, FolderStatus::Unreadable);
+    }
+}
