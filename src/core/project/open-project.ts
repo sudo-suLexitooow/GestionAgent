@@ -15,5 +15,7 @@ export type OpenOutcome =
 export async function openFromPicker(folders: FolderAccess): Promise<OpenOutcome> {
   const path = await folders.pickFolder();
   if (path === null) return { kind: "cancelled" };
+  const status = await folders.inspectFolder(path);
+  if (status !== "ok") return { kind: "error", error: status };
   return { kind: "opened", project: { name: path.split("/").pop() ?? path, path } };
 }
