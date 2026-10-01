@@ -5,7 +5,7 @@ import type { ImportedContext } from "../contexts/context";
 import type { FichierAEcrire, SystemeFichiersProjet } from "../fichiers/systeme-fichiers";
 import type { ProjectFiles } from "../project/ports";
 import { serialiserCadre } from "./cadre-yaml";
-import { chargerModele } from "./charger-modele";
+import { chargerModele, nomsDesAgents } from "./charger-modele";
 import { etatDossierCadre } from "./detection";
 import {
   enregistrerFichiers,
@@ -61,12 +61,11 @@ async function preparerDansLeModele(
   if (chargement.etat !== "charge" || chargement.lectureSeule) {
     return { erreur: { code: "MODELE_NON_MODIFIABLE", detail: CADRE_YAML } };
   }
-  const { cadre, agents: presents } = chargement.modele;
-  // Tous les fichiers d'agents comptent, même en erreur : leur nom est pris sur le disque.
-  const nomsPris = presents.map(({ fichier }) =>
-    fichier.slice(".cadre/agents/".length, -".yaml".length),
+  const { cadre } = chargement.modele;
+  const nomsPris = nomsDesAgents(chargement.modele);
+  const doublon = agents.find(
+    (agent) => regleNomAgentViolee(agent.name, nomsPris) === "NOM_EXISTANT",
   );
-  const doublon = agents.find((agent) => regleNomAgentViolee(agent.name, nomsPris) !== null);
   if (doublon) return { erreur: { code: "AGENT_EXISTANT", detail: doublon.name } };
 
   const outils: unknown[] = Array.isArray(cadre.tools) ? cadre.tools : [];

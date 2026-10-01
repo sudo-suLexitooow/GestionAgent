@@ -97,6 +97,16 @@ export async function chargerModele(files: ProjectFiles, root: string): Promise<
   return { etat: "charge", lectureSeule, modele: { cadre, agents, contextes, skills } };
 }
 
+/**
+ * Nom de chaque fichier `.cadre/agents/<nom>.yaml` du modèle, même en erreur : ce nom est pris sur
+ * le disque (unicité des noms d'agents, AC-007-3).
+ */
+export function nomsDesAgents(modele: ModeleCadre): string[] {
+  return modele.agents.map(({ fichier }) =>
+    fichier.slice(`${DOSSIER_AGENTS}/`.length, -".yaml".length),
+  );
+}
+
 /** `schema_version` entière et supérieure à la version supportée (ADR-001, D8). */
 function formatPlusRecent(donnees: unknown): boolean {
   if (typeof donnees !== "object" || donnees === null) return false;

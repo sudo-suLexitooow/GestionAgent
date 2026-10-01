@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChargementModele } from "../core/cadre/charger-modele";
+import { nomsDesAgents, type ChargementModele } from "../core/cadre/charger-modele";
 import {
   versErreurEnregistrement,
   type ErreurEnregistrement,
@@ -50,12 +50,9 @@ const REFUS_A_RELIRE: ReadonlySet<string> = new Set(["SOURCE_MODIFIEE", "MODELE_
 /** Outils dont un adaptateur est disponible : cibles possibles d'un agent (AC-007-2). */
 const ADAPTATEURS = [claudeCodeAdapter];
 
-/** Nom de chaque fichier `.cadre/agents/<nom>.yaml` du modèle chargé, même en erreur. */
+/** Agents du modèle chargé, même en erreur ; aucun sans modèle. */
 function nomsAgentsEnregistres(chargement: ChargementModele | null): string[] {
-  if (chargement?.etat !== "charge") return [];
-  return chargement.modele.agents.map(({ fichier }) =>
-    fichier.slice(".cadre/agents/".length, -".yaml".length),
-  );
+  return chargement?.etat === "charge" ? nomsDesAgents(chargement.modele) : [];
 }
 
 export function App({
