@@ -6,8 +6,8 @@ Mémoire du projet : une session sans contexte reprend le travail en lisant [Spr
 
 1. Sprint 0 (mise en place) terminé et mergé : PR #1.
 2. Backlog validé par le PO le 2026-10-01 (porte 1) ; options par défaut Q-01 à Q-22 acceptées au titre de la délégation générale du PO (« je te laisse tout gérer », interprétation consignée dans [Methode](Methode)).
-3. Sprint 1 terminé le 2026-10-01 : 11/11 points (SP-01, US-001 PR #3, US-002 PR #5, US-003 PR #6, US-005 PR #4, zone sensible). Sprint 2 en cours (13 points) : « J'enregistre mon cadrage dans .cadre/ depuis l'application, je le retrouve en rouvrant le projet, et je crée mon premier agent. » Done au 2026-10-01 : 8/13 (SP-02 → [ADR-003](ADR-003-capacites-claude-code), US-076 PR #9, US-006 PR #10) ; US-077 en développement, US-007 à faire. Question ouverte : [Q-23](Questions-PO) (clé d'API Anthropic en secret de CI). Obstacle : publication du wiki en échec tant que le PO n'a pas créé la première page du wiki GitHub.
-4. Objectif à moyen terme (fixé par l'orchestrateur) : MVP 0 complet (Sprints 1 à 3) comme premier livrable fonctionnel.
+3. Sprint 1 terminé le 2026-10-01 : 11/11 points. Sprint 2 terminé le 2026-10-01 : 13/13 points (SP-02 → [ADR-003](ADR-003-capacites-claude-code), US-076 PR #9, US-006 PR #10, US-077 PR #12, US-007 PR #13) ; on peut ouvrir un projet, importer CLAUDE.md/AGENTS.md, créer un agent, enregistrer dans `.cadre/` et tout retrouver en rouvrant. Sprint 3 en cours (15 points) : « Un projet Claude Code existant fait l'aller-retour Cadre → Claude Code sans perte » (porte MVP 0) — US-004, US-008, US-009, US-010, US-011, US-079, à faire ; SP-03 reporté au Sprint 4 (Q-11). Question ouverte : [Q-23](Questions-PO) (clé d'API Anthropic en secret de CI). Obstacle relevé au Sprint 2 : publication du wiki GitHub en attente de la première page créée par le PO (état non revérifié le 2026-10-01).
+4. Objectif à moyen terme (fixé par l'orchestrateur) : MVP 0 complet (Sprints 1 à 3, SP-03 au Sprint 4) comme premier livrable fonctionnel.
 5. Délégation : le PO a écrit « tu es le chef de projet je te laisse tout gérer » ; interprétation consignée dans [Methode](Methode) : portes 2 et 4 confiées à l'orchestrateur ; porte 5 (changements de CLAUDE.md) en attente de confirmation explicite du PO (demandée le 2026-10-01).
 
 ## Pages
@@ -15,7 +15,7 @@ Mémoire du projet : une session sans contexte reprend le travail en lisant [Spr
 - [Cahier des charges](Cahier-des-charges)
 - [Méthode](Methode) — pipeline, portes, DoR, DoD, commandes
 - [Backlog](Backlog) · [Questions au PO](Questions-PO) · [Traçabilité](Tracabilite)
-- [Sprint courant](Sprint-courant) · [Sprint 02](Sprint-02) · [Sprint 01](Sprint-01) · [Sprint 00](Sprint-00)
+- [Sprint courant](Sprint-courant) · [Sprint 03](Sprint-03) · [Sprint 02](Sprint-02) · [Sprint 01](Sprint-01) · [Sprint 00](Sprint-00)
 - [Vélocité](Velocite)
 - Décisions : [ADR-001 — Format .cadre/ v1](ADR-001-format-cadre-v1) · [ADR-002 — Wiki publié depuis docs/wiki](ADR-002-wiki-depuis-docs) · [ADR-003 — Capacités de l'adaptateur Claude Code](ADR-003-capacites-claude-code)
 
