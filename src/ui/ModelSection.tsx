@@ -6,7 +6,7 @@ import {
   type ErreurFichierModele,
 } from "../core/cadre/charger-modele";
 import type { ContextType } from "../core/contexts/context";
-import type { ProjectFiles } from "../core/project/ports";
+import { readFailureReason, type ProjectFiles } from "../core/project/ports";
 import { t } from "./i18n";
 
 export interface ModelSectionProps {
@@ -16,11 +16,14 @@ export interface ModelSectionProps {
 
 /**
  * Modèle `.cadre/` du projet rouvert (US-006) : bandeaux (lecture seule, modèle incomplet, agents
- * en erreur) et contextes du modèle. Rien sans modèle, ni si `.cadre/` ne peut pas être lu (la
- * section Skills le signale). Lecture seule : rien n'est écrit.
+ * ou contextes en erreur, modèle illisible) et contextes du modèle. Rien sans modèle. Lecture
+ * seule : rien n'est écrit.
  */
 export function ModelSection({ root, files }: ModelSectionProps) {
-  const [chargement, setChargement] = useState<ChargementModele | null>(null);
+  /** `null` : chargement en cours ; `echec` : un dossier du modèle n'a pas pu être lu. */
+  const [chargement, setChargement] = useState<
+    ChargementModele | { etat: "echec"; lien: boolean } | null
+  >(null);
 
   useEffect(() => {
     let current = true;
@@ -28,8 +31,8 @@ export function ModelSection({ root, files }: ModelSectionProps) {
       (resultat) => {
         if (current) setChargement(resultat);
       },
-      () => {
-        if (current) setChargement(null);
+      (erreur: unknown) => {
+        if (current) setChargement({ etat: "echec", lien: readFailureReason(erreur) === "link" });
       },
     );
     return () => {
@@ -38,18 +41,26 @@ export function ModelSection({ root, files }: ModelSectionProps) {
   }, [files, root]);
 
   if (chargement === null || chargement.etat === "aucun") return null;
+  if (chargement.etat === "echec") {
+    return <Banner role="alert">{t(chargement.lien ? "model.failedLink" : "model.failed")}</Banner>;
+  }
   if (chargement.etat === "incomplet") return <IncompleteBanner erreur={chargement.erreur} />;
-  const enErreur = chargement.modele.agents.flatMap((agent) =>
-    agent.statut === "erreur" ? [agent.erreur] : [],
-  );
+  const enErreur = [
+    ...chargement.modele.agents.flatMap((agent) =>
+      agent.statut === "erreur" ? [{ quoi: t("model.agentInError"), erreur: agent.erreur }] : [],
+    ),
+    ...chargement.modele.contextes.flatMap(({ erreur }) =>
+      erreur ? [{ quoi: t("model.contextInError"), erreur }] : [],
+    ),
+  ];
   return (
     <>
       {chargement.lectureSeule && <Banner role="status">{t("model.readOnly")}</Banner>}
       {enErreur.length > 0 && (
         <Banner role="alert">
-          {enErreur.map((erreur) => (
+          {enErreur.map(({ quoi, erreur }) => (
             <p key={erreur.fichier}>
-              {t("model.agentInError")} : {describeError(erreur)}
+              {quoi} : {describeError(erreur)}
             </p>
           ))}
         </Banner>

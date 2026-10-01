@@ -40,8 +40,10 @@ export type AgentCharge =
 
 export interface ContexteCharge {
   entree: Record<string, unknown>;
-  /** Octets bruts de `contexte/<nom>.md`, `null` s'il est absent ou illisible. */
+  /** Octets bruts de `contexte/<nom>.md`, `null` s'il est absent ou en erreur. */
   contenu: Uint8Array | null;
+  /** Lecture refusée (lien, illisible, trop gros) : le contexte est signalé, pas ignoré. */
+  erreur?: ErreurFichierModele;
 }
 
 export interface ModeleCadre {
@@ -146,7 +148,7 @@ async function chargerContextes(
   return Promise.all(
     entrees.filter(estEntreeNommee).map(async (entree) => {
       const lu = await lireOctets(files, root, `.cadre/contexte/${entree.name}.md`);
-      return { entree, contenu: lu.ok ? lu.octets : null };
+      return lu.ok ? { entree, contenu: lu.octets } : { entree, contenu: null, erreur: lu.erreur };
     }),
   );
 }

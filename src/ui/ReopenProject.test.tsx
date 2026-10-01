@@ -90,8 +90,9 @@ describe("réouverture d'un projet qui a un modèle .cadre/", () => {
   });
 
   test("test_ac_006_3_contexte_lien_bandeau_avec_le_fichier_et_le_motif", async () => {
-    const { ".cadre/contexte/CLAUDE.md": _lien, ...reste } = MODELE;
-    await openProject(reste, [".cadre/contexte/CLAUDE.md"]);
+    const lien = ".cadre/contexte/CLAUDE.md";
+    const reste = Object.fromEntries(Object.entries(MODELE).filter(([chemin]) => chemin !== lien));
+    await openProject(reste, [lien]);
 
     expect(screen.getByRole("alert", { name: "Modèle" })).toHaveTextContent(
       "Contexte en erreur : .cadre/contexte/CLAUDE.md : le fichier est un lien symbolique ou une jonction, que Cadre ne suit pas",

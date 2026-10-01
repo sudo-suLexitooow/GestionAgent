@@ -41,6 +41,10 @@ const fr = {
   "model.readOnly":
     "Ce projet a été enregistré par une version plus récente de Cadre. Il est ouvert en lecture seule : mettez Cadre à jour pour le modifier.",
   "model.agentInError": "Agent en erreur",
+  "model.contextInError": "Contexte en erreur",
+  "model.failed": "Le modèle .cadre/ n'a pas pu être lu.",
+  "model.failedLink":
+    "Le modèle .cadre/ n'a pas pu être lu : un de ses chemins est un lien symbolique ou une jonction, que Cadre ne suit pas.",
   "model.incomplete": "Modèle incomplet",
   "model.repair":
     "Réparation proposée : recréer .cadre/cadre.yaml à partir du contenu de .cadre/. Rien n'a été écrit et rien ne le sera sans votre accord.",
