@@ -114,35 +114,50 @@ pub fn ecrire_fichiers_avec(
     }
     sans_doublon(fichiers)?;
     dossiers_internes_reels(racine)?;
+    let cadre_cree = !racine.join(".cadre").exists();
     fs::create_dir_all(racine.join(DOSSIER_TMP)).map_err(classer)?;
     dossiers_internes_reels(racine)?;
-    let _verrou = verrouiller_projet(racine)?;
-    recuperer_sous_verrou(racine, points)?;
-    let transaction = nouveau_dossier_transaction(racine).map_err(classer)?;
-    let preparation = preparer(racine, &transaction, fichiers, points).and_then(|entrees| {
-        ecrire_journal(&transaction, EtatTransaction::EnCours, &entrees, points)?;
+    let verrou = verrouiller_projet(racine)?;
+    // Échec : un `.cadre/` créé par cette écriture est retiré (projet strictement identique).
+    let echec = |erreur: ErreurEcriture, verrou: fs::File| {
+        if cadre_cree {
+            drop(verrou);
+            retirer_cadre_vide(racine);
+        }
+        Err(erreur)
+    };
+    if let Err(erreur) = recuperer_sous_verrou(racine, points) {
+        return echec(erreur, verrou);
+    }
+    let transaction = match nouveau_dossier_transaction(racine) {
+        Ok(transaction) => transaction,
+        Err(erreur) => return echec(classer(erreur), verrou),
+    };
+    let preparation = preparer(racine, &transaction, fichiers, points).and_then(|plan| {
+        ecrire_journal(&transaction, EtatTransaction::EnCours, &plan, points)?;
         points.atteint(Etape::AvantRemplacement)?;
-        Ok(entrees)
+        Ok(plan)
     });
-    let entrees = match preparation {
-        Ok(entrees) => entrees,
+    let plan = match preparation {
+        Ok(plan) => plan,
         Err(erreur) => {
             let _ = fs::remove_dir_all(&transaction);
-            return Err(classer(erreur));
+            return echec(classer(erreur), verrou);
         }
     };
-    let remplacement = remplacer(racine, &transaction, &entrees, points)
-        .and_then(|()| ecrire_journal(&transaction, EtatTransaction::Validee, &entrees, points));
+    let remplacement = remplacer(racine, &transaction, &plan.entrees, points)
+        .and_then(|()| ecrire_journal(&transaction, EtatTransaction::Validee, &plan, points));
     if let Err(erreur) = remplacement {
         // Si l'annulation échoue, le journal reste : la prochaine récupération la reprend.
-        if let Err(echec) = annuler(racine, &transaction, &entrees, points) {
+        if let Err(echec) = annuler(racine, &transaction, &plan, points) {
             return Err(ErreurEcriture::AnnulationIncomplete(format!(
                 "{erreur} ; annulation interrompue : {echec}"
             )));
         }
         let _ = nettoyer_transaction(&transaction, &SansPanne);
-        return Err(classer(erreur));
+        return echec(classer(erreur), verrou);
     }
+    let entrees = plan.entrees;
     // Validée : l'enregistrement a réussi. Interrompu ici, le journal reste et la
     // récupération termine les sauvegardes ; une sauvegarde impossible est abandonnée
     // (jamais de blocage des écritures suivantes).
@@ -151,6 +166,14 @@ pub fn ecrire_fichiers_avec(
         let _ = nettoyer_transaction(&transaction, points);
     }
     Ok(())
+}
+
+/// Retire `.cadre/tmp/verrou`, `.cadre/tmp` et `.cadre` s'ils sont vides (créés par une
+/// écriture qui a échoué).
+fn retirer_cadre_vide(racine: &Path) {
+    let _ = fs::remove_file(racine.join(VERROU));
+    let _ = fs::remove_dir(racine.join(DOSSIER_TMP));
+    let _ = fs::remove_dir(racine.join(".cadre"));
 }
 
 /// Supprime le journal d'abord : un arrêt pendant l'effacement du dossier laisse une
@@ -314,15 +337,15 @@ fn recuperer_sous_verrou(
                 Err(raison) => return Err(mettre_de_cote(&chemin, &raison)),
             };
             if let Some(journal) = &journal {
-                if let Err(raison) = verifier_entrees(racine, &journal.entrees) {
+                if let Err(raison) = verifier_plan(racine, &journal.plan) {
                     return Err(mettre_de_cote(&chemin, &raison));
                 }
             }
             match journal {
                 Some(Journal {
                     etat: EtatTransaction::EnCours,
-                    entrees,
-                }) => annuler(racine, &chemin, &entrees, points).map_err(|erreur| {
+                    plan,
+                }) => annuler(racine, &chemin, &plan, points).map_err(|erreur| {
                     ErreurEcriture::AnnulationIncomplete(format!(
                         "reprise de {} : {erreur}",
                         chemin.display()
@@ -330,11 +353,11 @@ fn recuperer_sous_verrou(
                 })?,
                 Some(Journal {
                     etat: EtatTransaction::Validee,
-                    entrees,
+                    plan,
                 }) => {
                     // L'enregistrement est déjà validé : une sauvegarde impossible est
                     // abandonnée plutôt que de bloquer toutes les écritures suivantes.
-                    let _ = sauvegarder_versions_precedentes(racine, &chemin, &entrees);
+                    let _ = sauvegarder_versions_precedentes(racine, &chemin, &plan.entrees);
                 }
                 None => {}
             }
@@ -384,7 +407,17 @@ enum EtatTransaction {
 #[derive(Debug, Serialize, Deserialize)]
 struct Journal {
     etat: EtatTransaction,
+    #[serde(flatten)]
+    plan: Plan,
+}
+
+/// Ce que fait la transaction : les fichiers écrits et les dossiers qu'elle crée (retirés
+/// à l'annulation s'ils sont vides).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Plan {
     entrees: Vec<Entree>,
+    #[serde(default)]
+    dossiers_crees: Vec<String>,
 }
 
 /// Écrit le journal de la transaction de façon atomique. Tant qu'il est absent, aucun
@@ -392,12 +425,12 @@ struct Journal {
 fn ecrire_journal(
     transaction: &Path,
     etat: EtatTransaction,
-    entrees: &[Entree],
+    plan: &Plan,
     points: &dyn PointsDeControle,
 ) -> io::Result<()> {
     let journal = Journal {
         etat,
-        entrees: entrees.to_vec(),
+        plan: plan.clone(),
     };
     let provisoire = transaction.join(format!("{JOURNAL}.provisoire"));
     ecrire_et_synchroniser(&provisoire, &serde_json::to_vec_pretty(&journal)?)?;
@@ -421,11 +454,12 @@ fn lire_journal(transaction: &Path) -> Result<Result<Option<Journal>, String>, E
 }
 
 /// Un journal ne désigne que des fichiers du projet, jamais à travers un lien.
-fn verifier_entrees(racine: &Path, entrees: &[Entree]) -> Result<(), String> {
-    for entree in entrees {
-        valider_chemin(&entree.chemin)
-            .and_then(|()| parents_reels(racine, &entree.chemin))
-            .map_err(|_| format!("chemin refusé dans le journal : {:?}", entree.chemin))?;
+fn verifier_plan(racine: &Path, plan: &Plan) -> Result<(), String> {
+    let chemins = plan.entrees.iter().map(|entree| &entree.chemin);
+    for chemin in chemins.chain(plan.dossiers_crees.iter()) {
+        valider_chemin(chemin)
+            .and_then(|()| parents_reels(racine, chemin))
+            .map_err(|_| format!("chemin refusé dans le journal : {chemin:?}"))?;
     }
     Ok(())
 }
@@ -493,9 +527,17 @@ fn preparer(
     transaction: &Path,
     fichiers: &[FichierAEcrire],
     points: &dyn PointsDeControle,
-) -> io::Result<Vec<Entree>> {
+) -> io::Result<Plan> {
     let mut entrees = Vec::with_capacity(fichiers.len());
+    let mut dossiers_crees: Vec<String> = Vec::new();
     for (i, fichier) in fichiers.iter().enumerate() {
+        let segments: Vec<&str> = fichier.chemin.split('/').collect();
+        for fin in 1..segments.len() {
+            let dossier = segments[..fin].join("/");
+            if !racine.join(&dossier).exists() && !dossiers_crees.contains(&dossier) {
+                dossiers_crees.push(dossier);
+            }
+        }
         ecrire_et_synchroniser(&temporaire_nouveau(transaction, i), &fichier.contenu)?;
         points.atteint(Etape::TemporaireEcrit(i))?;
         let empreinte_precedente = match fs::read(racine.join(&fichier.chemin)) {
@@ -513,7 +555,10 @@ fn preparer(
         });
     }
     synchroniser_dossier(transaction)?;
-    Ok(entrees)
+    Ok(Plan {
+        entrees,
+        dossiers_crees,
+    })
 }
 
 fn remplacer(
@@ -539,10 +584,10 @@ fn remplacer(
 fn annuler(
     racine: &Path,
     transaction: &Path,
-    entrees: &[Entree],
+    plan: &Plan,
     points: &dyn PointsDeControle,
 ) -> io::Result<()> {
-    for (i, entree) in entrees.iter().enumerate().rev() {
+    for (i, entree) in plan.entrees.iter().enumerate().rev() {
         let cible = racine.join(&entree.chemin);
         let actuel = match fs::read(&cible) {
             Ok(contenu) => contenu,
@@ -554,7 +599,8 @@ fn annuler(
         }
         let ancien = copie_ancienne(transaction, i);
         if entree.empreinte_precedente.is_some() {
-            if ancien.exists() {
+            // Jamais un lien déposé à la place de la copie d'origine.
+            if fs::symlink_metadata(&ancien).is_ok_and(|meta| meta.is_file()) {
                 fs::rename(&ancien, &cible)?;
             }
         } else {
@@ -562,6 +608,11 @@ fn annuler(
         }
         synchroniser_dossier(cible.parent().unwrap_or(racine))?;
         points.atteint(Etape::FichierRestaure(i))?;
+    }
+    // Dossiers créés par la transaction, du plus profond au plus haut, seulement s'ils
+    // sont vides (`remove_dir` échoue sinon : un fichier ajouté depuis est conservé).
+    for dossier in plan.dossiers_crees.iter().rev() {
+        let _ = fs::remove_dir(racine.join(dossier));
     }
     Ok(())
 }
