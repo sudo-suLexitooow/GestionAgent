@@ -2,7 +2,7 @@
 // Lecture seule, par le port `ProjectFiles` : aucun lien n'est suivi, seuls les parents sont listés.
 import { ProjectReadError, readFailureReason, type DirEntry, type ProjectFiles } from "./ports";
 
-/** Rejet `link` qui nomme le dossier lié (`.claude`, `.claude/skills`, `.cadre`…), relatif au projet. */
+/** Rejet `link` qui nomme le dossier lié (dossier de l'outil, dossier des skills, `.cadre`…), relatif au projet. */
 export class DossierLieError extends ProjectReadError {
   constructor(readonly chemin: string) {
     super("link");
