@@ -10,6 +10,7 @@ import { parseSkillHeader } from "./skill-header";
  * Dossier absent : aucune skill. Sous-dossier sans `SKILL.md` ou fichier isolé : pas une skill.
  * Une skill illisible ou invalide est listée en erreur, sans empêcher la lecture des autres.
  * Une skill liée (lien symbolique, jonction) n'est jamais suivie (US-076) : elle est en erreur.
+ * Le dossier `dir` lui-même lié, ou l'un de ses parents : rejet `DossierLieError` qui le nomme (US-079).
  */
 export async function readSkillsFolder(
   files: ProjectFiles,
