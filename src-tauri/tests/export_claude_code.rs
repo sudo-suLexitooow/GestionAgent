@@ -199,3 +199,48 @@ fn test_ac_008_1_le_lot_d_export_est_ecrit_en_entier_et_le_sous_agent_relu_a_l_o
         Some("---\nname: backend\n---\n")
     );
 }
+
+/// Vrai si le système de fichiers de `dossier` ne distingue pas `A` de `a` (APFS, NTFS).
+fn insensible_a_la_casse(dossier: &Path) -> bool {
+    fs::write(dossier.join("Sonde-Casse"), "x").unwrap();
+    let insensible = fs::symlink_metadata(dossier.join("sonde-casse")).is_ok();
+    fs::remove_file(dossier.join("Sonde-Casse")).unwrap();
+    insensible
+}
+
+/// Revue n° 1 de la PR #16 : un `Frontend.md` écrit par l'utilisateur et l'export de
+/// `frontend.md`. Sous Windows et macOS (insensibles à la casse), la lecture de `frontend.md`
+/// trouve `Frontend.md` : le cœur le voit existant et hors manifeste, et demande une
+/// confirmation (testé dans le cœur) ; même confirmé, son contenu est conservé dans
+/// `.cadre/backups/`. Sous Linux, ce sont deux fichiers : aucun n'est perdu.
+#[test]
+fn test_ac_008_4_frontend_md_et_frontend_md_majuscule_existant_demande_confirmation() {
+    let dossier = tempfile::tempdir().expect("dossier temporaire");
+    let racine = dossier.path();
+    ecrire(racine, ".cadre/cadre.yaml", "schema_version: 1\n");
+    ecrire(racine, ".claude/agents/Frontend.md", "écrit à la main\n");
+    let lot = [FichierAEcrire::new(AGENT, "---\nname: frontend\n---\n")];
+
+    let lecture = read_file(&ouvert(racine), racine, AGENT).expect("lecture");
+
+    if insensible_a_la_casse(racine) {
+        // Existant pour le cœur : `ECRASEMENT_A_CONFIRMER`, jamais d'écrasement silencieux.
+        assert_eq!(lecture, Some("écrit à la main\n".as_bytes().to_vec()));
+        ecrire_fichiers(racine, &lot).expect("écrasement confirmé");
+        assert_eq!(
+            lire(racine, &format!(".cadre/backups/{AGENT}")).as_deref(),
+            Some("écrit à la main\n")
+        );
+    } else {
+        assert_eq!(lecture, None);
+        ecrire_fichiers(racine, &lot).expect("export écrit");
+        assert_eq!(
+            lire(racine, ".claude/agents/Frontend.md").as_deref(),
+            Some("écrit à la main\n")
+        );
+        assert_eq!(
+            lire(racine, AGENT).as_deref(),
+            Some("---\nname: frontend\n---\n")
+        );
+    }
+}
