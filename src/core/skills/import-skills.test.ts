@@ -95,6 +95,46 @@ describe("noms non portables (ADR-001, R1)", () => {
   });
 });
 
+describe("noms en collision après repli de casse et normalisation NFC (R1)", () => {
+  const skill = "---\nname: x\ndescription: X.\n---\n";
+
+  test("test_ac_004_3_dossiers_en_collision_de_casse_les_deux_non_importes", async () => {
+    const files = new InMemoryProjectFiles(ROOT, {
+      ".claude/skills/Revue/SKILL.md": skill,
+      ".claude/skills/revue/SKILL.md": skill,
+      ".claude/skills/autre/SKILL.md": skill,
+    });
+
+    const { skills, failures } = await importer(files);
+
+    expect(skills.map(({ skill: s }) => s.folder)).toEqual(["autre"]);
+    expect(failures).toEqual([
+      { folder: "Revue", path: ".claude/skills/Revue", code: "non-portable" },
+      { folder: "revue", path: ".claude/skills/revue", code: "non-portable" },
+    ]);
+  });
+
+  test("test_ac_004_3_annexes_en_collision_de_casse_ou_nfc_rendent_la_skill_non_importee", async () => {
+    const files = new InMemoryProjectFiles(ROOT, {
+      ".claude/skills/docs/SKILL.md": skill,
+      ".claude/skills/docs/a.md": "a",
+      ".claude/skills/docs/A.md": "A",
+      ".claude/skills/nfc/SKILL.md": skill,
+      ".claude/skills/nfc/é.md": "NFC",
+      ".claude/skills/nfc/é.md": "NFD",
+      ".claude/skills/ok/SKILL.md": skill,
+    });
+
+    const { skills, failures } = await importer(files);
+
+    expect(skills.map(({ skill: s }) => s.folder)).toEqual(["ok"]);
+    expect(failures).toEqual([
+      { folder: "docs", path: ".claude/skills/docs/a.md", code: "non-portable" },
+      { folder: "nfc", path: ".claude/skills/nfc/é.md", code: "non-portable" },
+    ]);
+  });
+});
+
 describe("skill impossible à copier entièrement : non importée, signalée, les autres continuent", () => {
   const AUTRE = { ".claude/skills/autre/SKILL.md": "---\nname: autre\ndescription: B.\n---\n" };
 
