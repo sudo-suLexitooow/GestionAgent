@@ -5,6 +5,7 @@ import {
   type FichierAEcrire,
   type SystemeFichiersProjet,
 } from "../fichiers/systeme-fichiers";
+import { DossierLieError } from "../project/dossier-lie";
 import type { SkillImportFailure } from "../skills/import-skills";
 import { serialiserCadre, type CadreYaml } from "./cadre-yaml";
 import { completerGitignore } from "./gitignore";
@@ -78,5 +79,7 @@ export function versErreurEnregistrement(erreur: unknown): ErreurEnregistrement 
   if (erreur instanceof ErreurSystemeFichiers) {
     return { code: erreur.code, detail: erreur.detail };
   }
+  // Un dossier lié (p. ex. `.cadre`) : refus nommé, comme le fait l'écriture côté système (US-079).
+  if (erreur instanceof DossierLieError) return { code: "CHEMIN_INVALIDE", detail: erreur.chemin };
   return { code: "ECHEC", detail: erreur instanceof Error ? erreur.message : String(erreur) };
 }
