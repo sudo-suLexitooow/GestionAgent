@@ -42,7 +42,26 @@ export interface ErreurExport {
   detail: string;
 }
 
+/** Écrasement confirmé d'un fichier, pour le contenu d'empreinte `sha256` (CRLF → LF). */
+export interface ConfirmationEcrasement {
+  chemin: string;
+  sha256: string;
+}
+
+/* eslint-disable @typescript-eslint/no-unused-vars -- squelette avant implémentation (RED) */
+/** Empreinte actuelle de chaque fichier à confirmer, à joindre à la confirmation affichée. */
+export function empreintesActuelles(
+  _fichiers: ProjectFiles,
+  _racine: string,
+  _chemins: readonly string[],
+): Promise<ConfirmationEcrasement[]> {
+  return Promise.resolve([]);
+}
+/* eslint-enable @typescript-eslint/no-unused-vars */
+
 export interface OptionsExport {
+  /** Écrasements confirmés, chacun valable seulement pour le contenu vu par l'utilisateur. */
+  confirmations?: readonly ConfirmationEcrasement[];
   /** Fichiers dont l'utilisateur a explicitement confirmé l'écrasement (AC-008-4). */
   confirmes?: readonly string[];
 }
