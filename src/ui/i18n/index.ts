@@ -151,9 +151,9 @@ const fr = {
   "skills.title": "Skills",
   "skills.none": "Aucune skill détectée.",
   "skills.failed": "Les skills n'ont pas pu être lues.",
-  /** Précédé du dossier lié : « .claude : … » (US-079). */
+  /** `{chemin}` : dossier lié, p. ex. `.claude` (US-079). */
   "skills.linkedFolder":
-    "lien symbolique ou jonction non pris en charge ; Cadre ne le suit pas et n'y lit aucune skill.",
+    "{chemin} : lien symbolique ou jonction non pris en charge ; Cadre ne le suit pas et n'y lit aucune skill.",
   "skills.inError": "en erreur",
   "skills.line": "ligne",
   "skills.issue.no-header":

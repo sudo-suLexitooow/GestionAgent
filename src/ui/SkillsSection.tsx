@@ -50,7 +50,7 @@ export function SkillsSection({ root, files, adapter }: SkillsSectionProps) {
         <p role="alert">
           {listing.lien === undefined
             ? t("skills.failed")
-            : `${listing.lien} : ${t("skills.linkedFolder")}`}
+            : t("skills.linkedFolder").replace("{chemin}", listing.lien)}
         </p>
       )}
       {listing.kind === "listed" && listing.skills.length === 0 && <p>{t("skills.none")}</p>}
