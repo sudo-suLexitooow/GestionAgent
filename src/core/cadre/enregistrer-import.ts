@@ -7,6 +7,7 @@ import type { ImportedContext } from "../contexts/context";
 import { GENERIC_ADAPTER_ID } from "../contexts/generic-format";
 import type { FichierAEcrire, SystemeFichiersProjet } from "../fichiers/systeme-fichiers";
 import type { ProjectFiles } from "../project/ports";
+import type { ImportedSkill, SkillImportFailure } from "../skills/import-skills";
 import { nouveauCadre, serialiserCadre } from "./cadre-yaml";
 import { etatDossierCadre } from "./detection";
 import { empreinte } from "./empreinte";
@@ -38,20 +39,36 @@ export async function enregistrerContextesImportes(
   options: OptionsEnregistrement,
   /** Agents créés depuis l'ouverture (US-007), écrits dans la même transaction. */
   agents: readonly AgentNouveau[] = [],
+  /**
+   * Skills importées par l'adaptateur (US-004), copiées dans `.cadre/skills/`. Absentes (import
+   * non demandé) : elles sont importées maintenant, car créer le modèle ne doit faire disparaître
+   * aucune skill de la liste ; celles qui ne peuvent pas l'être sont signalées dans le résultat.
+   */
+  skills?: readonly ImportedSkill[],
 ): Promise<ResultatEnregistrement> {
   // Ne rejette jamais : toute exception de la préparation (lecture, empreinte, sérialisation)
   // devient une erreur `ECHEC`, sans rien écrire.
   let fichiers: FichierAEcrire[];
+  let nonImportees: SkillImportFailure[] = [];
   try {
     const refus =
       (await modeleApparu(disque.fichiers, racine)) ??
-      (await sourceModifiee(disque.fichiers, racine, contextes));
+      (await sourceModifiee(disque.fichiers, racine, contextes)) ??
+      (await skillModifiee(disque.fichiers, racine, skills, options.adapter));
     if (refus) return { ok: false, erreur: refus };
-    fichiers = await preparer(contextes, agents, options);
+    let aCopier = skills ?? [];
+    if (skills === undefined && options.adapter.importer) {
+      const importees = await options.adapter.importer(disque.fichiers, racine);
+      aCopier = importees.skills;
+      nonImportees = importees.failures;
+    }
+    fichiers = await preparer(contextes, agents, aCopier, options);
   } catch (erreur) {
     return { ok: false, erreur: versErreurEnregistrement(erreur) };
   }
-  return enregistrerFichiers(disque.systeme, racine, fichiers);
+  const resultat = await enregistrerFichiers(disque.systeme, racine, fichiers);
+  if (!resultat.ok || nonImportees.length === 0) return resultat;
+  return { ok: true, skillsNonImportees: nonImportees };
 }
 
 /**
@@ -61,11 +78,13 @@ export async function enregistrerContextesImportes(
 async function preparer(
   contextes: readonly ImportedContext[],
   agents: readonly AgentNouveau[],
+  skills: readonly ImportedSkill[],
   options: OptionsEnregistrement,
 ): Promise<FichierAEcrire[]> {
-  const adoptions: FichierGenere[] = await Promise.all(
-    contextes.map((contexte) => adoption(contexte, options.adapter)),
-  );
+  const adoptions: FichierGenere[] = await Promise.all([
+    ...contextes.map((contexte) => adoption(contexte, options.adapter)),
+    ...skills.flatMap((skill) => adoptionsSkill(skill, options.adapter)),
+  ]);
   const cadre = {
     ...nouveauCadre({
       generatorVersion: options.generatorVersion,
@@ -76,6 +95,7 @@ async function preparer(
   return [
     { chemin: ".cadre/cadre.yaml", contenu: serialiserCadre(cadre) },
     ...contextes.map(({ path, content }) => ({ chemin: path, contenu: content })),
+    ...skills.flatMap(fichiersSkill),
     ...agents.flatMap(fichiersAgent),
     { chemin: ".cadre/generated.yaml", contenu: serialiserManifeste(adoptions) },
   ];
@@ -104,6 +124,50 @@ async function sourceModifiee(
   return null;
 }
 
+/**
+ * Les skills importées ne sont plus celles du disque : l'adaptateur les réimporte et chaque skill
+ * doit avoir les mêmes fichiers, de même empreinte ; une skill apparue entre-temps compte aussi
+ * (elle ne serait plus visible une fois le modèle créé), même si l'import accepté n'en avait aucune.
+ * Import non demandé (`skills` absent) : rien à vérifier, les skills sont importées maintenant.
+ */
+async function skillModifiee(
+  fichiers: ProjectFiles,
+  racine: string,
+  skills: readonly ImportedSkill[] | undefined,
+  adapter: ToolAdapter,
+): Promise<ErreurEnregistrement | null> {
+  if (skills === undefined || !adapter.importer) return null;
+  const actuelles = new Map(
+    (await adapter.importer(fichiers, racine)).skills.map((skill) => [skill.source, skill]),
+  );
+  for (const importee of skills) {
+    const actuelle = actuelles.get(importee.source);
+    actuelles.delete(importee.source);
+    const detail = await premierEcart(importee, actuelle);
+    if (detail) return { code: "SOURCE_MODIFIEE", detail };
+  }
+  const [apparue] = actuelles.keys();
+  return apparue === undefined ? null : { code: "SOURCE_MODIFIEE", detail: apparue };
+}
+
+/** Premier fichier qui diffère entre la skill importée et la skill actuelle, sinon `null`. */
+async function premierEcart(
+  importee: ImportedSkill,
+  actuelle: ImportedSkill | undefined,
+): Promise<string | null> {
+  if (!actuelle) return importee.source;
+  const contenus = new Map(actuelle.files.map(({ path, content }) => [path, content]));
+  for (const { path, content } of importee.files) {
+    const actuel = contenus.get(path);
+    contenus.delete(path);
+    if (!actuel || (await empreinte(actuel)) !== (await empreinte(content))) {
+      return `${importee.source}/${path}`;
+    }
+  }
+  const [ajoute] = contenus.keys();
+  return ajoute === undefined ? null : `${importee.source}/${ajoute}`;
+}
+
 /** Adoption du fichier importé : l'empreinte est celle du contenu importé (ADR-001, D5). */
 async function adoption(contexte: ImportedContext, adapter: ToolAdapter): Promise<FichierGenere> {
   const source = contexte.entry.source;
@@ -114,4 +178,25 @@ async function adoption(contexte: ImportedContext, adapter: ToolAdapter): Promis
     source: "contexts",
     sha256: await empreinte(contexte.content),
   };
+}
+
+/** Copie à l'octet près de la skill dans `.cadre/skills/<dossier>/` (ADR-001, D2). */
+function fichiersSkill({ skill, files }: ImportedSkill): FichierAEcrire[] {
+  return files.map(({ path, content }) => ({
+    chemin: `.cadre/skills/${skill.folder}/${path}`,
+    contenu: content,
+  }));
+}
+
+/** Adoption de chaque fichier d'origine de la skill, avec l'empreinte du contenu importé (D5). */
+function adoptionsSkill(
+  { skill, source, files }: ImportedSkill,
+  adapter: ToolAdapter,
+): Promise<FichierGenere>[] {
+  return files.map(async ({ path, content }) => ({
+    path: `${source}/${path}`,
+    adapter: adapter.id,
+    source: `skill:${skill.folder}`,
+    sha256: await empreinte(content),
+  }));
 }

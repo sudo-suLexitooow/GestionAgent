@@ -1,3 +1,4 @@
+import { importSkillsFolder } from "../../skills/import-skills";
 import { readSkillsFolder } from "../../skills/skills-folder";
 import type { AdaptateurExport, ToolAdapter } from "../adapter";
 import { exporterAgents, validerAgents } from "./agents";
@@ -11,6 +12,7 @@ export const claudeCodeAdapter: ToolAdapter & AdaptateurExport = {
   name: "Claude Code",
   contextFiles: [{ file: "CLAUDE.md", name: "CLAUDE", type: "projet" }],
   detectSkills: (files, root) => readSkillsFolder(files, root, ".claude/skills"),
+  importer: (files, root) => importSkillsFolder(files, root, ".claude/skills"),
   valider: validerAgents,
   exporter: exporterAgents,
 };

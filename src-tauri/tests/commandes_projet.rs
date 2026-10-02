@@ -123,6 +123,41 @@ fn test_ac_077_1_contenu_en_octets_ecrit_a_l_octet_pres_par_l_ipc() {
     assert!(projet.path().join(".cadre/generated.yaml").is_file());
 }
 
+/// US-004 : une skill importée (SKILL.md et annexes binaires en sous-dossiers) est écrite dans
+/// `.cadre/skills/<nom>/` à l'octet près, dossiers intermédiaires créés, en une transaction.
+#[test]
+fn test_ac_004_1_skill_et_annexes_en_sous_dossiers_ecrits_a_l_octet_pres_par_l_ipc() {
+    let projet = tempfile::tempdir().unwrap();
+    let fenetre = fenetre();
+    invoquer(
+        &fenetre,
+        "ouvrir_projet",
+        json!({ "chemin": projet.path() }),
+    )
+    .unwrap();
+    let skill_md = b"---\r\nname: revue\r\ndescription: R.\r\nx-equipe: front\r\n---\r\n".to_vec();
+    let logo = [0x89_u8, 0x50, 0x4e, 0x47, 0x00, 0xff, 0x0d, 0x0a];
+
+    let reponse = invoquer(
+        &fenetre,
+        "ecrire_fichiers_projet",
+        json!({ "racine": projet.path(), "fichiers": [
+            { "chemin": ".cadre/cadre.yaml", "contenu": "schema_version: 1\n" },
+            { "chemin": ".cadre/skills/revue/SKILL.md", "contenu": skill_md },
+            { "chemin": ".cadre/skills/revue/assets/img/logo.png", "contenu": logo },
+            { "chemin": ".cadre/generated.yaml", "contenu": "files: []\n" }
+        ] }),
+    );
+
+    assert!(reponse.is_ok(), "{reponse:?}");
+    let skill = projet.path().join(".cadre/skills/revue");
+    assert_eq!(std::fs::read(skill.join("SKILL.md")).unwrap(), skill_md);
+    assert_eq!(
+        std::fs::read(skill.join("assets/img/logo.png")).unwrap(),
+        logo
+    );
+}
+
 /// Un contenu ni texte ni liste d'octets (valeur hors 0..=255) est refusé : rien n'est écrit.
 #[test]
 fn test_ac_077_2_contenu_invalide_refuse_rien_n_est_ecrit() {
