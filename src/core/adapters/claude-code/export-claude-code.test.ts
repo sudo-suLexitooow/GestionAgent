@@ -162,8 +162,10 @@ describe("instructions de l'agent exportées octet pour octet (ADR-001, D9.1)", 
 
     expect(resultat.ok).toBe(true);
     const entete = 'name: frontend\ndescription: "Développe l\'interface React."';
-    expect(disque.octets(CHEMIN)).toEqual(
-      Uint8Array.of(...new TextEncoder().encode(`---\n${entete}\n---\n`), ...instructions),
-    );
+    // Listes d'octets : sous jsdom, `TextEncoder` renvoie un `Uint8Array` d'un autre domaine.
+    expect(Array.from(disque.octets(CHEMIN) ?? [])).toEqual([
+      ...new TextEncoder().encode(`---\n${entete}\n---\n`),
+      ...instructions,
+    ]);
   });
 });

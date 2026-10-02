@@ -152,7 +152,8 @@ describe("instructions de l'agent (ADR-001, D3 et D9.1)", () => {
       `---\nname: frontend\ndescription: ${JSON.stringify(FRONTEND.description)}\n---\n`,
     );
 
-    expect(octets).toEqual(Uint8Array.of(...entete, ...INSTRUCTIONS));
+    // Listes d'octets : sous jsdom, `TextEncoder` renvoie un `Uint8Array` d'un autre domaine.
+    expect(Array.from(octets)).toEqual([...entete, ...INSTRUCTIONS]);
   });
 
   test("test_ac_008_1_des_instructions_vides_forment_un_corps_vide", () => {
