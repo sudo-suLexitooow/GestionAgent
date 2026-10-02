@@ -59,6 +59,32 @@ describe("confirmation d'écrasement liée au contenu affiché (AC-008-4)", () =
 });
 
 describe("export et modifications non enregistrées", () => {
+  test("test_ac_008_4_creer_un_agent_pendant_la_confirmation_la_ferme_sans_rien_ecrire", async () => {
+    const disque = projet({ [CHEMIN]: "écrit à la main\n" });
+    await ouvrir(disque);
+    await waitFor(() => {
+      expect(boutonExporter()).toBeEnabled();
+    });
+    fireEvent.click(boutonExporter());
+    const confirmation = await screen.findByRole("alertdialog", {
+      name: "Confirmer l'écrasement",
+    });
+    const ecraser = within(confirmation).getByRole("button", { name: "Écraser ces fichiers" });
+    const formulaire = screen.getByRole("form", { name: "Nouvel agent" });
+
+    fireEvent.change(within(formulaire).getByLabelText("Nom"), { target: { value: "backend" } });
+    fireEvent.click(within(formulaire).getByRole("button", { name: "Créer l'agent" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+    // Un clic sur l'ancien bouton (déjà retiré) n'exporte rien non plus.
+    fireEvent.click(ecraser);
+    expect(disque.transactions).toEqual([]);
+    expect(texte(disque, CHEMIN)).toBe("écrit à la main\n");
+    expect(boutonExporter()).toBeDisabled();
+  });
+
   test("test_ac_008_1_modifications_non_enregistrees_le_bouton_exporter_est_desactive", async () => {
     const disque = projet();
     await ouvrir(disque);
