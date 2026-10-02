@@ -59,12 +59,17 @@ export function ExportBar({
     setEtat(suivant);
   }
 
+  // Modèle devenu indisponible ou modifié pendant la confirmation : elle porterait sur un export
+  // périmé ; elle est fermée sans rien écrire (revue n° 2).
+  const bloque = !disponible || nonEnregistre;
+  if (bloque && etat.etape === "a-confirmer") setEtat({ etape: "repos" });
+
   const occupe = etat.etape === "en-cours" || etat.etape === "a-confirmer";
   return (
     <div>
       <button
         type="button"
-        disabled={!disponible || nonEnregistre || occupe}
+        disabled={bloque || occupe}
         aria-describedby={nonEnregistre ? explicationId : undefined}
         onClick={() => void lancer([])}
       >
