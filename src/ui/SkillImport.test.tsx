@@ -67,6 +67,27 @@ describe("créer le modèle par un agent sans importer (régression US-007)", ()
   });
 });
 
+describe("proposition d'import : les skills seront copiées de toute façon", () => {
+  test("test_ac_004_1_la_proposition_previent_que_les_skills_seront_copiees_a_la_creation_du_modele", async () => {
+    await ouvrir(disqueAvecSkills());
+
+    const section = await screen.findByRole("region", { name: "Contextes" });
+    expect(
+      within(section).getByText(
+        "Les skills seront copiées dans Cadre à la création du modèle, même sans import.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(section).getByRole("button", { name: "Ne pas importer" })).toBeInTheDocument();
+  });
+
+  test("test_ac_004_1_sans_skill_aucune_mention_de_copie", async () => {
+    await ouvrir(new DisqueMemoire(ROOT, { "CLAUDE.md": "# Projet\n" }));
+
+    await screen.findByRole("region", { name: "Contextes" });
+    expect(screen.queryByText(/Les skills seront copiées/)).not.toBeInTheDocument();
+  });
+});
+
 describe("dossier .claude/skills en lien (écran)", () => {
   test("test_ac_004_3_dossier_skills_en_lien_les_contextes_restent_proposes_a_l_ecran", async () => {
     await ouvrir(new DisqueMemoire(ROOT, { "CLAUDE.md": "# Projet\n" }).addLink(".claude/skills"));
