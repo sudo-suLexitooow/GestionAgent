@@ -1,3 +1,4 @@
+import { listerSansSuivreLesLiens } from "../project/dossier-lie";
 import { readFailureReason, type ProjectFiles } from "../project/ports";
 import { decodeUtf8 } from "../text/utf8";
 import type { ListedSkill } from "./skill";
@@ -15,7 +16,7 @@ export async function readSkillsFolder(
   root: string,
   dir: string,
 ): Promise<ListedSkill[]> {
-  const entries = (await files.listDir(root, dir)) ?? [];
+  const entries = (await listerSansSuivreLesLiens(files, root, dir)) ?? [];
   const candidates = entries
     .filter((entry) => entry.kind === "directory" || entry.kind === "link")
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
