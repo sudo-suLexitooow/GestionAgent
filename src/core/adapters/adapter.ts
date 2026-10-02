@@ -24,6 +24,11 @@ export interface AgentAExporter {
   role: string;
   /** `""` si elle est absente. */
   description: string;
+  /**
+   * Octets bruts de `.cadre/agents/<nom>.md` (ADR-001, D3 et D9.1), absents s'il n'existe pas ;
+   * présents, ils forment le corps exporté à la place du rôle.
+   */
+  instructions?: Uint8Array;
 }
 
 /** Partie du modèle `.cadre/` exportée vers un outil : les agents dont il est la cible. */

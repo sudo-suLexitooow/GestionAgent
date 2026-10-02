@@ -135,3 +135,39 @@ describe("export des agents vers Claude Code (ADR-003, format (2))", () => {
     ]);
   });
 });
+
+describe("instructions de l'agent (ADR-001, D3 et D9.1)", () => {
+  // CRLF, BOM, accents, sans fin de ligne finale : les octets sont copiés tels quels.
+  const INSTRUCTIONS = Uint8Array.of(
+    0xef,
+    0xbb,
+    0xbf,
+    ...new TextEncoder().encode("# Rôle\r\n\r\nTu écris le front-end.  "),
+  );
+
+  test("test_ac_008_1_les_instructions_de_l_agent_forment_le_corps_exporte", () => {
+    const [fichier] = exporter({ ...FRONTEND, instructions: INSTRUCTIONS });
+    const octets = new TextEncoder().encode(fichier?.contenu ?? "");
+    const entete = new TextEncoder().encode(
+      `---\nname: frontend\ndescription: ${JSON.stringify(FRONTEND.description)}\n---\n`,
+    );
+
+    expect(octets).toEqual(Uint8Array.of(...entete, ...INSTRUCTIONS));
+  });
+
+  test("test_ac_008_1_des_instructions_vides_forment_un_corps_vide", () => {
+    const [fichier] = exporter({ ...FRONTEND, instructions: new Uint8Array(0) });
+
+    expect(fichier?.contenu.endsWith(`À utiliser pour toute tâche dans src/ui/."\n---\n`)).toBe(
+      true,
+    );
+  });
+
+  test("test_ac_008_5_valider_refuse_des_instructions_qui_ne_sont_pas_en_utf8", () => {
+    const latin1 = Uint8Array.of(0x52, 0xf4, 0x6c, 0x65, 0x0a);
+
+    expect(claudeCodeAdapter.valider({ agents: [{ ...FRONTEND, instructions: latin1 }] })).toEqual([
+      { code: "INSTRUCTIONS_NON_UTF8", detail: "frontend" },
+    ]);
+  });
+});

@@ -152,3 +152,18 @@ describe("exporter un agent vers Claude Code (US-008)", () => {
     },
   );
 });
+
+describe("instructions de l'agent exportées octet pour octet (ADR-001, D9.1)", () => {
+  test("test_ac_008_1_les_instructions_de_l_agent_forment_le_corps_exporte", async () => {
+    const instructions = new TextEncoder().encode("# Rôle\r\nTu écris le front-end.\r\n");
+    const disque = projet({ ".cadre/agents/frontend.md": instructions });
+
+    const resultat = await exporter(disque);
+
+    expect(resultat.ok).toBe(true);
+    const entete = 'name: frontend\ndescription: "Développe l\'interface React."';
+    expect(disque.octets(CHEMIN)).toEqual(
+      Uint8Array.of(...new TextEncoder().encode(`---\n${entete}\n---\n`), ...instructions),
+    );
+  });
+});
