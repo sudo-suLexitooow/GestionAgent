@@ -85,7 +85,28 @@ export async function importSkillsFolder(
       failures.push({ folder, path: error.path, code: error.code });
     }
   }
-  return { skills, failures };
+  // Deux dossiers de skills identiques après repli de casse et NFC ne peuvent pas coexister sous
+  // Windows ou macOS : aucun des deux n'est importé (R1).
+  const enCollision = collisions(skills.map(({ skill }) => skill.folder));
+  for (const { skill, source } of skills.filter(({ skill }) => enCollision.has(skill.folder))) {
+    failures.push({ folder: skill.folder, path: source, code: "non-portable" });
+  }
+  return {
+    skills: skills.filter(({ skill }) => !enCollision.has(skill.folder)),
+    failures: failures.sort((a, b) => byName(a.folder, b.folder)),
+  };
+}
+
+/** Clé de comparaison des noms sur un système insensible à la casse et à la forme Unicode. */
+function cleDeNom(nom: string): string {
+  return nom.normalize("NFC").toLowerCase();
+}
+
+/** Noms qui partagent leur clé (`cleDeNom`) avec au moins un autre nom. */
+function collisions(noms: readonly string[]): Set<string> {
+  const parCle = new Map<string, number>();
+  for (const nom of noms) parCle.set(cleDeNom(nom), (parCle.get(cleDeNom(nom)) ?? 0) + 1);
+  return new Set(noms.filter((nom) => (parCle.get(cleDeNom(nom)) ?? 0) > 1));
 }
 
 /** Fichier ou dossier d'une skill qui empêche de la copier entièrement. */
@@ -111,10 +132,15 @@ async function readTree(
   entries: readonly DirEntry[],
 ): Promise<SkillFile[]> {
   const result: SkillFile[] = [];
+  const vus = new Set<string>();
   for (const { name, kind } of [...entries].sort((a, b) => byName(a.name, b.name))) {
     const path = prefix === "" ? name : `${prefix}/${name}`;
     const full = `${base}/${path}`;
-    if (!segmentPortable(name)) throw new Unavailable(full, "non-portable");
+    // Nom hors R1, ou identique à un voisin après repli de casse et NFC.
+    if (!segmentPortable(name) || vus.has(cleDeNom(name))) {
+      throw new Unavailable(full, "non-portable");
+    }
+    vus.add(cleDeNom(name));
     if (kind === "directory") {
       result.push(...(await readTree(files, root, base, path, await list(files, root, full))));
     } else if (kind === "file") {
