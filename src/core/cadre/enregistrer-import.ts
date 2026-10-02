@@ -54,7 +54,7 @@ export async function enregistrerContextesImportes(
     const refus =
       (await modeleApparu(disque.fichiers, racine)) ??
       (await sourceModifiee(disque.fichiers, racine, contextes)) ??
-      (await skillModifiee(disque.fichiers, racine, skills ?? [], options.adapter));
+      (await skillModifiee(disque.fichiers, racine, skills, options.adapter));
     if (refus) return { ok: false, erreur: refus };
     let aCopier = skills ?? [];
     if (skills === undefined && options.adapter.importer) {
@@ -127,15 +127,16 @@ async function sourceModifiee(
 /**
  * Les skills importées ne sont plus celles du disque : l'adaptateur les réimporte et chaque skill
  * doit avoir les mêmes fichiers, de même empreinte ; une skill apparue entre-temps compte aussi
- * (elle ne serait plus visible une fois le modèle créé). Aucune skill importée : rien à vérifier.
+ * (elle ne serait plus visible une fois le modèle créé), même si l'import accepté n'en avait aucune.
+ * Import non demandé (`skills` absent) : rien à vérifier, les skills sont importées maintenant.
  */
 async function skillModifiee(
   fichiers: ProjectFiles,
   racine: string,
-  skills: readonly ImportedSkill[],
+  skills: readonly ImportedSkill[] | undefined,
   adapter: ToolAdapter,
 ): Promise<ErreurEnregistrement | null> {
-  if (skills.length === 0 || !adapter.importer) return null;
+  if (skills === undefined || !adapter.importer) return null;
   const actuelles = new Map(
     (await adapter.importer(fichiers, racine)).skills.map((skill) => [skill.source, skill]),
   );
