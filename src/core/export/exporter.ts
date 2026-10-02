@@ -70,11 +70,6 @@ export async function empreintesActuelles(
 export interface OptionsExport {
   /** Écrasements confirmés, chacun valable seulement pour le contenu vu par l'utilisateur. */
   confirmations?: readonly ConfirmationEcrasement[];
-  /**
-   * Écrasements confirmés par chemin seul, quel que soit le contenu actuel. Conservé pour les
-   * tests de la première version ; l'interface utilise `confirmations`.
-   */
-  confirmes?: readonly string[];
 }
 
 export type ResultatExport =
@@ -169,7 +164,7 @@ async function verifierEcrasements(
   for (const { chemin } of exportes) {
     const actuel = await lire(fichiers, racine, chemin);
     if ("erreur" in actuel) return actuel;
-    if (actuel.octets === null || options.confirmes?.includes(chemin)) continue;
+    if (actuel.octets === null) continue;
     const sha256 = await empreinte(actuel.octets);
     // Fichier généré intact (inscrit au manifeste, même empreinte, ADR-001 D5)…
     const genereIntact = entrees.find((e) => e.path === chemin)?.sha256 === sha256;

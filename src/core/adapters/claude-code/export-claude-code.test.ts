@@ -1,7 +1,7 @@
 // Intégration : export réel vers Claude Code (adaptateur + cœur + faux disque fidèle au port).
 import { createHash } from "node:crypto";
 import { parse, stringify } from "yaml";
-import { exporterModele } from "../../export/exporter";
+import { exporterModele, type ConfirmationEcrasement } from "../../export/exporter";
 import { DisqueMemoire } from "../../testing/disque-memoire";
 import { claudeCodeAdapter } from "./claude-code-adapter";
 
@@ -29,9 +29,9 @@ function projet(contenu: Record<string, string | Uint8Array> = {}): DisqueMemoir
   });
 }
 
-function exporter(disque: DisqueMemoire, confirmes: string[] = []) {
+function exporter(disque: DisqueMemoire, confirmations: ConfirmationEcrasement[] = []) {
   return exporterModele({ fichiers: disque, systeme: disque }, RACINE, claudeCodeAdapter, {
-    confirmes,
+    confirmations,
   });
 }
 
@@ -120,7 +120,9 @@ describe("exporter un agent vers Claude Code (US-008)", () => {
   test("test_ac_008_4_apres_confirmation_explicite_le_fichier_est_ecrase", async () => {
     const disque = projet({ [CHEMIN]: "écrit à la main\n" });
 
-    const resultat = await exporter(disque, [CHEMIN]);
+    const resultat = await exporter(disque, [
+      { chemin: CHEMIN, sha256: sha256("écrit à la main\n") },
+    ]);
 
     expect(resultat.ok).toBe(true);
     expect(texte(disque, CHEMIN)).toBe(ATTENDU);
@@ -144,7 +146,8 @@ describe("exporter un agent vers Claude Code (US-008)", () => {
       disque.addLink(lien);
       const avant = etat(disque);
 
-      const resultat = await exporter(disque, [CHEMIN]);
+      // Même confirmé (empreinte d'un contenu vide), un lien est refusé.
+      const resultat = await exporter(disque, [{ chemin: CHEMIN, sha256: sha256("") }]);
 
       expect(resultat).toEqual({ ok: false, erreur: { code: "FICHIER_LIEN", detail: CHEMIN } });
       expect(disque.transactions).toEqual([]);

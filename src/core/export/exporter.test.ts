@@ -363,7 +363,9 @@ describe("aucun écrasement sans confirmation (AC-008-4, ADR-001 D5)", () => {
   test("test_ac_008_4_confirmation_explicite_ecrase_le_fichier_et_l_inscrit_au_manifeste", async () => {
     const disque = modele({ [ALPHA]: "écrit à la main" });
 
-    const resultat = await exporter(disque, new AdaptateurFactice(), { confirmes: [ALPHA] });
+    const resultat = await exporter(disque, new AdaptateurFactice(), {
+      confirmations: [{ chemin: ALPHA, sha256: sha256("écrit à la main") }],
+    });
 
     expect(resultat).toEqual({ ok: true, fichiers: [ALPHA, ".factice/beta.txt"] });
     expect(texte(disque, ALPHA)).toBe(NOUVEAU_ALPHA);
@@ -377,7 +379,7 @@ describe("aucun écrasement sans confirmation (AC-008-4, ADR-001 D5)", () => {
     const avant = etat(disque);
 
     const resultat = await exporter(disque, new AdaptateurFactice(), {
-      confirmes: [".factice/beta.txt"],
+      confirmations: [{ chemin: ".factice/beta.txt", sha256: sha256("b") }],
     });
 
     expect(resultat).toMatchObject({ ok: false, aConfirmer: [ALPHA] });
@@ -393,7 +395,10 @@ describe("aucun écrasement sans confirmation (AC-008-4, ADR-001 D5)", () => {
     disque.addLink(lien);
     const avant = etat(disque);
 
-    const resultat = await exporter(disque, new AdaptateurFactice(), { confirmes: [ALPHA] });
+    // Même confirmé (empreinte d'un contenu vide), un lien est refusé.
+    const resultat = await exporter(disque, new AdaptateurFactice(), {
+      confirmations: [{ chemin: ALPHA, sha256: sha256("") }],
+    });
 
     expect(resultat).toEqual({ ok: false, erreur: { code, detail: ALPHA } });
     expect(disque.transactions).toEqual([]);
@@ -403,7 +408,9 @@ describe("aucun écrasement sans confirmation (AC-008-4, ADR-001 D5)", () => {
   test("test_ac_008_4_fichier_existant_illisible_refuse_sans_rien_ecrire", async () => {
     const disque = modele({ [ALPHA]: "secret" }).makeUnreadable(ALPHA);
 
-    const resultat = await exporter(disque, new AdaptateurFactice(), { confirmes: [ALPHA] });
+    const resultat = await exporter(disque, new AdaptateurFactice(), {
+      confirmations: [{ chemin: ALPHA, sha256: sha256("secret") }],
+    });
 
     expect(resultat).toEqual({ ok: false, erreur: { code: "FICHIER_ILLISIBLE", detail: ALPHA } });
     expect(disque.transactions).toEqual([]);
