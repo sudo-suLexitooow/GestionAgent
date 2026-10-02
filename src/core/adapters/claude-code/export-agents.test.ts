@@ -42,6 +42,9 @@ function ecartsAuFormat(fichier: FichierExporte, role: string): string[] {
   if (typeof entete.description !== "string" || entete.description.trim() === "") {
     ecarts.push("description vide");
   }
+  if (!lignes.slice(1, fin).some((ligne) => ligne.startsWith('name: "'))) {
+    ecarts.push("name sans guillemets doubles");
+  }
   if (!lignes.slice(1, fin).some((ligne) => ligne.startsWith('description: "'))) {
     ecarts.push("description sans guillemets doubles");
   }
@@ -59,7 +62,7 @@ describe("export des agents vers Claude Code (ADR-003, format (2))", () => {
         source: "agent:7c9e6679-7425-40de-944b-e07fc1f90ae7",
         contenu:
           "---\n" +
-          "name: frontend\n" +
+          'name: "frontend"\n' +
           `description: "Développe l'interface React. À utiliser pour toute tâche dans src/ui/."\n` +
           "---\n" +
           "Tu es le développeur front-end du projet. Tu travailles en TypeScript et React.\n",
@@ -101,6 +104,11 @@ describe("export des agents vers Claude Code (ADR-003, format (2))", () => {
     ["role_vide_et_description_vide", { ...FRONTEND, role: "", description: "" }],
     ["role_multiligne_avec_tirets", { ...FRONTEND, role: "---\n# Titre\n\n- point\n---" }],
     ["nom_avec_tiret_et_souligne", { ...FRONTEND, name: "Front_end-2" }],
+    // Revue n° 2 : sans guillemets, ces noms seraient relus comme booléen, null ou nombre.
+    ["nom_true", { ...FRONTEND, name: "true" }],
+    ["nom_null", { ...FRONTEND, name: "null" }],
+    ["nom_123", { ...FRONTEND, name: "123" }],
+    ["nom_1e3", { ...FRONTEND, name: "1e3" }],
   ])(
     "test_ac_008_2_le_fichier_genere_est_conforme_au_format_documente_%s",
     (_cas, agent: AgentAExporter) => {
@@ -149,7 +157,7 @@ describe("instructions de l'agent (ADR-001, D3 et D9.1)", () => {
     const [fichier] = exporter({ ...FRONTEND, instructions: INSTRUCTIONS });
     const octets = new TextEncoder().encode(fichier?.contenu ?? "");
     const entete = new TextEncoder().encode(
-      `---\nname: frontend\ndescription: ${JSON.stringify(FRONTEND.description)}\n---\n`,
+      `---\nname: "frontend"\ndescription: ${JSON.stringify(FRONTEND.description)}\n---\n`,
     );
 
     // Listes d'octets : sous jsdom, `TextEncoder` renvoie un `Uint8Array` d'un autre domaine.

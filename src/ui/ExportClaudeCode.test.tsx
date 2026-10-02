@@ -8,7 +8,7 @@ const ROOT = "/home/lea/projet";
 const CHEMIN = ".claude/agents/frontend.md";
 const RIEN_ECRIT = "Rien n'a été écrit.";
 const ATTENDU =
-  '---\nname: frontend\ndescription: "Développe l\'interface React."\n---\nTu es le développeur front-end.\n';
+  '---\nname: "frontend"\ndescription: "Développe l\'interface React."\n---\nTu es le développeur front-end.\n';
 
 function projet(contenu: Record<string, string | Uint8Array> = {}): DisqueMemoire {
   return new DisqueMemoire(ROOT, {

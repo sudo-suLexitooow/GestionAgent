@@ -10,7 +10,7 @@ const ID = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
 const CHEMIN = ".claude/agents/frontend.md";
 const ATTENDU =
   "---\n" +
-  "name: frontend\n" +
+  'name: "frontend"\n' +
   'description: "Développe l\'interface React."\n' +
   "---\n" +
   "Tu es le développeur front-end du projet.\n";
@@ -164,7 +164,7 @@ describe("instructions de l'agent exportées octet pour octet (ADR-001, D9.1)", 
     const resultat = await exporter(disque);
 
     expect(resultat.ok).toBe(true);
-    const entete = 'name: frontend\ndescription: "Développe l\'interface React."';
+    const entete = 'name: "frontend"\ndescription: "Développe l\'interface React."';
     // Listes d'octets : sous jsdom, `TextEncoder` renvoie un `Uint8Array` d'un autre domaine.
     expect(Array.from(disque.octets(CHEMIN) ?? [])).toEqual([
       ...new TextEncoder().encode(`---\n${entete}\n---\n`),
