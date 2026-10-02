@@ -145,7 +145,7 @@ describe("export des agents vers Claude Code (ADR-003, format (2))", () => {
 });
 
 describe("instructions de l'agent (ADR-001, D3 et D9.1)", () => {
-  // CRLF, BOM, accents, sans fin de ligne finale : les octets sont copiés tels quels.
+  // CRLF, BOM, accents, sans fin de ligne finale.
   const INSTRUCTIONS = Uint8Array.of(
     0xef,
     0xbb,
@@ -161,7 +161,34 @@ describe("instructions de l'agent (ADR-001, D3 et D9.1)", () => {
     );
 
     // Listes d'octets : sous jsdom, `TextEncoder` renvoie un `Uint8Array` d'un autre domaine.
-    expect(Array.from(octets)).toEqual([...entete, ...INSTRUCTIONS]);
+    // Décision PO (revue n° 2) : BOM de tête retiré, fin de ligne finale ajoutée, CRLF conservé.
+    expect(Array.from(octets)).toEqual([...entete, ...INSTRUCTIONS.slice(3), 0x0a]);
+  });
+
+  test("test_ac_008_1_le_bom_de_tete_des_instructions_est_retire", () => {
+    const avecBom = Uint8Array.of(0xef, 0xbb, 0xbf, ...new TextEncoder().encode("Corps\n"));
+
+    const [fichier] = exporter({ ...FRONTEND, instructions: avecBom });
+
+    expect(fichier?.contenu.endsWith('"\n---\nCorps\n')).toBe(true);
+    expect(fichier?.contenu).not.toContain("﻿");
+  });
+
+  test("test_ac_008_1_instructions_sans_fin_de_ligne_finale_en_recoivent_une", () => {
+    const [fichier] = exporter({
+      ...FRONTEND,
+      instructions: new TextEncoder().encode("Ligne 1\r\nLigne 2"),
+    });
+
+    expect(fichier?.contenu.endsWith('"\n---\nLigne 1\r\nLigne 2\n')).toBe(true);
+  });
+
+  test("test_ac_008_2_le_fichier_genere_est_conforme_au_format_documente_instructions_en_lf", () => {
+    const texte = "# Rôle\n\nTu écris le front-end.";
+    const [fichier] = exporter({ ...FRONTEND, instructions: new TextEncoder().encode(texte) });
+
+    expect(fichier).toBeDefined();
+    expect(ecartsAuFormat(fichier as FichierExporte, texte)).toEqual([]);
   });
 
   test("test_ac_008_1_des_instructions_vides_forment_un_corps_vide", () => {
