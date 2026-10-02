@@ -217,6 +217,29 @@ describe("skill impossible à copier entièrement : non importée, signalée, le
     ]);
   });
 
+  test("test_ac_004_1_un_fichier_special_rend_la_skill_en_erreur", async () => {
+    // Faux disque qui rapporte une FIFO (nature `other`) dans le dossier `references/` de `revue`.
+    class AvecFifo extends InMemoryProjectFiles {
+      override async listDir(root: string, path: string) {
+        const entries = await super.listDir(root, path);
+        if (path !== ".claude/skills/revue/references" || entries === null) return entries;
+        return [...entries, { name: "tube", kind: "other" as const }];
+      }
+    }
+    const files = new AvecFifo(ROOT, {
+      ...AUTRE,
+      ".claude/skills/revue/SKILL.md": REVUE_MD,
+      ".claude/skills/revue/references/guide.md": "# Guide\n",
+    });
+
+    const { skills, failures } = await importer(files);
+
+    expect(skills.map(({ skill }) => skill.folder)).toEqual(["autre"]);
+    expect(failures).toEqual([
+      { folder: "revue", path: ".claude/skills/revue/references/tube", code: "unreadable" },
+    ]);
+  });
+
   test("test_ac_004_1_un_skill_md_illisible_rend_la_skill_en_erreur", async () => {
     const { dossiers, failures } = await importerAvec((files) => {
       files.makeUnreadable(".claude/skills/revue/SKILL.md");
