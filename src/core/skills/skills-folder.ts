@@ -42,6 +42,11 @@ async function readSkill(
     return { folder, status: "error", issue: { code: readFailureReason(error) } };
   }
   if (bytes === null) return null;
+  return describeSkill(folder, bytes);
+}
+
+/** Skill décrite par les octets de son `SKILL.md` : valide (nom, description) ou en erreur. */
+export function describeSkill(folder: string, bytes: Uint8Array): ListedSkill {
   const text = decodeUtf8(bytes);
   if (text === null) return { folder, status: "error", issue: { code: "encoding" } };
   const header = parseSkillHeader(text);

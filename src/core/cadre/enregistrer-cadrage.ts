@@ -4,6 +4,7 @@ import { fichiersAgent, regleNomAgentViolee, type AgentNouveau } from "../agents
 import type { ImportedContext } from "../contexts/context";
 import type { FichierAEcrire, SystemeFichiersProjet } from "../fichiers/systeme-fichiers";
 import type { ProjectFiles } from "../project/ports";
+import type { ImportedSkill } from "../skills/import-skills";
 import { serialiserCadre } from "./cadre-yaml";
 import { chargerModele, nomsDesAgents } from "./charger-modele";
 import { etatDossierCadre } from "./detection";
@@ -20,6 +21,8 @@ export interface CadrageNonEnregistre {
   contextes: readonly ImportedContext[];
   /** Agents créés depuis l'ouverture du projet (US-007). */
   agents: readonly AgentNouveau[];
+  /** Skills importées : seulement dans un projet sans modèle (US-004). */
+  skills?: readonly ImportedSkill[];
 }
 
 const CADRE_YAML = ".cadre/cadre.yaml";
@@ -38,8 +41,15 @@ export async function enregistrerCadrage(
   options: OptionsEnregistrement,
 ): Promise<ResultatEnregistrement> {
   const creerLeModele = () =>
-    enregistrerContextesImportes(disque, racine, cadrage.contextes, options, cadrage.agents);
-  if (cadrage.contextes.length > 0) return creerLeModele();
+    enregistrerContextesImportes(
+      disque,
+      racine,
+      cadrage.contextes,
+      options,
+      cadrage.agents,
+      cadrage.skills,
+    );
+  if (cadrage.contextes.length > 0 || (cadrage.skills?.length ?? 0) > 0) return creerLeModele();
   let fichiers: FichierAEcrire[];
   try {
     if ((await etatDossierCadre(disque.fichiers, racine)) === "aucun") return await creerLeModele();

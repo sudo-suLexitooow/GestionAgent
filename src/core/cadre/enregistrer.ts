@@ -5,6 +5,7 @@ import {
   type FichierAEcrire,
   type SystemeFichiersProjet,
 } from "../fichiers/systeme-fichiers";
+import type { SkillImportFailure } from "../skills/import-skills";
 import { serialiserCadre, type CadreYaml } from "./cadre-yaml";
 import { completerGitignore } from "./gitignore";
 
@@ -29,7 +30,13 @@ export interface ErreurEnregistrement {
   detail: string;
 }
 
-export type ResultatEnregistrement = { ok: true } | { ok: false; erreur: ErreurEnregistrement };
+/**
+ * Résultat d'un enregistrement. `skillsNonImportees` : skills de l'outil qui n'ont pas pu être
+ * copiées dans le modèle créé (US-004), présent seulement s'il y en a.
+ */
+export type ResultatEnregistrement =
+  | { ok: true; skillsNonImportees?: SkillImportFailure[] }
+  | { ok: false; erreur: ErreurEnregistrement };
 
 /**
  * Écrit `.cadre/cadre.yaml` et, dans un projet Git, complète le `.gitignore` racine :
