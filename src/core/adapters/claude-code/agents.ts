@@ -24,9 +24,8 @@ export function exporterAgents(modele: ModeleAExporter): FichierExporte[] {
 }
 
 /**
- * En-tête `name` puis `description` (toujours entre guillemets doubles, échappée ; texte de repli
- * si elle est vide), puis le corps : les instructions de l'agent octet pour octet (ADR-001, D9.1)
- * si elles existent ; sinon le rôle, suivi d'une fin de ligne s'il n'en a pas.
+ * En-tête `name` puis `description` (toujours entre guillemets doubles, échappés ; texte de repli
+ * si la description est vide), puis le corps (voir `corps`).
  */
 function fichierSousAgent(agent: AgentAExporter): FichierExporte {
   const description =
@@ -41,18 +40,23 @@ function fichierSousAgent(agent: AgentAExporter): FichierExporte {
   };
 }
 
+/**
+ * Corps (décision PO, revue n° 2) : les instructions de l'agent si elles existent (ADR-001, D3),
+ * sinon le rôle, résumé court. Sans BOM de tête, terminé par une fin de ligne s'il n'est pas vide ;
+ * le reste est gardé tel quel, CRLF compris.
+ */
 function corps(agent: AgentAExporter): string {
-  if (agent.instructions) return instructionsEnTexte(agent.instructions) ?? "";
-  return agent.role === "" || agent.role.endsWith("\n") ? agent.role : `${agent.role}\n`;
+  const texte = agent.instructions ? (instructionsEnTexte(agent.instructions) ?? "") : agent.role;
+  return texte === "" || texte.endsWith("\n") ? texte : `${texte}\n`;
 }
 
 /**
- * Texte dont l'encodage UTF-8 redonne exactement les octets (BOM et fins de ligne compris) ;
- * `null` s'ils ne sont pas de l'UTF-8 valide.
+ * Texte des octets sans leur BOM de tête (retiré par le décodeur) ; fins de ligne et reste du
+ * contenu inchangés. `null` s'ils ne sont pas de l'UTF-8 valide.
  */
 function instructionsEnTexte(octets: Uint8Array): string | null {
   try {
-    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(octets);
+    return new TextDecoder("utf-8", { fatal: true }).decode(octets);
   } catch {
     return null;
   }
