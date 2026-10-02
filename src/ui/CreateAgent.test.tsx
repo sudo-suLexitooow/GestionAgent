@@ -161,7 +161,7 @@ describe("créer un agent depuis l'écran principal (US-007)", () => {
 
     const alerte = await screen.findByRole("alert", { name: "Enregistrement" });
     expect(alerte.textContent).toBe(
-      'Un agent "frontend" existe déjà sur le disque : retirez l\'agent non enregistré ou recréez-le sous un autre nom.',
+      "Un agent \"frontend\" existe déjà sur le disque : retirez l'agent non enregistré ou recréez-le sous un autre nom. Rien n'a été enregistré.",
     );
     expect(disque.transactions).toEqual([]);
     await waitFor(() => {

@@ -112,6 +112,7 @@ function HomeScreen({ error, onOpen }: { error: OpenError | null; onOpen: () => 
 function warningLabel(code: string): string {
   if (code === "PROJET_OCCUPE") return t("openWarning.busy");
   if (code === "RECUPERATION_IMPOSSIBLE") return t("openWarning.setAside");
+  if (code === "CHEMIN_INVALIDE") return t("openWarning.invalidPath");
   return t("openWarning.generic");
 }
 

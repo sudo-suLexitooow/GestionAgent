@@ -1,4 +1,5 @@
 import type { ToolAdapter } from "../adapters/adapter";
+import { claudeCodeAdapter } from "../adapters/claude-code/claude-code-adapter";
 import type { ProjectFiles } from "../project/ports";
 import { InMemoryProjectFiles } from "../testing/in-memory-project-files";
 import { listProjectSkills } from "./list-project-skills";
@@ -73,5 +74,49 @@ describe("skills du projet ouvert", () => {
     });
 
     expect(await listProjectSkills(files, ROOT, adapter)).toEqual([]);
+  });
+});
+
+describe("dossier des skills de l'outil en lien (US-079)", () => {
+  test("test_ac_079_1_claude_skills_en_lien_rejette_en_nommant_claude_skills", async () => {
+    const files = new InMemoryProjectFiles(ROOT, { "CLAUDE.md": "# Projet\n" }).addLink(
+      ".claude/skills",
+    );
+
+    await expect(listProjectSkills(files, ROOT, claudeCodeAdapter)).rejects.toMatchObject({
+      reason: "link",
+      chemin: ".claude/skills",
+    });
+  });
+
+  test("test_ac_079_1_claude_en_lien_rejette_en_nommant_claude", async () => {
+    const files = new InMemoryProjectFiles(ROOT, { "CLAUDE.md": "# Projet\n" }).addLink(".claude");
+
+    await expect(listProjectSkills(files, ROOT, claudeCodeAdapter)).rejects.toMatchObject({
+      reason: "link",
+      chemin: ".claude",
+    });
+  });
+
+  test("test_ac_079_1_le_lien_n_est_pas_suivi_seuls_ses_parents_sont_listes", async () => {
+    const files = new InMemoryProjectFiles(ROOT, {}).addLink(".claude/skills");
+    const listes: string[] = [];
+    const lus: string[] = [];
+    const espion: ProjectFiles = {
+      listDir: (root, path) => {
+        listes.push(path);
+        return files.listDir(root, path);
+      },
+      readFile: (root, path) => {
+        lus.push(path);
+        return files.readFile(root, path);
+      },
+    };
+
+    await expect(listProjectSkills(espion, ROOT, claudeCodeAdapter)).rejects.toMatchObject({
+      chemin: ".claude/skills",
+    });
+    expect(lus).toEqual([]);
+    expect(listes.filter((path) => path.startsWith(".claude/skills/"))).toEqual([]);
   });
 });

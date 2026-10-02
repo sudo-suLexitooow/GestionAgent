@@ -1,3 +1,4 @@
+import { listerSansSuivreLesLiens } from "../project/dossier-lie";
 import { readFailureReason, type ProjectFiles } from "../project/ports";
 import { decodeUtf8 } from "../text/utf8";
 import type { ListedSkill } from "./skill";
@@ -9,13 +10,14 @@ import { parseSkillHeader } from "./skill-header";
  * Dossier absent : aucune skill. Sous-dossier sans `SKILL.md` ou fichier isolé : pas une skill.
  * Une skill illisible ou invalide est listée en erreur, sans empêcher la lecture des autres.
  * Une skill liée (lien symbolique, jonction) n'est jamais suivie (US-076) : elle est en erreur.
+ * Le dossier `dir` lui-même lié, ou l'un de ses parents : rejet `DossierLieError` qui le nomme (US-079).
  */
 export async function readSkillsFolder(
   files: ProjectFiles,
   root: string,
   dir: string,
 ): Promise<ListedSkill[]> {
-  const entries = (await files.listDir(root, dir)) ?? [];
+  const entries = (await listerSansSuivreLesLiens(files, root, dir)) ?? [];
   const candidates = entries
     .filter((entry) => entry.kind === "directory" || entry.kind === "link")
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));

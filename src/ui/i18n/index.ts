@@ -20,6 +20,8 @@ const fr = {
     "Une écriture interrompue n'a pas pu être reprise : des fichiers du projet peuvent être partiellement modifiés. Les copies d'origine sont dans le dossier indiqué, rien n'a été supprimé.",
   "openWarning.generic":
     "Une écriture interrompue n'a pas pu être reprise à l'ouverture du projet.",
+  "openWarning.invalidPath":
+    "Un chemin du dossier .cadre/ est un lien symbolique, une jonction ou n'est pas un vrai dossier : Cadre ne le suit pas, n'y écrit rien et n'y reprend aucune écriture interrompue.",
   "openWarning.detail": "Détail",
   "error.unexpected": "Le dossier n'a pas pu être ouvert. Réessayez.",
   "contexts.title": "Contextes",
@@ -59,6 +61,9 @@ const fr = {
   "model.failed": "Le modèle .cadre/ n'a pas pu être lu.",
   "model.failedLink":
     "Le modèle .cadre/ n'a pas pu être lu : un de ses chemins est un lien symbolique ou une jonction, que Cadre ne suit pas.",
+  /** `{chemin}` : dossier lié, p. ex. `.cadre` (US-079). */
+  "model.linkedFolder":
+    "Le dossier {chemin} est un lien symbolique ou une jonction, non pris en charge : Cadre ne le suit pas et n'y écrit rien.",
   "model.incomplete": "Modèle incomplet",
   "model.repair":
     "Réparation proposée : recréer .cadre/cadre.yaml à partir du contenu de .cadre/. Rien n'a été écrit et rien ne le sera sans votre accord.",
@@ -83,7 +88,7 @@ const fr = {
   "save.error.MODELE_NON_MODIFIABLE": `Enregistrement annulé : le modèle .cadre/ de ce projet est incomplet ou a été enregistré par une version plus récente de Cadre ; Cadre ne le modifie pas. ${RASSURANCE}`,
   /** `{nom}` : nom de l'agent non enregistré en conflit. */
   "save.error.AGENT_EXISTANT":
-    'Un agent "{nom}" existe déjà sur le disque : retirez l\'agent non enregistré ou recréez-le sous un autre nom.',
+    "Un agent \"{nom}\" existe déjà sur le disque : retirez l'agent non enregistré ou recréez-le sous un autre nom. Rien n'a été enregistré.",
   "save.error.LECTURE_SEULE": `Enregistrement impossible : le dossier du projet est en lecture seule ou son accès est refusé. ${RASSURANCE}`,
   "save.error.DISQUE_PLEIN": `Enregistrement impossible : le disque est plein. Libérez de l'espace puis réessayez. ${RASSURANCE}`,
   "save.error.CHEMIN_INVALIDE": `Enregistrement impossible : un chemin de fichier est invalide ou passe par un lien symbolique (par exemple un .gitignore lié à un autre fichier). ${RASSURANCE}`,
@@ -146,6 +151,9 @@ const fr = {
   "skills.title": "Skills",
   "skills.none": "Aucune skill détectée.",
   "skills.failed": "Les skills n'ont pas pu être lues.",
+  /** `{chemin}` : dossier lié, p. ex. `.claude` (US-079). */
+  "skills.linkedFolder":
+    "{chemin} : lien symbolique ou jonction non pris en charge ; Cadre ne le suit pas et n'y lit aucune skill.",
   "skills.inError": "en erreur",
   "skills.line": "ligne",
   "skills.issue.no-header":

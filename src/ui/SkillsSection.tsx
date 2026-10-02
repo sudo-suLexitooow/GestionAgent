@@ -1,11 +1,16 @@
 import { useEffect, useId, useState } from "react";
 import type { ToolAdapter } from "../core/adapters/adapter";
+import { DossierLieError } from "../core/project/dossier-lie";
 import type { ProjectFiles } from "../core/project/ports";
 import { listProjectSkills } from "../core/skills/list-project-skills";
 import type { ListedSkill, SkillIssue } from "../core/skills/skill";
 import { t } from "./i18n";
 
-type Listing = { kind: "loading" } | { kind: "listed"; skills: ListedSkill[] } | { kind: "failed" };
+/** `failed` : lecture impossible ; `lien` : le dossier lié qui l'a empêchée (US-079). */
+type Listing =
+  | { kind: "loading" }
+  | { kind: "listed"; skills: ListedSkill[] }
+  | { kind: "failed"; lien?: string };
 
 export interface SkillsSectionProps {
   root: string;
@@ -24,8 +29,13 @@ export function SkillsSection({ root, files, adapter }: SkillsSectionProps) {
       (skills) => {
         if (current) setListing({ kind: "listed", skills });
       },
-      () => {
-        if (current) setListing({ kind: "failed" });
+      (erreur: unknown) => {
+        if (!current) return;
+        setListing(
+          erreur instanceof DossierLieError
+            ? { kind: "failed", lien: erreur.chemin }
+            : { kind: "failed" },
+        );
       },
     );
     return () => {
@@ -36,7 +46,13 @@ export function SkillsSection({ root, files, adapter }: SkillsSectionProps) {
   return (
     <section aria-labelledby={headingId}>
       <h2 id={headingId}>{t("skills.title")}</h2>
-      {listing.kind === "failed" && <p role="alert">{t("skills.failed")}</p>}
+      {listing.kind === "failed" && (
+        <p role="alert">
+          {listing.lien === undefined
+            ? t("skills.failed")
+            : t("skills.linkedFolder").replace("{chemin}", listing.lien)}
+        </p>
+      )}
       {listing.kind === "listed" && listing.skills.length === 0 && <p>{t("skills.none")}</p>}
       {listing.kind === "listed" && listing.skills.length > 0 && (
         <ul>

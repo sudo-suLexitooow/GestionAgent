@@ -175,3 +175,31 @@ describe("enregistrement d'un agent créé (US-007)", () => {
     expect(await enregistrer(disque, [agent()])).toEqual({ ok: true });
   });
 });
+
+describe("dossier .cadre en lien (US-079)", () => {
+  const REFUS = { ok: false, erreur: { code: "CHEMIN_INVALIDE", detail: ".cadre" } };
+
+  test("test_ac_079_2_cadre_en_lien_contextes_importes_refus_sans_rien_ecrire", async () => {
+    const disque = new DisqueMemoire(RACINE, { "CLAUDE.md": "# Projet\n" }).addLink(".cadre");
+    const { contexts } = await importContexts(disque, RACINE, [
+      { file: "CLAUDE.md", name: "CLAUDE", type: "projet" },
+    ]);
+
+    const resultat = await enregistrerCadrage(
+      { fichiers: disque, systeme: disque },
+      RACINE,
+      { contextes: contexts, agents: [] },
+      OPTIONS,
+    );
+
+    expect(resultat).toEqual(REFUS);
+    expect(disque.transactions).toEqual([]);
+  });
+
+  test("test_ac_079_2_cadre_en_lien_agent_seul_refus_sans_rien_ecrire", async () => {
+    const disque = new DisqueMemoire(RACINE, {}).addLink(".cadre");
+
+    expect(await enregistrer(disque, [agent()])).toEqual(REFUS);
+    expect(disque.transactions).toEqual([]);
+  });
+});
