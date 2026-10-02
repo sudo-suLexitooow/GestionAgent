@@ -333,6 +333,29 @@ describe("créer le modèle sans avoir cliqué sur l'import (régression US-007)
   });
 });
 
+describe("skill apparue après un import accepté sans aucune skill", () => {
+  test("test_ac_004_1_skill_apparue_apres_un_import_sans_skill_refuse", async () => {
+    const disque = new DisqueMemoire(RACINE, { "CLAUDE.md": "# Projet\n" });
+    const { contexts } = await importContexts(disque, RACINE, claudeCodeAdapter.contextFiles ?? []);
+    const { skills } = await importer(disque);
+    expect(skills).toEqual([]);
+    disque.modifierHorsCadre(".claude/skills/neuve/SKILL.md", "---\nname: neuve\n---\n");
+
+    const resultat = await enregistrerCadrage(
+      { fichiers: disque, systeme: disque },
+      RACINE,
+      { contextes: contexts, agents: [], skills },
+      OPTIONS,
+    );
+
+    expect(resultat).toEqual({
+      ok: false,
+      erreur: { code: "SOURCE_MODIFIEE", detail: ".claude/skills/neuve" },
+    });
+    expect(disque.transactions).toEqual([]);
+  });
+});
+
 describe("dossier des skills de l'outil en lien ou illisible", () => {
   function enregistrerAgent(disque: DisqueMemoire) {
     const creation = creerAgent(
