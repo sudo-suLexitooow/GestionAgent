@@ -33,7 +33,9 @@ export async function detecterImport(
 ): Promise<ImportPropose> {
   if ((await etatDossierCadre(files, root)) !== "aucun") return { specs: [], skills: 0 };
   const specs = await detectContextFiles(files, root, adapter);
-  return { specs, skills: (await adapter.detectSkills(files, root)).length };
+  // Dossier des skills lié ou illisible : rien à compter ; l'import le signalera.
+  const skills = await adapter.detectSkills(files, root).catch(() => []);
+  return { specs, skills: skills.length };
 }
 
 /** Importe les fichiers de contexte `specs` et les skills de l'outil, via son adaptateur. */

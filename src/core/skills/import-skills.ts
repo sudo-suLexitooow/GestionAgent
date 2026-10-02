@@ -32,6 +32,7 @@ export interface ImportedSkill {
 
 /** Skill non importée (rien n'en est copié) : fichier fautif, relatif au projet, et raison. */
 export interface SkillImportFailure {
+  /** Dossier de la skill ; `""` si c'est le dossier des skills lui-même (aucune skill importée). */
   folder: string;
   path: string;
   /** `non-portable` : nom de dossier ou de fichier hors règle R1 (ADR-001), non écrit par Cadre. */
@@ -52,7 +53,13 @@ export async function importSkillsFolder(
   root: string,
   dir: string,
 ): Promise<SkillImport> {
-  const entries = (await files.listDir(root, dir)) ?? [];
+  let entries: DirEntry[];
+  try {
+    entries = (await files.listDir(root, dir)) ?? [];
+  } catch (error) {
+    // Dossier des skills (ou un parent) lié ou illisible : signalé, sans faire échouer l'import.
+    return { skills: [], failures: [{ folder: "", path: dir, code: readFailureReason(error) }] };
+  }
   const candidates = entries
     .filter((entry) => entry.kind === "directory" || entry.kind === "link")
     .sort((a, b) => byName(a.name, b.name));
