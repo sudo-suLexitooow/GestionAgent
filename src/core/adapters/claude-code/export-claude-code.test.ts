@@ -142,12 +142,15 @@ describe("exporter un agent vers Claude Code (US-008)", () => {
   test.each([".claude", ".claude/agents", CHEMIN])(
     "test_ac_008_4_%s_en_lien_refuse_rien_n_est_ecrit",
     async (lien) => {
-      const disque = projet();
+      // Le contenu ciblé par le lien, tel que l'utilisateur le verrait à travers lui.
+      const disque = projet({ [CHEMIN]: "contenu ciblé par le lien\n" });
       disque.addLink(lien);
       const avant = etat(disque);
 
-      // Même confirmé (empreinte d'un contenu vide), un lien est refusé.
-      const resultat = await exporter(disque, [{ chemin: CHEMIN, sha256: sha256("") }]);
+      // Même confirmé avec l'empreinte réelle du contenu ciblé, un lien est refusé.
+      const resultat = await exporter(disque, [
+        { chemin: CHEMIN, sha256: sha256("contenu ciblé par le lien\n") },
+      ]);
 
       expect(resultat).toEqual({ ok: false, erreur: { code: "FICHIER_LIEN", detail: CHEMIN } });
       expect(disque.transactions).toEqual([]);

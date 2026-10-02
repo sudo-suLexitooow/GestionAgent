@@ -391,13 +391,14 @@ describe("aucun écrasement sans confirmation (AC-008-4, ADR-001 D5)", () => {
     ["dossier_parent_en_lien", ".factice", "FICHIER_LIEN"],
     ["fichier_en_lien", ALPHA, "FICHIER_LIEN"],
   ])("test_ac_008_4_%s_refuse_sans_rien_ecrire", async (_cas, lien, code) => {
-    const disque = modele();
+    // Le contenu ciblé par le lien, tel que l'utilisateur le verrait à travers lui.
+    const disque = modele({ [ALPHA]: "contenu ciblé par le lien" });
     disque.addLink(lien);
     const avant = etat(disque);
 
-    // Même confirmé (empreinte d'un contenu vide), un lien est refusé.
+    // Même confirmé avec l'empreinte réelle du contenu ciblé, un lien est refusé.
     const resultat = await exporter(disque, new AdaptateurFactice(), {
-      confirmations: [{ chemin: ALPHA, sha256: sha256("") }],
+      confirmations: [{ chemin: ALPHA, sha256: sha256("contenu ciblé par le lien") }],
     });
 
     expect(resultat).toEqual({ ok: false, erreur: { code, detail: ALPHA } });
