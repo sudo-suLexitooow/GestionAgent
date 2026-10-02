@@ -338,3 +338,17 @@ describe("modèle incomplet (AC-006-5) ou absent (AC-006-6)", () => {
     expect(await charger(contenu)).toEqual({ etat: "aucun" });
   });
 });
+
+describe("dossier .cadre en lien (US-079)", () => {
+  test("test_ac_079_2_cadre_en_lien_rejette_en_nommant_cadre_sans_le_suivre", async () => {
+    const { files, used } = recordingProjectFiles(
+      new InMemoryProjectFiles(ROOT, { "CLAUDE.md": "# P\n" }).addLink(".cadre"),
+    );
+
+    await expect(chargerModele(files, ROOT)).rejects.toMatchObject({
+      reason: "link",
+      chemin: ".cadre",
+    });
+    expect([...used].sort()).toEqual(["listDir"]);
+  });
+});
