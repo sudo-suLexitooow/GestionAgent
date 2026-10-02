@@ -48,21 +48,32 @@ export interface ConfirmationEcrasement {
   sha256: string;
 }
 
-/* eslint-disable @typescript-eslint/no-unused-vars -- squelette avant implémentation (RED) */
-/** Empreinte actuelle de chaque fichier à confirmer, à joindre à la confirmation affichée. */
-export function empreintesActuelles(
-  _fichiers: ProjectFiles,
-  _racine: string,
-  _chemins: readonly string[],
+/**
+ * Empreinte actuelle de chaque fichier à confirmer, lue au moment d'afficher la confirmation :
+ * la confirmation ne vaudra que pour ce contenu. Un fichier absent, illisible ou lié est omis
+ * (l'export le signalera à nouveau). Ne rejette jamais.
+ */
+export async function empreintesActuelles(
+  fichiers: ProjectFiles,
+  racine: string,
+  chemins: readonly string[],
 ): Promise<ConfirmationEcrasement[]> {
-  return Promise.resolve([]);
+  const lus = await Promise.all(
+    chemins.map(async (chemin) => {
+      const octets = await fichiers.readFile(racine, chemin).catch(() => null);
+      return octets === null ? [] : [{ chemin, sha256: await empreinte(octets) }];
+    }),
+  );
+  return lus.flat();
 }
-/* eslint-enable @typescript-eslint/no-unused-vars */
 
 export interface OptionsExport {
   /** Écrasements confirmés, chacun valable seulement pour le contenu vu par l'utilisateur. */
   confirmations?: readonly ConfirmationEcrasement[];
-  /** Fichiers dont l'utilisateur a explicitement confirmé l'écrasement (AC-008-4). */
+  /**
+   * Écrasements confirmés par chemin seul, quel que soit le contenu actuel. Conservé pour les
+   * tests de la première version ; l'interface utilise `confirmations`.
+   */
   confirmes?: readonly string[];
 }
 
@@ -89,7 +100,7 @@ export async function exporterModele(
 ): Promise<ResultatExport> {
   let preparation: { lot: FichierAEcrire[]; fichiers: string[] } | Refus;
   try {
-    preparation = await preparer(disque.fichiers, racine, adaptateur, options.confirmes ?? []);
+    preparation = await preparer(disque.fichiers, racine, adaptateur, options);
   } catch (erreur) {
     return { ok: false, erreur: enErreurExport(versErreurEnregistrement(erreur)) };
   }
@@ -109,7 +120,7 @@ async function preparer(
   fichiers: ProjectFiles,
   racine: string,
   adaptateur: AdaptateurExport,
-  confirmes: readonly string[],
+  options: OptionsExport,
 ): Promise<{ lot: FichierAEcrire[]; fichiers: string[] } | Refus> {
   const chargement = await chargerModele(fichiers, racine);
   if (chargement.etat !== "charge" || chargement.lectureSeule) {
@@ -130,7 +141,7 @@ async function preparer(
   const entrees = lireManifeste(manifesteLu.octets);
   if (entrees === null) return refus("MANIFESTE_INVALIDE", MANIFESTE);
 
-  const ecrasements = await verifierEcrasements(fichiers, racine, exportes, entrees, confirmes);
+  const ecrasements = await verifierEcrasements(fichiers, racine, exportes, entrees, options);
   if (ecrasements) return ecrasements;
 
   const nouvelles = await Promise.all(exportes.map((f) => entreeManifeste(f, adaptateur.id)));
@@ -152,14 +163,21 @@ async function verifierEcrasements(
   racine: string,
   exportes: readonly FichierExporte[],
   entrees: readonly EntreeManifeste[],
-  confirmes: readonly string[],
+  options: OptionsExport,
 ): Promise<Refus | null> {
   const aConfirmer: string[] = [];
   for (const { chemin } of exportes) {
     const actuel = await lire(fichiers, racine, chemin);
     if ("erreur" in actuel) return actuel;
-    if (actuel.octets === null || confirmes.includes(chemin)) continue;
-    if (!(await estGenereIntact(entrees, chemin, actuel.octets))) aConfirmer.push(chemin);
+    if (actuel.octets === null || options.confirmes?.includes(chemin)) continue;
+    const sha256 = await empreinte(actuel.octets);
+    // Fichier généré intact (inscrit au manifeste, même empreinte, ADR-001 D5)…
+    const genereIntact = entrees.find((e) => e.path === chemin)?.sha256 === sha256;
+    // … ou écrasement confirmé pour ce contenu précis.
+    const confirme = (options.confirmations ?? []).some(
+      (c) => c.chemin === chemin && c.sha256 === sha256,
+    );
+    if (!genereIntact && !confirme) aConfirmer.push(chemin);
   }
   if (aConfirmer.length === 0) return null;
   return { ...refus("ECRASEMENT_A_CONFIRMER", aConfirmer.join(", ")), aConfirmer };
@@ -203,16 +221,7 @@ async function lire(
   }
 }
 
-/** Inscrit au manifeste et d'empreinte inchangée (CRLF → LF) : Cadre peut le réécrire. */
-async function estGenereIntact(
-  entrees: readonly EntreeManifeste[],
-  chemin: string,
-  octets: Uint8Array,
-): Promise<boolean> {
-  const entree = entrees.find((candidate) => candidate.path === chemin);
-  return entree !== undefined && entree.sha256 === (await empreinte(octets));
-}
-
+/** Entrée du manifeste du fichier écrit, empreinte de son contenu (CRLF → LF). */
 async function entreeManifeste(fichier: FichierExporte, adaptateur: string) {
   return {
     path: fichier.chemin,

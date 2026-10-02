@@ -11,7 +11,7 @@ import type { ImportedContext } from "../core/contexts/context";
 import type { ContextImport } from "../core/contexts/import-contexts";
 import type { SystemeFichiersProjet } from "../core/fichiers/systeme-fichiers";
 import { SystemeFichiersTauri } from "../platform/systeme-fichiers-tauri";
-import { exporterModele } from "../core/export/exporter";
+import { empreintesActuelles, exporterModele } from "../core/export/exporter";
 import { ExportBar } from "./ExportBar";
 import { SaveBar } from "./SaveBar";
 import { VERSION_CADRE } from "./version";
@@ -210,11 +210,13 @@ function ProjectScreen({
       <ExportBar
         outil={claudeCodeAdapter.name ?? claudeCodeAdapter.id}
         disponible={chargement?.etat === "charge" && !chargement.lectureSeule}
-        exporter={(confirmes) =>
+        nonEnregistre={modifie}
+        exporter={(confirmations) =>
           exporterModele({ fichiers: files, systeme }, project.path, claudeCodeAdapter, {
-            confirmes,
+            confirmations,
           })
         }
+        lireEmpreintes={(chemins) => empreintesActuelles(files, project.path, chemins)}
       />
       <ModelSection
         key={`m${String(lecture)}-${String(lectureModele)}`}

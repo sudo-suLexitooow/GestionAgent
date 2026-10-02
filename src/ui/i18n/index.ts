@@ -86,6 +86,7 @@ const fr = {
   "export.title": "Export",
   /** `{outil}` : nom de l'outil cible. */
   "export.button": "Exporter vers {outil}",
+  "export.unsaved": "Enregistrez d'abord vos modifications.",
   "export.done": "Export terminé. Fichiers écrits :",
   "export.cancelled": `Export annulé : ${RIEN_ECRIT.toLowerCase()}`,
   "export.detail": "Détail",
