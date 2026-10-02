@@ -1,6 +1,6 @@
 # Product Backlog — Cadre
 
-Version : 2026-10-01 · Auteur : analyste-backlog · Mis à jour le 2026-10-01 par scribe-wiki (porte 1 ; puis merges US-001/002/003/005, ajout US-076, US-077 et section Dette ; Sprint Review 1 : AC-006-6 et AC-077-4 ; Sprint 2 planifié ; 2026-10-01 : SP-02, US-076, US-006 Done, US-079 et AC-077-5 ajoutés, AC-006-5/6 reformulés, dette complétée ; US-077 et US-007 Done, AC-006-5 élargi, Sprint 2 terminé, Sprint 3 planifié).
+Version : 2026-10-01 · Auteur : analyste-backlog · Mis à jour le 2026-10-01 par scribe-wiki (porte 1 ; puis merges US-001/002/003/005, ajout US-076, US-077 et section Dette ; Sprint Review 1 : AC-006-6 et AC-077-4 ; Sprint 2 planifié ; 2026-10-01 : SP-02, US-076, US-006 Done, US-079 et AC-077-5 ajoutés, AC-006-5/6 reformulés, dette complétée ; US-077 et US-007 Done, AC-006-5 élargi, Sprint 2 terminé, Sprint 3 planifié ; 2026-10-02 : US-004 Done, décisions d'import des skills, point à vérifier ajouté à US-079, dette complétée).
 
 **Statut : validé par le PO le 2026-10-01 (porte 1), tel quel.** Options par défaut Q-01 à Q-22 acceptées par délégation : les stories auparavant « Bloquée (Q-xx) » sont « À faire ». SP-03 suit l'option Q-11 (runners GitHub).
 
@@ -60,7 +60,7 @@ Ordre = valeur + réduction du risque, en fermant d'abord la boucle centrale : *
 | 3 | US-002 | Lister les skills du projet (**référence**) | MVP 0 | 2 | Done (Sprint 1, PR #5, 2026-10-01) | SKL-01, PRJ-02 | non |
 | 4 | US-003 | Importer CLAUDE.md et AGENTS.md comme contextes | MVP 0 | 2 | Done (Sprint 1, PR #6, 2026-10-01) | PRJ-02, ADP-02 | non |
 | 5 | US-005 | Enregistrer le modèle `.cadre/` de façon atomique | MVP 0 | 3 | Done (Sprint 1, PR #4, 2026-10-01) | §7.4, NF-12, NF-13 | **oui** (écritures atomiques) |
-| 6 | US-004 | Importer les skills existantes sans perte | MVP 0 | 3 | Sprint 3 (À faire) | PRJ-02, ADP-01, ADP-02 | non |
+| 6 | US-004 | Importer les skills existantes sans perte | MVP 0 | 3 | Done (Sprint 3, PR #15) | PRJ-02, ADP-01, ADP-02 | non |
 | 7 | SP-02 | Spike : relevé de ce que Claude Code applique réellement | MVP 0 | 3 | Done (Sprint 2, 2026-10-01, [ADR-003](ADR-003-capacites-claude-code)) | AGT-06, AGT-07, ADP-05, NF-11, §13.2 | non |
 | 8 | US-006 | Rouvrir un projet depuis `.cadre/` | MVP 0 | 3 | Done (Sprint 2, PR #10, 2026-10-01) | §7.4, PRJ-02 | non |
 | 9 | US-007 | Créer un agent (rôle, description, outil cible) | MVP 0 | 2 | Done (Sprint 2, PR #13, 2026-10-01) | AGT-01, AGT-02 | non |
@@ -257,6 +257,15 @@ Critères d'acceptation :
 - AC-004-4 [ADP-01] : Étant donné le cœur de Cadre, quand il importe un projet, alors il passe par l'opération « importer » de l'interface d'adaptateur (vérifié par un test avec un adaptateur factice), sans code propre à Claude Code dans le cœur.
 - AC-004-5 [PRJ-02] : Étant donné un projet de 200 skills, quand l'import a lieu, alors aucune skill n'est perdue (comptage avant/après identique).
 
+Statut : **Done** le 2026-10-02 (PR #15, merge 18c7071). Première revue refusée (un lien ou un dossier illisible sur `.claude/skills` faisait échouer la création du modèle, régression d'US-007, et cachait l'import de CLAUDE.md, régression d'US-003) ; acceptée en re-revue après correction ; CI verte sur Linux, Windows et macOS.
+
+Décisions prises par l'orchestrateur sur délégation du PO (2026-10-02) :
+- Créer le modèle importe toujours les skills de l'outil, même sans import demandé (corrige une régression d'US-007 : créer un agent seul faisait disparaître les skills de la liste).
+- Une skill est copiée entière ou pas du tout. Elle n'est pas importée, et elle est signalée, si elle contient un lien, un fichier spécial ou illisible, un fichier de plus de 8 Mio, un `SKILL.md` qui est un dossier, un nom non portable selon R1, ou une collision de casse ou NFC.
+- Si `.claude/skills` ou `.claude` est un lien ou illisible, c'est signalé sans erreur.
+- `SOURCE_MODIFIEE` est étendu aux skills (fichier modifié, ajouté ou supprimé ; skill apparue ou disparue) ; une conversion CRLF vers LF n'en est pas une.
+- Une mention près de « Ne pas importer » indique que les skills seront copiées à la création du modèle.
+
 ### US-005 — Enregistrer le modèle `.cadre/` de façon atomique
 En tant que développeur solo, je veux que mon cadrage soit enregistré dans `.cadre/` sans jamais pouvoir être corrompu afin de ne pas perdre mon travail en cas de plantage.
 - Étape : MVP 0 · Estimation : 3 points · Dépendances : US-001, SP-01 · **Zone sensible : oui (écritures atomiques) → porte 3**
@@ -396,6 +405,7 @@ En tant que développeur solo, je veux un message explicite quand `.claude`, `.c
 - Étape : MVP 0 · Estimation : 1 point · Dépendances : US-076 · Zone sensible : non
 - Exigences (proposées, héritées d'US-076) : SKL-01, PRJ-02
 - Origine : dette relevée sur US-076 (PR #9), 2026-10-01. Statut : À faire.
+- Point à vérifier (ajouté le 2026-10-02, remarque non bloquante de la revue d'US-007) : le message d'erreur `save.error.AGENT_EXISTANT` doit redire « rien n'a été enregistré ».
 
 Critères d'acceptation :
 - AC-079-1 : Étant donné un projet dont `.claude` ou `.claude/skills` est un lien, quand le projet est ouvert, alors un message dédié indique que ce dossier est un lien non pris en charge, sans le suivre.
@@ -1012,7 +1022,7 @@ Remarques :
 
 ## 10. Dette technique
 
-Points relevés le 2026-10-01, non transformés en stories (le message dédié pour un dossier de cadrage lié est devenu US-079). À reprendre au Sprint Planning ou dans la story concernée.
+Points relevés à partir du 2026-10-01, non transformés en stories (le message dédié pour un dossier de cadrage lié est devenu US-079). À reprendre au Sprint Planning ou dans la story concernée.
 
 | Point | À traiter |
 | --- | --- |
@@ -1020,7 +1030,7 @@ Points relevés le 2026-10-01, non transformés en stories (le message dédié p
 | Import des contextes en double possible — US-003 | à planifier |
 | Liens symboliques sur les fichiers cibles et conservation des droits | avant US-008 / US-009 |
 | Casse de `claude.md` à vérifier | en SP-02 |
-| IPC binaire (`tauri::ipc::Response`) | pour US-004 |
+| IPC binaire (`tauri::ipc::Response`) | à planifier (non fait dans US-004, voir plus bas) |
 | Couverture Rust non mesurée | à planifier |
 | Commandes d'écriture synchrones | à planifier |
 | `lire_fichier_projet` : lecture bornée et asynchrone — US-076 | à planifier |
@@ -1036,7 +1046,14 @@ Points relevés le 2026-10-01, non transformés en stories (le message dédié p
 | Contenu en octets transmis en JSON, lent sur gros fichiers — US-077 | à planifier (cf. IPC binaire) |
 | Test de bout en bout interface → disque réel — US-077 | à planifier (tests e2e au MVP 1) |
 | Commentaires de `cadre.yaml` perdus quand `tools` est complété (passer par `parseDocument`) — US-007 | à planifier |
-| Harmoniser le message `AGENT_EXISTANT` avec la phrase de réassurance — US-007 | à planifier |
+| Harmoniser le message `AGENT_EXISTANT` avec la phrase de réassurance — US-007 | point à vérifier dans US-079 (2026-10-02) |
+| Skill non importée signalée seulement à l'enregistrement, pas durablement dans la liste (une trace durable modifierait AC-002-5) — US-004 | à planifier |
+| Nom de fichier non UTF-8 sous Linux ignoré par `Projet::lister`, sans signalement — US-004 | à planifier |
+| Repli de casse par `toLowerCase()`, approximatif — US-004 | à planifier |
+| Import tenu en mémoire et transmis en JSON d'octets — US-004 | à planifier (cf. IPC binaire) |
+| Quand `.claude` est un lien, le chemin signalé est `.claude/skills` — US-004 | avec US-079 |
+| Le nombre annoncé à la proposition d'import compte aussi les skills qui seront refusées — US-004 | à planifier |
+| La proposition d'import des skills est affichée dans la section « Contextes » — US-004 | à planifier |
 
 ---
 
