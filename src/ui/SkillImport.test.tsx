@@ -81,6 +81,29 @@ describe("dossier .claude/skills en lien (écran)", () => {
   });
 });
 
+describe("dossier .claude/skills en lien, création du modèle par un agent (écran)", () => {
+  test("test_ac_004_3_dossier_skills_en_lien_signale_qu_aucune_skill_n_est_importee", async () => {
+    const disque = new DisqueMemoire(ROOT, {}).addLink(".claude/skills");
+    await ouvrir(disque);
+    const formulaire = await screen.findByRole("form", { name: "Nouvel agent" });
+    fireEvent.change(within(formulaire).getByLabelText("Nom"), { target: { value: "frontend" } });
+    fireEvent.change(within(formulaire).getByLabelText("Rôle"), { target: { value: "Front" } });
+    fireEvent.change(within(formulaire).getByLabelText("Description"), {
+      target: { value: "Écrans." },
+    });
+    fireEvent.click(within(formulaire).getByRole("button", { name: "Créer l'agent" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(
+      await screen.findByText(
+        ".claude/skills : lien non pris en charge ; aucune skill n'est importée.",
+      ),
+    ).toBeInTheDocument();
+    expect(disque.octets(".cadre/agents/frontend.yaml")).toBeDefined();
+  });
+});
+
 describe("import des skills depuis l'écran principal (US-004)", () => {
   test("test_ac_004_1_sans_fichier_de_contexte_les_skills_sont_proposees_a_l_import", async () => {
     await ouvrir(disqueAvecSkills());
