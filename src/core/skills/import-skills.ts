@@ -27,7 +27,7 @@ export interface SkillFile {
 export interface ImportedSkill {
   /** Lecture de l'en-tête de `SKILL.md` ; une skill en erreur est importée telle quelle (AC-004-3). */
   skill: ListedSkill;
-  /** Dossier d'origine, relatif au projet (ex. `.claude/skills/revue`). */
+  /** Dossier d'origine, relatif au projet (dossier natif des skills de l'outil, voir son adaptateur). */
   source: string;
   /** `SKILL.md` puis les fichiers annexes, sous-dossiers compris, triés par chemin. */
   files: SkillFile[];
