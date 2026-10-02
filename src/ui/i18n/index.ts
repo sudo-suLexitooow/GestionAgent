@@ -1,6 +1,7 @@
 // Libellés de l'interface (Q-22) : clés stables, français d'abord ; l'anglais viendra plus tard.
 
 const RASSURANCE = "Vos fichiers n'ont pas été modifiés.";
+const RIEN_ECRIT = "Rien n'a été écrit.";
 
 const fr = {
   "app.title": "Cadre",
@@ -93,6 +94,32 @@ const fr = {
   "save.error.RECUPERATION_IMPOSSIBLE":
     "Enregistrement impossible : une écriture interrompue n'a pas pu être reprise. Des fichiers du projet peuvent être partiellement modifiés ; les copies d'origine sont dans le dossier indiqué dans le détail, rien n'a été supprimé. Réessayez pour enregistrer.",
   "save.error.ECHEC": `Enregistrement impossible à cause d'une erreur inattendue. ${RASSURANCE}`,
+  "export.title": "Export",
+  /** `{outil}` : nom de l'outil cible. */
+  "export.button": "Exporter vers {outil}",
+  "export.unsaved": "Enregistrez d'abord vos modifications.",
+  "export.done": "Export terminé. Fichiers écrits :",
+  "export.cancelled": `Export annulé : ${RIEN_ECRIT.toLowerCase()}`,
+  "export.detail": "Détail",
+  "export.confirm.title": "Confirmer l'écrasement",
+  "export.confirm.intro": `Ces fichiers existent déjà et n'ont pas été générés par Cadre, ou ont été modifiés depuis le dernier export. ${RIEN_ECRIT} Les écraser ?`,
+  "export.confirm.overwrite": "Écraser ces fichiers",
+  "export.confirm.cancel": "Annuler",
+  "export.error.ECRASEMENT_A_CONFIRMER": `Export annulé : des fichiers existants n'ont pas été générés par Cadre ou ont été modifiés depuis. ${RIEN_ECRIT}`,
+  "export.error.MODELE_NON_MODIFIABLE": `Export impossible : le modèle .cadre/ de ce projet est absent, incomplet ou enregistré par une version plus récente de Cadre. ${RIEN_ECRIT}`,
+  "export.error.MODELE_INVALIDE": `Export impossible : le modèle contient une erreur (agent en erreur ou refusé par l'outil cible). Corrigez-le puis réessayez. ${RIEN_ECRIT}`,
+  "export.error.FICHIER_LIEN": `Export impossible : un fichier à écrire, ou l'un de ses dossiers, est un lien symbolique ou une jonction, que Cadre ne suit pas. ${RIEN_ECRIT}`,
+  "export.error.FICHIER_ILLISIBLE": `Export impossible : un fichier existant à remplacer ne peut pas être lu, Cadre ne peut donc pas vérifier qu'il peut l'écraser. ${RIEN_ECRIT}`,
+  "export.error.MANIFESTE_INVALIDE": `Export impossible : le fichier .cadre/generated.yaml est invalide ; Cadre ne peut pas savoir quels fichiers il a générés. ${RIEN_ECRIT}`,
+  "export.error.LECTURE_SEULE": `Export impossible : le dossier du projet est en lecture seule ou son accès est refusé. ${RIEN_ECRIT}`,
+  "export.error.DISQUE_PLEIN": `Export impossible : le disque est plein. Libérez de l'espace puis réessayez. ${RIEN_ECRIT}`,
+  "export.error.CHEMIN_INVALIDE": `Export impossible : un chemin de fichier est invalide ou passe par un lien symbolique. ${RIEN_ECRIT}`,
+  "export.error.PROJET_OCCUPE": `Le projet est en cours d'enregistrement par une autre fenêtre de Cadre. Réessayez. ${RIEN_ECRIT}`,
+  "export.error.ANNULATION_INCOMPLETE":
+    "L'export a échoué et n'a pas pu être entièrement annulé ; Cadre terminera l'annulation à la prochaine opération.",
+  "export.error.RECUPERATION_IMPOSSIBLE":
+    "Export impossible : une écriture interrompue n'a pas pu être reprise. Des fichiers du projet peuvent être partiellement modifiés ; les copies d'origine sont dans le dossier indiqué dans le détail, rien n'a été supprimé.",
+  "export.error.ECHEC": `Export impossible à cause d'une erreur inattendue. ${RIEN_ECRIT}`,
   "agents.title": "Agents",
   "agents.new": "Nouvel agent",
   "agents.name": "Nom",
