@@ -98,7 +98,12 @@ function Proposal({ propose: { specs, skills }, onAccept, onDecline }: ProposalP
           ))}
         </ul>
       )}
-      {skills > 0 && <p>{`${t("import.skills.detected")} : ${String(skills)}`}</p>}
+      {skills > 0 && (
+        <>
+          <p>{`${t("import.skills.detected")} : ${String(skills)}`}</p>
+          <p>{t("import.skills.copiedAnyway")}</p>
+        </>
+      )}
       <button type="button" onClick={onAccept}>
         {t("contexts.import")}
       </button>

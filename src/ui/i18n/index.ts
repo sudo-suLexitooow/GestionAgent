@@ -40,6 +40,8 @@ const fr = {
   "contexts.unsaved":
     "Non enregistré : ce qui a été importé n'est pas encore écrit dans le dossier .cadre/.",
   "import.skills.detected": "Skills à importer",
+  "import.skills.copiedAnyway":
+    "Les skills seront copiées dans Cadre à la création du modèle, même sans import.",
   "import.skills.imported": "Skills importées",
   "import.skills.failure.link": "lien non pris en charge",
   "import.skills.failure.too-large": "le fichier dépasse la taille maximale de 8 Mio",
