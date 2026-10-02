@@ -150,7 +150,10 @@ function refus(code: CodeErreurExport, detail: string): Refus {
   return { ok: false, erreur: { code, detail } };
 }
 
-/** Agent valide du modèle dont l'outil est la cible ; rôle et description absents = `""`. */
+/**
+ * Agent valide du modèle dont l'outil est la cible ; rôle et description absents = `""` ;
+ * instructions (`agents/<nom>.md`) seulement si le fichier existe.
+ */
 function agentDe(agent: AgentCharge, cible: string): AgentAExporter[] {
   if (agent.statut !== "ok" || agent.donnees.target !== cible) return [];
   const { id, name, role, description } = agent.donnees;
@@ -160,6 +163,7 @@ function agentDe(agent: AgentCharge, cible: string): AgentAExporter[] {
       name: String(name),
       role: typeof role === "string" ? role : "",
       description: typeof description === "string" ? description : "",
+      ...(agent.instructions === null ? {} : { instructions: agent.instructions }),
     },
   ];
 }
