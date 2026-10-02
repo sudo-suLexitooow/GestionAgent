@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { ToolAdapter } from "../adapters/adapter";
+import { claudeCodeAdapter } from "../adapters/claude-code/claude-code-adapter";
 import type { ProjectFiles } from "../project/ports";
 import type { SkillImport } from "../skills/import-skills";
 import { InMemoryProjectFiles } from "../testing/in-memory-project-files";
@@ -101,6 +102,45 @@ describe("proposition d'import des skills de l'outil", () => {
 
     expect(await detecterImport(files, ROOT, adapter)).toEqual({ specs: [], skills: 0 });
     expect(appels).toEqual([]);
+  });
+});
+
+describe("dossier des skills de l'outil en lien ou illisible (détection)", () => {
+  const CLAUDE_MD = { "CLAUDE.md": "# Projet\n" };
+
+  test("test_ac_004_3_dossier_skills_en_lien_les_contextes_restent_proposes", async () => {
+    const files = new InMemoryProjectFiles(ROOT, CLAUDE_MD).addLink(".claude/skills");
+
+    const propose = await detecterImport(files, ROOT, claudeCodeAdapter);
+
+    expect(propose.specs.map((spec) => spec.file)).toEqual(["CLAUDE.md"]);
+    expect(propose.skills).toBe(0);
+  });
+
+  test("test_ac_004_3_dossier_skills_illisible_les_contextes_restent_proposes", async () => {
+    const files = new InMemoryProjectFiles(ROOT, {
+      ...CLAUDE_MD,
+      ".claude/skills/a/SKILL.md": "---\nname: a\ndescription: A.\n---\n",
+    }).makeUnreadable(".claude/skills");
+
+    const propose = await detecterImport(files, ROOT, claudeCodeAdapter);
+
+    expect(propose.specs.map((spec) => spec.file)).toEqual(["CLAUDE.md"]);
+    expect(propose.skills).toBe(0);
+  });
+
+  test("test_ac_004_3_dossier_skills_en_lien_l_import_le_signale_sans_echouer", async () => {
+    const files = new InMemoryProjectFiles(ROOT, CLAUDE_MD).addLink(".claude/skills");
+
+    const resultat = await importerProjet(files, ROOT, claudeCodeAdapter, [
+      { file: "CLAUDE.md", name: "CLAUDE", type: "projet" },
+    ]);
+
+    expect(resultat.contexts.map(({ entry }) => entry.name)).toEqual(["CLAUDE"]);
+    expect(resultat.skills).toEqual({
+      skills: [],
+      failures: [{ folder: "", path: ".claude/skills", code: "link" }],
+    });
   });
 });
 

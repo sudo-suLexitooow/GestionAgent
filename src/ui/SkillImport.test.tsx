@@ -67,6 +67,20 @@ describe("créer le modèle par un agent sans importer (régression US-007)", ()
   });
 });
 
+describe("dossier .claude/skills en lien (écran)", () => {
+  test("test_ac_004_3_dossier_skills_en_lien_les_contextes_restent_proposes_a_l_ecran", async () => {
+    await ouvrir(new DisqueMemoire(ROOT, { "CLAUDE.md": "# Projet\n" }).addLink(".claude/skills"));
+
+    const section = await screen.findByRole("region", { name: "Contextes" });
+    expect(within(section).getByRole("button", { name: "Importer" })).toBeInTheDocument();
+    expect(
+      within(section)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["CLAUDE.md"]);
+  });
+});
+
 describe("import des skills depuis l'écran principal (US-004)", () => {
   test("test_ac_004_1_sans_fichier_de_contexte_les_skills_sont_proposees_a_l_import", async () => {
     await ouvrir(disqueAvecSkills());

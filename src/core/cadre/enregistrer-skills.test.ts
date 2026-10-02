@@ -332,3 +332,49 @@ describe("créer le modèle sans avoir cliqué sur l'import (régression US-007)
     expect(disque.chemins().filter((c) => c.startsWith(".cadre/skills/"))).toEqual([]);
   });
 });
+
+describe("dossier des skills de l'outil en lien ou illisible", () => {
+  function enregistrerAgent(disque: DisqueMemoire) {
+    const creation = creerAgent(
+      { nom: "frontend", role: "Front", description: "Écrans.", cible: "claude-code" },
+      { nomsExistants: [], cibles: ["claude-code"] },
+    );
+    if (!creation.ok) throw new Error(creation.refus);
+    return enregistrerCadrage(
+      { fichiers: disque, systeme: disque },
+      RACINE,
+      { contextes: [], agents: [creation.agent] },
+      OPTIONS,
+    );
+  }
+
+  test("test_ac_004_3_dossier_skills_en_lien_n_empeche_pas_de_creer_le_modele", async () => {
+    const disque = new DisqueMemoire(RACINE, {}).addLink(".claude/skills");
+
+    expect(await enregistrerAgent(disque)).toEqual({
+      ok: true,
+      skillsNonImportees: [{ folder: "", path: ".claude/skills", code: "link" }],
+    });
+    expect(disque.octets(".cadre/agents/frontend.yaml")).toBeDefined();
+  });
+
+  test("test_ac_004_3_dossier_claude_en_lien_n_empeche_pas_de_creer_le_modele", async () => {
+    const disque = new DisqueMemoire(RACINE, {}).addLink(".claude");
+
+    expect(await enregistrerAgent(disque)).toEqual({
+      ok: true,
+      skillsNonImportees: [{ folder: "", path: ".claude/skills", code: "link" }],
+    });
+    expect(disque.octets(".cadre/agents/frontend.yaml")).toBeDefined();
+  });
+
+  test("test_ac_004_3_dossier_skills_illisible_n_empeche_pas_de_creer_le_modele", async () => {
+    const disque = new DisqueMemoire(RACINE, SKILLS).makeUnreadable(".claude/skills");
+
+    expect(await enregistrerAgent(disque)).toEqual({
+      ok: true,
+      skillsNonImportees: [{ folder: "", path: ".claude/skills", code: "unreadable" }],
+    });
+    expect(disque.octets(".cadre/agents/frontend.yaml")).toBeDefined();
+  });
+});
