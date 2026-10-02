@@ -87,7 +87,7 @@ const fr = {
   "save.error.MODELE_NON_MODIFIABLE": `Enregistrement annulé : le modèle .cadre/ de ce projet est incomplet ou a été enregistré par une version plus récente de Cadre ; Cadre ne le modifie pas. ${RASSURANCE}`,
   /** `{nom}` : nom de l'agent non enregistré en conflit. */
   "save.error.AGENT_EXISTANT":
-    'Un agent "{nom}" existe déjà sur le disque : retirez l\'agent non enregistré ou recréez-le sous un autre nom.',
+    "Un agent \"{nom}\" existe déjà sur le disque : retirez l'agent non enregistré ou recréez-le sous un autre nom. Rien n'a été enregistré.",
   "save.error.LECTURE_SEULE": `Enregistrement impossible : le dossier du projet est en lecture seule ou son accès est refusé. ${RASSURANCE}`,
   "save.error.DISQUE_PLEIN": `Enregistrement impossible : le disque est plein. Libérez de l'espace puis réessayez. ${RASSURANCE}`,
   "save.error.CHEMIN_INVALIDE": `Enregistrement impossible : un chemin de fichier est invalide ou passe par un lien symbolique (par exemple un .gitignore lié à un autre fichier). ${RASSURANCE}`,
