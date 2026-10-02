@@ -19,6 +19,8 @@ const fr = {
     "Une écriture interrompue n'a pas pu être reprise : des fichiers du projet peuvent être partiellement modifiés. Les copies d'origine sont dans le dossier indiqué, rien n'a été supprimé.",
   "openWarning.generic":
     "Une écriture interrompue n'a pas pu être reprise à l'ouverture du projet.",
+  "openWarning.invalidPath":
+    "Un chemin du dossier .cadre/ est un lien symbolique, une jonction ou n'est pas un vrai dossier : Cadre ne le suit pas, n'y écrit rien et n'y reprend aucune écriture interrompue.",
   "openWarning.detail": "Détail",
   "error.unexpected": "Le dossier n'a pas pu être ouvert. Réessayez.",
   "contexts.title": "Contextes",
@@ -58,6 +60,9 @@ const fr = {
   "model.failed": "Le modèle .cadre/ n'a pas pu être lu.",
   "model.failedLink":
     "Le modèle .cadre/ n'a pas pu être lu : un de ses chemins est un lien symbolique ou une jonction, que Cadre ne suit pas.",
+  /** `{chemin}` : dossier lié, p. ex. `.cadre` (US-079). */
+  "model.linkedFolder":
+    "Le dossier {chemin} est un lien symbolique ou une jonction, non pris en charge : Cadre ne le suit pas et n'y écrit rien.",
   "model.incomplete": "Modèle incomplet",
   "model.repair":
     "Réparation proposée : recréer .cadre/cadre.yaml à partir du contenu de .cadre/. Rien n'a été écrit et rien ne le sera sans votre accord.",

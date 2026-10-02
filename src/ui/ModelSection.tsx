@@ -6,6 +6,7 @@ import {
   type ErreurFichierModele,
 } from "../core/cadre/charger-modele";
 import type { ContextType } from "../core/contexts/context";
+import { DossierLieError } from "../core/project/dossier-lie";
 import { readFailureReason, type ProjectFiles } from "../core/project/ports";
 import { t } from "./i18n";
 
@@ -22,9 +23,12 @@ export interface ModelSectionProps {
  * seule : rien n'est écrit.
  */
 export function ModelSection({ root, files, onLoaded }: ModelSectionProps) {
-  /** `null` : chargement en cours ; `echec` : un dossier du modèle n'a pas pu être lu. */
+  /**
+   * `null` : chargement en cours ; `echec` : un dossier du modèle n'a pas pu être lu (`dossierLie` :
+   * ce dossier, p. ex. `.cadre`, est lui-même un lien, US-079).
+   */
   const [chargement, setChargement] = useState<
-    ChargementModele | { etat: "echec"; lien: boolean } | null
+    ChargementModele | { etat: "echec"; lien: boolean; dossierLie?: string } | null
   >(null);
 
   useEffect(() => {
@@ -36,7 +40,13 @@ export function ModelSection({ root, files, onLoaded }: ModelSectionProps) {
         onLoaded?.(resultat);
       },
       (erreur: unknown) => {
-        if (current) setChargement({ etat: "echec", lien: readFailureReason(erreur) === "link" });
+        if (!current) return;
+        const lien = readFailureReason(erreur) === "link";
+        setChargement(
+          erreur instanceof DossierLieError
+            ? { etat: "echec", lien, dossierLie: erreur.chemin }
+            : { etat: "echec", lien },
+        );
       },
     );
     return () => {
@@ -45,6 +55,13 @@ export function ModelSection({ root, files, onLoaded }: ModelSectionProps) {
   }, [files, root, onLoaded]);
 
   if (chargement === null || chargement.etat === "aucun") return null;
+  if (chargement.etat === "echec" && chargement.dossierLie !== undefined) {
+    return (
+      <Banner role="alert">
+        {t("model.linkedFolder").replace("{chemin}", chargement.dossierLie)}
+      </Banner>
+    );
+  }
   if (chargement.etat === "echec") {
     return <Banner role="alert">{t(chargement.lien ? "model.failedLink" : "model.failed")}</Banner>;
   }
