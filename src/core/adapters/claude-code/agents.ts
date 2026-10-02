@@ -34,8 +34,10 @@ function fichierSousAgent(agent: AgentAExporter): FichierExporte {
   return {
     chemin: `.claude/agents/${agent.name}.md`,
     source: `agent:${agent.id}`,
-    // Une chaîne JSON est une chaîne YAML entre guillemets doubles valide (YAML 1.2).
-    contenu: `---\nname: ${agent.name}\ndescription: ${JSON.stringify(description)}\n---\n${corps(agent)}`,
+    // Une chaîne JSON est une chaîne YAML entre guillemets doubles valide (YAML 1.2) ; `name`
+    // aussi est entre guillemets : `true`, `null` ou `123` resteraient sinon un booléen, null ou
+    // un nombre.
+    contenu: `---\nname: ${JSON.stringify(agent.name)}\ndescription: ${JSON.stringify(description)}\n---\n${corps(agent)}`,
   };
 }
 
