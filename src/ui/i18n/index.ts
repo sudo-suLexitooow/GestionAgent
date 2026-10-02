@@ -46,6 +46,7 @@ const fr = {
   "import.skills.failure.unreadable": "ne peut pas être lu",
   "import.skills.failure.non-portable":
     "nom non portable (caractère interdit, point ou espace final, nom réservé Windows ou plus de 255 octets)",
+  "import.skills.noneImported": "aucune skill n'est importée.",
   "import.skills.notImported": "la skill {nom} n'est pas importée.",
   "model.title": "Modèle",
   "model.readOnly":

@@ -6,7 +6,9 @@ export function SkillFailures({ failures }: { failures: readonly SkillImportFail
   return failures.map((failure) => (
     <p key={failure.folder} role="alert">
       {failure.path} : {t(`import.skills.failure.${failure.code}`)} ;{" "}
-      {t("import.skills.notImported").replace("{nom}", failure.folder)}
+      {failure.folder === ""
+        ? t("import.skills.noneImported")
+        : t("import.skills.notImported").replace("{nom}", failure.folder)}
     </p>
   ));
 }
