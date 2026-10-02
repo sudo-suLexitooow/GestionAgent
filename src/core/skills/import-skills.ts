@@ -4,8 +4,11 @@
 // Limites (documentées, US-004) :
 // - une skill est copiée entière ou pas du tout : un lien ou une jonction (fichier, sous-dossier ou
 //   dossier de la skill, jamais suivi, US-076), un fichier spécial, illisible ou de plus de 8 Mio
-//   (borne du port `ProjectFiles`), ou un nom non portable (R1, ADR-001) la rend « non importée »,
-//   avec le chemin fautif ;
+//   (borne du port `ProjectFiles`), ou un nom non portable (R1, ADR-001, y compris deux noms
+//   identiques après repli de casse et NFC) la rend « non importée », avec le chemin fautif ;
+// - le dossier des skills lui-même lié ou illisible : signalé (`folder` vide), aucune skill importée ;
+// - un nom de fichier non UTF-8 sous Linux est ignoré par `Projet::lister` (Rust) : ce fichier
+//   n'est ni listé, ni copié, ni signalé ; la skill est importée sans lui ;
 // - aucune borne sur le total : tout l'import est tenu en mémoire puis écrit en une transaction
 //   (octets transmis en liste JSON à la commande d'écriture) ; un import de plusieurs centaines de
 //   Mio est lent et gourmand en mémoire, sans risque de perte (tout ou rien).
