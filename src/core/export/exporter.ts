@@ -50,8 +50,11 @@ export interface ConfirmationEcrasement {
 
 /**
  * Empreinte actuelle de chaque fichier à confirmer, lue au moment d'afficher la confirmation :
- * la confirmation ne vaudra que pour ce contenu. Un fichier absent, illisible ou lié est omis
- * (l'export le signalera à nouveau). Ne rejette jamais.
+ * la confirmation ne vaudra que pour ce contenu (AC-008-4). Si le fichier change entre le refus
+ * du cœur et cette lecture, c'est le contenu présent à l'affichage qui est confirmé ; s'il change
+ * après, l'export suivant redemande la confirmation. Un fichier absent, illisible ou lié est omis :
+ * il ne peut donc jamais être confirmé, et l'export le signalera à nouveau (un lien reste refusé
+ * même confirmé). Ne rejette jamais.
  */
 export async function empreintesActuelles(
   fichiers: ProjectFiles,
